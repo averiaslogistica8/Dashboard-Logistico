@@ -356,9 +356,43 @@ tbody tr:hover td{background:var(--surface2);}
   .cstat:nth-child(1),.cstat:nth-child(2){border-bottom:1px solid var(--border);}
   .agrid{grid-template-columns:1fr 1fr;}
 }
+
+/* ══ SPLASH SCREEN ══ */
+#splash-screen{
+  position:fixed;inset:0;
+  background:linear-gradient(rgba(3,10,30,.85),rgba(3,10,30,.9)),
+    url('fondo.jpg') center/cover no-repeat;
+  display:flex;justify-content:center;align-items:center;
+  z-index:99999;transition:opacity .5s ease;
+}
+.splash-content{text-align:center;animation:splashFadeIn .9s ease;}
+.splash-logo{width:200px;margin-bottom:32px;filter:drop-shadow(0 0 24px rgba(255,255,255,.18));}
+.splash-title{font-size:48px;font-weight:800;color:#fff;letter-spacing:-.03em;line-height:1.15;margin-bottom:10px;}
+.splash-title span{color:#3b82f6;}
+.splash-sub{color:#94a3b8;font-size:17px;margin-bottom:38px;font-weight:400;}
+.splash-btn{
+  background:linear-gradient(135deg,#2563eb,#1d4ed8);
+  border:none;color:#fff;padding:16px 48px;border-radius:14px;
+  font-size:17px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;
+  transition:all .25s ease;box-shadow:0 10px 30px rgba(37,99,235,.4);
+  letter-spacing:.02em;
+}
+.splash-btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 16px 40px rgba(37,99,235,.5);}
+@keyframes splashFadeIn{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:translateY(0);}}
 </style>
 </head>
 <body>
+
+<!-- ══ SPLASH SCREEN ══ -->
+<div id="splash-screen">
+  <div class="splash-content">
+    <img src="logo.png" class="splash-logo" alt="Logo Maipú">
+    <div class="splash-title">Ingresando a<br><span>Dashboard Logístico</span></div>
+    <div class="splash-sub">Preparando información operativa...</div>
+    <button class="splash-btn" onclick="entrarDashboard()">INGRESAR</button>
+  </div>
+</div>
+
 
 <!-- ══ SIDEBAR ══ -->
 <aside class="sidebar">
@@ -482,7 +516,7 @@ tbody tr:hover td{background:var(--surface2);}
   <!-- TOP HEADER -->
   <header class="top-header">
     <div class="hdr-title">
-      <span class="hdr-main">MOVIMIENTO 0KM</span>
+      <span class="hdr-main">PREENTREGA 0KM</span>
       <span class="hdr-divider">|</span>
       <span class="hdr-sub" id="hdr-sub">Dashboard Averías</span>
     </div>
@@ -1739,6 +1773,13 @@ window.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => loadSheet('ali'), 600);
   setTimeout(() => loadSheet('mov'), 1200);
 });
+
+// ══ SPLASH ══
+function entrarDashboard(){
+  const s=document.getElementById('splash-screen');
+  s.style.opacity='0';
+  setTimeout(()=>s.style.display='none',500);
+}
 
 </script>
 </body>
