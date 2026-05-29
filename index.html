@@ -363,7 +363,7 @@ tbody tr:hover td{background:var(--surface2);}
 <!-- ══ SIDEBAR ══ -->
 <aside class="sidebar">
   <div class="sb-logo">
-    <div class="sb-logo-icon">M0</div>
+    <img src="logo.png" alt="Logo" style="width:36px;height:36px;border-radius:8px;object-fit:contain;flex-shrink:0;background:#fff;padding:2px;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="sb-logo-icon" style="display:none">M0</div>
     <div><div class="sb-logo-text">Movimiento 0km</div><div class="sb-logo-sub">Dashboard Operativo</div></div>
   </div>
   <nav class="sb-nav">
@@ -463,19 +463,16 @@ tbody tr:hover td{background:var(--surface2);}
       <div class="sb-filter-item"><span>Marca</span><span class="sb-filter-val" id="sb-marca">Todas</span></div>
     </div>
     <div class="sb-upload-area" id="sb-upload-avr">
-      <label class="sb-upload-btn" for="avr-fi">⬆ Cargar Averías</label>
-      <input type="file" id="avr-fi" accept=".csv,.xlsx,.xls" style="display:none">
-      <div class="sb-file-info"><div class="sb-file-dot" id="fd-avr"></div><div class="sb-file-name" id="fn-avr">Sin archivo</div></div>
+      <button class="sb-upload-btn" onclick="loadSheet('avr')" id="btn-avr">↻ Actualizar Averías</button>
+      <div class="sb-file-info"><div class="sb-file-dot" id="fd-avr"></div><div class="sb-file-name" id="fn-avr">Esperando...</div></div>
     </div>
     <div class="sb-upload-area" id="sb-upload-ali" style="display:none">
-      <label class="sb-upload-btn grn" for="ali-fi">⬆ Cargar Alistaje</label>
-      <input type="file" id="ali-fi" accept=".csv,.xlsx,.xls" style="display:none">
-      <div class="sb-file-info"><div class="sb-file-dot" id="fd-ali"></div><div class="sb-file-name" id="fn-ali">Sin archivo</div></div>
+      <button class="sb-upload-btn grn" onclick="loadSheet('ali')" id="btn-ali">↻ Actualizar Alistaje</button>
+      <div class="sb-file-info"><div class="sb-file-dot" id="fd-ali"></div><div class="sb-file-name" id="fn-ali">Esperando...</div></div>
     </div>
     <div class="sb-upload-area" id="sb-upload-mov" style="display:none">
-      <label class="sb-upload-btn" style="background:#7c3aed" for="mov-fi">⬆ Cargar Movimientos</label>
-      <input type="file" id="mov-fi" accept=".csv,.xlsx,.xls" style="display:none">
-      <div class="sb-file-info"><div class="sb-file-dot" id="fd-mov"></div><div class="sb-file-name" id="fn-mov">Sin archivo</div></div>
+      <button class="sb-upload-btn" style="background:#7c3aed" onclick="loadSheet('mov')" id="btn-mov">↻ Actualizar Movimientos</button>
+      <div class="sb-file-info"><div class="sb-file-dot" id="fd-mov"></div><div class="sb-file-name" id="fn-mov">Esperando...</div></div>
     </div>
   </div>
 </aside>
@@ -520,7 +517,7 @@ tbody tr:hover td{background:var(--surface2);}
       <div class="empty-st" id="avr-empty">
         <div class="ei">🔧</div>
         <div class="et">Sin datos cargados</div>
-        <div class="es">Cargá el reporte de averías desde el panel lateral izquierdo para visualizar los indicadores.</div>
+        <div class="es">Los datos se cargan automáticamente desde Google Sheets al abrir el dashboard.</div>
       </div>
 
       <div id="avr-dash" style="display:none">
@@ -635,7 +632,7 @@ tbody tr:hover td{background:var(--surface2);}
       <div class="empty-st" id="ali-empty">
         <div class="ei">🚗</div>
         <div class="et">Sin datos cargados</div>
-        <div class="es">Cargá el reporte de alistaje desde el panel lateral izquierdo para visualizar los indicadores.</div>
+        <div class="es">Los datos se cargan automáticamente desde Google Sheets al abrir el dashboard.</div>
       </div>
 
       <div id="ali-dash" style="display:none">
@@ -836,6 +833,16 @@ tbody tr:hover td{background:var(--surface2);}
 </div>
 
 <script>
+// ── HIDDEN INPUTS (para compatibilidad con código existente) ──
+// Se crean dinámicamente para que getElementById no rompa
+(function(){
+  ['avr-fi','ali-fi','mov-fi'].forEach(id=>{
+    const inp=document.createElement('input');
+    inp.type='file';inp.id=id;inp.style.display='none';
+    document.body.appendChild(inp);
+  });
+})();
+
 // ══ GLOBAL ══
 const COLORS=['#2563eb','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16'];
 let AC={};
@@ -1403,7 +1410,7 @@ function aliClosePanel(){document.getElementById('ali-dpanel').classList.remove(
     <div class="empty-st" id="mov-empty">
       <div class="ei">📦</div>
       <div class="et">Sin datos cargados</div>
-      <div class="es">Cargá el reporte de movimientos desde el panel lateral izquierdo para visualizar los indicadores.</div>
+      <div class="es">Los datos se cargan automáticamente desde Google Sheets al abrir el dashboard.</div>
     </div>
     <div id="mov-dash" style="display:none">
       <div class="stitle"><span class="sdot" style="background:var(--purple)"></span>Indicadores <em>Vista general</em></div>
@@ -1659,6 +1666,80 @@ function movOpenPanel(id){
   document.getElementById('mov-dpanel').classList.add('open');document.getElementById('mov-overlay').classList.add('show');
 }
 function movClosePanel(){document.getElementById('mov-dpanel').classList.remove('open');document.getElementById('mov-overlay').classList.remove('show');}
+
+// ══════════════════════════════════════════════════════════════
+// AUTO-LOAD DESDE GOOGLE SHEETS
+// ══════════════════════════════════════════════════════════════
+const GS_URLS = {
+  avr: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRajCdRSVbHrwPCJEc8r_HP2tXw93X-2yHNpWHykbkoDwsaRh1GLilPK_3uB6YqOyArCpScOkpNkePx/pub?output=csv',
+  ali: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4SHTzQiqQOjLYcGErelIRGlnml9cPzgoXi5M0LAdmmqGLgk8kxMG1_SlC7DdBBt_f6bJkyPkPC9wX/pub?output=csv&gid=127628867',
+  mov: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtC2eRdTMsJV50O6rDDEB4Pdn8NZPJSWvJIYGSnRh9Luu5FNxK5e0aQIfvltTUpy0_in80shzsSUdm/pub?output=csv&gid=1181695820'
+};
+
+function gsSetStatus(key, state, msg) {
+  const dot = document.getElementById('fd-' + key);
+  const lbl = document.getElementById('fn-' + key);
+  const btn = document.getElementById('btn-' + key);
+  if (lbl) lbl.textContent = msg;
+  if (dot) {
+    dot.className = 'sb-file-dot' + (state === 'ok' ? ' on' : '');
+    dot.style.background = state === 'ok' ? 'var(--green)' : state === 'err' ? 'var(--red)' : state === 'loading' ? 'var(--orange)' : 'var(--sb-txt)';
+  }
+  if (btn) btn.disabled = (state === 'loading');
+}
+
+function detectDelim(txt) {
+  const first = txt.split('\n')[0];
+  return (first.match(/;/g) || []).length >= (first.match(/,/g) || []).length ? ';' : ',';
+}
+
+function fmtNow() {
+  return new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+}
+
+async function loadSheet(key) {
+  const url = GS_URLS[key];
+  gsSetStatus(key, 'loading', 'Cargando...');
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    if (!text || text.trim().length < 10) throw new Error('Sin datos');
+    const delim = detectDelim(text);
+    const parsed = Papa.parse(text, {
+      header: true,
+      delimiter: delim,
+      skipEmptyLines: true,
+      transformHeader: h => h.trim()
+    });
+    if (!parsed.data || parsed.data.length === 0) throw new Error('Archivo vacío');
+
+    if (key === 'avr') {
+      avrRaw = parsed.data;
+      avrInit();
+      avrRecalc();
+    } else if (key === 'ali') {
+      aliProcess(parsed.data);
+    } else if (key === 'mov') {
+      movProcess(parsed.data);
+    }
+
+    gsSetStatus(key, 'ok', 'Actualizado ' + fmtNow());
+    document.getElementById('hdr-update').textContent = 'Actualizado: ' + fmtNow();
+  } catch (err) {
+    gsSetStatus(key, 'err', 'Error: ' + err.message);
+    console.error('[loadSheet ' + key + ']', err);
+  }
+}
+
+// Carga automática al abrir la página
+window.addEventListener('DOMContentLoaded', () => {
+  // Pequeño delay escalonado para no saturar
+  loadSheet('avr');
+  setTimeout(() => loadSheet('ali'), 600);
+  setTimeout(() => loadSheet('mov'), 1200);
+});
+
 </script>
 </body>
 </html>
