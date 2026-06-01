@@ -1715,7 +1715,14 @@ function movUpdateRankings(){
   const elPredio=document.getElementById('mov-top-predio');
   if(elPredio){
     if(!predioList){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargá primero la base de Alistaje</div>';return;}
-    const top10=predioList.slice(0,10);
+    const _marca=(document.getElementById('mov-sel-marca')?.value||'').toUpperCase();
+    const _tipo=movFilterTipo;
+    const filteredPredio=predioList.filter(u=>{
+      if(_marca&&u.marca!==_marca)return false;
+      if(_tipo==='usado')return false; // alistaje es 0km
+      return true;
+    });
+    const top10=filteredPredio.slice(0,10);
     const maxDias=top10.length?top10[0].dias:1;
     elPredio.innerHTML=top10.length?top10.map((u,i)=>{
       const pct=Math.round(u.dias/maxDias*100);
