@@ -1584,6 +1584,8 @@ function movProcess(data){
   movAllRows=data.map(r=>{const o={};Object.keys(r).forEach(k=>o[k.trim()]=(r[k]||'').toString().trim());return o;});
   const keys=Object.keys(movAllRows[0]||{});
   const cols={marca:keys[0],interno:keys[1],dominio:keys[2],modelo:keys[3],color:keys[4],situacion:keys[5],fechaCarga:keys[6],solicitante:keys[7],fechaPedido:keys[8],motivo:keys[9],ubOrigen:keys[10],ubDestino:keys[11],estado:keys[15]||keys.find(k=>k.toLowerCase().includes('estado'))||''};
+  // Busca la columna "Ubicacion" por nombre exacto (independiente de posición)
+  cols.ubicacion = keys.find(k=>k.trim().toLowerCase()==='ubicacion') || keys[10];
   window._movCols=cols;
   movSynRows=movBuildSynRows(movAllRows,cols);
   // ── Build predio list desde base Movimientos ──
@@ -1597,11 +1599,11 @@ function movProcess(data){
     movAllRows.forEach(r=>{
       const key=r[cols.interno];if(!key)return;
       const mot=(r[cols.motivo]||'').toUpperCase().trim();
-      const ubOri=(r[cols.ubOrigen]||'').toUpperCase().trim();
+      const ubOri=(r[cols.ubicacion]||'').toUpperCase().trim();
       const fecha=movParseDate(r[cols.fechaPedido]);
       if(!map[key])map[key]={id:key,marca:r[cols.marca],modelo:r[cols.modelo],ultArribo:null,entregado:false};
       if(mot==='ARRIBO DE UNIDAD'&&fecha){if(!map[key].ultArribo||fecha>map[key].ultArribo)map[key].ultArribo=fecha;}
-      if(ubOri===ENTREGADO)map[key].entregado=true;
+      if(ubOri.includes('UNIDAD ENTREGADA'))map[key].entregado=true;
     });
     return Object.values(map)
       .filter(u=>u.ultArribo&&!u.entregado)
