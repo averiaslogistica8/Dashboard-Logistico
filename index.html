@@ -1652,13 +1652,13 @@ function movApplyDateFilter(){
   const chip=document.getElementById('mov-date-chip');chip.style.display='inline-flex';
   const[y,m,d]=movSelDate.split('-');ST('mov-date-chip-val',`📅 ${d}/${m}/${y}`);
   movUpdateKPIs(movGetFiltered());movUpdateCharts(movGetFiltered({exDate:true}));
-  movGrouped=movRegroup(movGetFiltered());movFiltered=[...movGrouped];movSortTable(movSortKey,true);
+  movGrouped=movRegroup(movGetFiltered());movFiltered=[...movGrouped];movSortTable(movSortKey,true);movUpdateRankings();
 }
 function movClearDateSelection(){movSelDate=null;document.getElementById('mov-date-chip').style.display='none';movApplyFilters();}
 function movApplyMotivoFilter(){
   const chip=document.getElementById('mov-motivo-chip');chip.style.display='inline-flex';ST('mov-motivo-chip-val',`🔹 ${movSelMotivo}`);
   movUpdateKPIs(movGetFiltered());movUpdateCharts(movGetFiltered({exMotivo:true}));
-  movGrouped=movRegroup(movGetFiltered());movFiltered=[...movGrouped];movSortTable(movSortKey,true);
+  movGrouped=movRegroup(movGetFiltered());movFiltered=[...movGrouped];movSortTable(movSortKey,true);movUpdateRankings();
 }
 function movClearMotivoSelection(){movSelMotivo=null;document.getElementById('mov-motivo-chip').style.display='none';movApplyFilters();}
 
