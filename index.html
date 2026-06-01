@@ -1586,9 +1586,27 @@ function movProcess(data){
   const cols={marca:keys[0],interno:keys[1],dominio:keys[2],modelo:keys[3],color:keys[4],situacion:keys[5],fechaCarga:keys[6],solicitante:keys[7],fechaPedido:keys[8],motivo:keys[9],ubOrigen:keys[10],ubDestino:keys[11],estado:keys[15]||keys.find(k=>k.toLowerCase().includes('estado'))||''};
   window._movCols=cols;
   movSynRows=movBuildSynRows(movAllRows,cols);
-  // Build global arribo map (sin filtro de fecha)
-  window._movArriboMap={};
-  movAllRows.forEach(r=>{if((r[cols.motivo]||'').toUpperCase().trim()==='ARRIBO DE UNIDAD'){const key=r[cols.interno]||r[cols.dominio];if(key&&!window._movArriboMap[key])window._movArriboMap[key]=movParseDate(r[cols.fechaPedido]);}});
+  // ── Build predio list desde base Movimientos ──
+  // Arribo = motivo "ARRIBO DE UNIDAD" → fecha de estado = entrada al predio
+  // Entrega = motivo "ENTREGA CON UNIDAD FACTURADA" → ya no está en el predio
+  // Si el último arribo es más reciente que la última entrega → sigue en predio
+  window._movPredioList=(()=>{
+    const today=new Date();today.setHours(0,0,0,0);
+    const map={};
+    movAllRows.forEach(r=>{
+      const key=r[cols.interno];if(!key)return;
+      const mot=(r[cols.motivo]||'').toUpperCase().trim();
+      const fecha=movParseDate(r[cols.fechaPedido]);if(!fecha)return;
+      if(!map[key])map[key]={id:key,marca:r[cols.marca],modelo:r[cols.modelo],ultArribo:null,ultEntrega:null};
+      if(mot==='ARRIBO DE UNIDAD'){if(!map[key].ultArribo||fecha>map[key].ultArribo)map[key].ultArribo=fecha;}
+      if(mot==='ENTREGA CON UNIDAD FACTURADA'){if(!map[key].ultEntrega||fecha>map[key].ultEntrega)map[key].ultEntrega=fecha;}
+    });
+    return Object.values(map)
+      .filter(u=>u.ultArribo&&(!u.ultEntrega||u.ultArribo>u.ultEntrega))
+      .map(u=>({...u,dias:Math.floor((today-u.ultArribo)/86400000),arriboFmt:movFmtDate(u.ultArribo)}))
+      .filter(u=>u.dias>=0)
+      .sort((a,b)=>b.dias-a.dias);
+  })();
   const motivos=[...new Set(movSynRows.map(r=>r[cols.motivo]).filter(Boolean))].sort();
   const estados=[...new Set(movSynRows.map(r=>r[cols.estado]).filter(Boolean).filter(e=>e!=='Sintético'))].sort();
   const marcas=[...new Set(movSynRows.map(r=>r[cols.marca]).filter(Boolean))].sort();
@@ -1710,16 +1728,16 @@ function movUpdateRankings(){
   const maxMov=top10mov.length?top10mov[0].movimientos:1;
   const elMov=document.getElementById('mov-top-movimientos');
   if(elMov){elMov.innerHTML=top10mov.length?top10mov.map((u,i)=>{const pct=Math.round(u.movimientos/maxMov*100);return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px"><span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px" title="${u.id}">${medals[i]} ${u.id} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${u.marca||''}</span></span><span style="font-size:13px;font-weight:800;color:var(--purple);white-space:nowrap;margin-left:6px">${u.movimientos}</span></div><div style="background:var(--border);border-radius:3px;height:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--purple);border-radius:3px;transition:width .4s"></div></div></div>`; }).join(''):'<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Sin datos</div>';}
-  // Top 10 por tiempo en predio (fuente: base Alistaje)
-  const predioList=window._aliPredioList||null;
+  // Top 10 por tiempo en predio (fuente: base Movimientos)
+  const predioList=window._movPredioList||null;
   const elPredio=document.getElementById('mov-top-predio');
   if(elPredio){
-    if(!predioList){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargá primero la base de Alistaje</div>';return;}
+    if(!predioList){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargando...</div>';return;}
     const _marca=(document.getElementById('mov-sel-marca')?.value||'').toUpperCase();
     const _tipo=movFilterTipo;
     const filteredPredio=predioList.filter(u=>{
-      if(_marca&&u.marca!==_marca)return false;
-      if(_tipo==='usado')return false; // alistaje es 0km
+      if(_marca&&(u.marca||'').toUpperCase()!==_marca)return false;
+      if(_tipo==='usado')return false;
       return true;
     });
     const top10=filteredPredio.slice(0,10);
