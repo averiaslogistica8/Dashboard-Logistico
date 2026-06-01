@@ -1587,22 +1587,24 @@ function movProcess(data){
   window._movCols=cols;
   movSynRows=movBuildSynRows(movAllRows,cols);
   // ── Build predio list desde base Movimientos ──
-  // Arribo = motivo "ARRIBO DE UNIDAD" → fecha de estado = entrada al predio
-  // Entrega = motivo "ENTREGA CON UNIDAD FACTURADA" → ya no está en el predio
-  // Si el último arribo es más reciente que la última entrega → sigue en predio
+  // 3 columnas:
+  //   "Motivo de cambio de ubicacion" = ARRIBO DE UNIDAD  → fecha de estado = fecha arribo
+  //   "Ubicacion" (origen o destino)  = UNIDAD ENTREGADA !!!!  → auto fuera del predio
   window._movPredioList=(()=>{
     const today=new Date();today.setHours(0,0,0,0);
+    const ENTREGADO='UNIDAD ENTREGADA !!!!';
     const map={};
     movAllRows.forEach(r=>{
       const key=r[cols.interno];if(!key)return;
       const mot=(r[cols.motivo]||'').toUpperCase().trim();
-      const fecha=movParseDate(r[cols.fechaPedido]);if(!fecha)return;
-      if(!map[key])map[key]={id:key,marca:r[cols.marca],modelo:r[cols.modelo],ultArribo:null,ultEntrega:null};
-      if(mot==='ARRIBO DE UNIDAD'){if(!map[key].ultArribo||fecha>map[key].ultArribo)map[key].ultArribo=fecha;}
-      if(mot==='ENTREGA CON UNIDAD FACTURADA'){if(!map[key].ultEntrega||fecha>map[key].ultEntrega)map[key].ultEntrega=fecha;}
+      const ubOri=(r[cols.ubOrigen]||'').toUpperCase().trim();
+      const fecha=movParseDate(r[cols.fechaPedido]);
+      if(!map[key])map[key]={id:key,marca:r[cols.marca],modelo:r[cols.modelo],ultArribo:null,entregado:false};
+      if(mot==='ARRIBO DE UNIDAD'&&fecha){if(!map[key].ultArribo||fecha>map[key].ultArribo)map[key].ultArribo=fecha;}
+      if(ubOri===ENTREGADO)map[key].entregado=true;
     });
     return Object.values(map)
-      .filter(u=>u.ultArribo&&(!u.ultEntrega||u.ultArribo>u.ultEntrega))
+      .filter(u=>u.ultArribo&&!u.entregado)
       .map(u=>({...u,dias:Math.floor((today-u.ultArribo)/86400000),arriboFmt:movFmtDate(u.ultArribo)}))
       .filter(u=>u.dias>=0)
       .sort((a,b)=>b.dias-a.dias);
