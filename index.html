@@ -1584,7 +1584,9 @@ function movProcess(data){
   movAllRows=data.map(r=>{const o={};Object.keys(r).forEach(k=>o[k.trim()]=(r[k]||'').toString().trim());return o;});
   const keys=Object.keys(movAllRows[0]||{});
   const cols={marca:keys[0],interno:keys[1],dominio:keys[2],modelo:keys[3],color:keys[4],situacion:keys[5],fechaCarga:keys[6],solicitante:keys[7],fechaPedido:keys[8],motivo:keys[9],ubOrigen:keys[10],ubDestino:keys[11],estado:keys[15]||keys.find(k=>k.toLowerCase().includes('estado'))||''};
-  // Busca la columna "Ubicacion" por nombre exacto (independiente de posición)
+  // Busca columnas clave por nombre (independiente de posición)
+  cols.motivo = keys.find(k=>k.toLowerCase().includes('motivo')) || keys[9];
+  cols.fechaPedido = keys.find(k=>k.toLowerCase().includes('fecha de estado')||k.toLowerCase().includes('fecha estado')) || keys[8];
   cols.ubicacion = keys.find(k=>k.trim().toLowerCase()==='ubicacion') || keys[10];
   window._movCols=cols;
   movSynRows=movBuildSynRows(movAllRows,cols);
