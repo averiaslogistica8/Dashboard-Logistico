@@ -1596,7 +1596,7 @@ function movProcess(data){
     const today=new Date();today.setHours(0,0,0,0);
     const ENTREGADO='UNIDAD ENTREGADA !!!!';
     const map={};
-    const SALIDA=['ENTREGA CON UNIDAD FACTURADA','ENTREGA USADOS','TRASLADO','USADO VENDIDO A REVENTA','USADO VENDIDO SIN FACTURAR','VENDIDO A REVENTA','VENDIDO SIN FACTURA'];
+    const SALIDA=['ENTREGA CON UNIDAD FACTURADA','ENTREGA USADOS','TRASLADO','USADO VENDIDO A REVENTA','USADO VENDIDO SIN FACTURAR','VENDIDO A REVENTA','VENDIDO SIN FACTURA','EXHIBICION'];
     movAllRows.forEach(r=>{
       const key=r[cols.interno];if(!key)return;
       const mot=(r[cols.motivo]||'').toUpperCase().trim();
