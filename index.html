@@ -1749,20 +1749,32 @@ function movUpdateRankings(){
   const elPredio=document.getElementById('mov-top-predio');
   if(elPredio){
     if(!predioList){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargando...</div>';return;}
-    // ── DEBUG: mostrar info de diagnóstico ──
-    const allRows=window._movAllRowsDebug||movAllRows;
+    // ── DEBUG TEMPORAL ──
     const cols=window._movCols;
-    const motivoCols=cols?cols.motivo:'?';
-    const motivoVals={};
-    (allRows||[]).forEach(r=>{const m=(r[motivoCols]||'').trim();motivoVals[m]=(motivoVals[m]||0)+1;});
-    const topMotivos=Object.entries(motivoVals).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([m,c])=>`<div style="font-size:10px">${m||'(vacío)'}: ${c}</div>`).join('');
-    elPredio.innerHTML=`<div style="background:var(--surface2);border-radius:6px;padding:10px;margin-bottom:10px;font-size:11px">
-      <div style="font-weight:700;margin-bottom:4px;color:var(--orange)">🔍 DEBUG</div>
-      <div>cols.motivo → <b>${motivoCols}</b></div>
-      <div>Total en predio (sin filtro): <b>${predioList.length}</b></div>
-      <div style="margin-top:4px;font-weight:600">Top motivos encontrados:</div>
-      ${topMotivos}
+    const motivoCol=cols?cols.motivo:'?';
+    const fechaCol=cols?cols.fechaEstado:'?';
+    // Contar motivos reales en movAllRows
+    const motivoCount={};
+    movAllRows.forEach(r=>{const m=(r[motivoCol]||'(vacío)').trim();motivoCount[m]=(motivoCount[m]||0)+1;});
+    const topMot=Object.entries(motivoCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    // Ver cuántos quedaron en predioList
+    const entregadosCheck=movAllRows.filter(r=>{
+      const m=(r[motivoCol]||'').toUpperCase().trim();
+      return m==='ENTREGA CON UNIDAD FACTURADA';
+    });
+    const internos122789=movAllRows.filter(r=>r[cols.interno]==='122789');
+    elPredio.innerHTML=`<div style="font-size:10px;padding:4px">
+      <b style="color:var(--orange)">🔍 DEBUG</b><br>
+      cols.motivo = <b>${motivoCol}</b><br>
+      cols.fechaEstado = <b>${fechaCol}</b><br>
+      En predio (total): <b>${predioList.length}</b><br>
+      Filas con ENTREGA CON UNIDAD FACTURADA: <b>${entregadosCheck.length}</b><br>
+      Filas interno 122789: <b>${internos122789.length}</b><br>
+      <br><b>Top motivos (raw):</b><br>
+      ${topMot.map(([m,c])=>`${m}: <b>${c}</b>`).join('<br>')}
     </div>`;
+    return;
+    // ── FIN DEBUG ──
     const _marca=(document.getElementById('mov-sel-marca')?.value||'').toUpperCase();
     const _tipo=movFilterTipo;
     const filteredPredio=predioList.filter(u=>{
