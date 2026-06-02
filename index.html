@@ -1584,10 +1584,11 @@ function movProcess(data){
   movAllRows=data.map(r=>{const o={};Object.keys(r).forEach(k=>o[k.trim()]=(r[k]||'').toString().trim());return o;});
   const keys=Object.keys(movAllRows[0]||{});
   const cols={marca:keys[0],interno:keys[1],dominio:keys[2],modelo:keys[3],color:keys[4],situacion:keys[5],fechaCarga:keys[6],solicitante:keys[7],fechaPedido:keys[8],motivo:keys[9],ubOrigen:keys[10],ubDestino:keys[11],estado:keys[15]||keys.find(k=>k.toLowerCase().includes('estado'))||''};
-  // Busca columnas clave por nombre (independiente de posición)
+  // Mapeo por nombre exacto para columnas clave
   cols.motivo = keys.find(k=>k.toLowerCase().includes('motivo')) || keys[9];
-  cols.fechaPedido = keys.find(k=>k.toLowerCase().includes('fecha de estado')||k.toLowerCase().includes('fecha estado')) || keys[8];
+  cols.fechaEstado = keys.find(k=>k.toLowerCase().replace(/\s+/g,' ').includes('fecha de estado')||k.toLowerCase().replace(/\s+/g,' ').includes('fecha estado')) || keys[17] || keys[8];
   cols.ubicacion = keys.find(k=>k.trim().toLowerCase()==='ubicacion') || keys[10];
+  console.log('[MOV cols] motivo→',cols.motivo,'| fechaEstado→',cols.fechaEstado,'| ubicacion→',cols.ubicacion);
   window._movCols=cols;
   movSynRows=movBuildSynRows(movAllRows,cols);
   // ── Build predio list desde base Movimientos ──
@@ -1598,14 +1599,14 @@ function movProcess(data){
     const today=new Date();today.setHours(0,0,0,0);
     const ENTREGADO='UNIDAD ENTREGADA !!!!';
     const map={};
-    const SALIDA=['ENTREGA CON UNIDAD FACTURADA','ENTREGA USADOS','TRASLADO','USADO VENDIDO A REVENTA','USADO VENDIDO SIN FACTURAR','VENDIDO A REVENTA','VENDIDO SIN FACTURA','EXHIBICION'];
+    const SALIDA=new Set(['ENTREGA CON UNIDAD FACTURADA','ENTREGA USADOS','TRASLADO','USADO VENDIDO A REVENTA','USADO VENDIDO SIN FACTURAR','VENDIDO A REVENTA','VENDIDO SIN FACTURAR','EXHIBICION USADOS','EXHIBICION VW','EXHIBICION AUDI','EXHIBICION']);
     movAllRows.forEach(r=>{
       const key=r[cols.interno];if(!key)return;
       const mot=(r[cols.motivo]||'').toUpperCase().trim();
-      const fecha=movParseDate(r[cols.fechaPedido]);
+      const fecha=movParseDate(r[cols.fechaEstado]);
       if(!map[key])map[key]={id:key,marca:r[cols.marca],modelo:r[cols.modelo],ultArribo:null,entregado:false};
       if(mot==='ARRIBO DE UNIDAD'&&fecha){if(!map[key].ultArribo||fecha>map[key].ultArribo)map[key].ultArribo=fecha;}
-      if(SALIDA.some(s=>mot.includes(s)))map[key].entregado=true;
+      if(SALIDA.has(mot))map[key].entregado=true;
     });
     return Object.values(map)
       .filter(u=>u.ultArribo&&!u.entregado)
@@ -1613,7 +1614,15 @@ function movProcess(data){
       .filter(u=>u.dias>=0)
       .sort((a,b)=>b.dias-a.dias);
   })();
-  const motivos=[...new Set(movSynRows.map(r=>r[cols.motivo]).filter(Boolean))].sort();
+  // ── DEBUG TEMPORAL ──
+  console.log('=== COLS MAPEADOS ===');
+  console.log('cols.motivo →', cols.motivo);
+  console.log('cols.fechaPedido →', cols.fechaPedido);
+  console.log('cols.interno →', cols.interno);
+  console.log('Todas las keys:', keys);
+  const debugInterno = movAllRows.filter(r=>r[cols.interno]==='122789');
+  console.log('Filas de 122789:', debugInterno.map(r=>({motivo:r[cols.motivo],fecha:r[cols.fechaPedido]})));
+  // ────────────────────
   const estados=[...new Set(movSynRows.map(r=>r[cols.estado]).filter(Boolean).filter(e=>e!=='Sintético'))].sort();
   const marcas=[...new Set(movSynRows.map(r=>r[cols.marca]).filter(Boolean))].sort();
   const fSel=id=>document.getElementById(id);
