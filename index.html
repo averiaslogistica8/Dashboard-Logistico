@@ -1623,6 +1623,7 @@ function movProcess(data){
   const debugInterno = movAllRows.filter(r=>r[cols.interno]==='122789');
   console.log('Filas de 122789:', debugInterno.map(r=>({motivo:r[cols.motivo],fecha:r[cols.fechaPedido]})));
   // ────────────────────
+  const motivos=[...new Set(movSynRows.map(r=>r[cols.motivo]).filter(Boolean))].sort();
   const estados=[...new Set(movSynRows.map(r=>r[cols.estado]).filter(Boolean).filter(e=>e!=='Sintético'))].sort();
   const marcas=[...new Set(movSynRows.map(r=>r[cols.marca]).filter(Boolean))].sort();
   const fSel=id=>document.getElementById(id);
