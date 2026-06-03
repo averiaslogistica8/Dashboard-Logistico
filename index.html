@@ -1434,12 +1434,12 @@ function aliOpenPanel(opName){
 }
 function aliClosePanel(){document.getElementById('ali-dpanel').classList.remove('open');document.getElementById('ali-overlay').classList.remove('show');}
 // ══════════ MOVIMIENTOS ══════════
-// Build tab HTML dynamically and inject into main-wrap
 (function(){
   const hw=document.querySelector('.main-wrap');
   const div=document.createElement('div');
   div.id='tab-mov';div.style.display='none';
   div.innerHTML=`
+  <!-- Filter bar -->
   <div class="fbar" id="mov-fbar" style="display:none">
     <div class="fgroup"><div class="flbl">Tipo</div>
       <div style="display:flex;gap:6px">
@@ -1449,95 +1449,117 @@ function aliClosePanel(){document.getElementById('ali-dpanel').classList.remove(
       </div>
     </div>
     <div class="fdiv"></div>
-    <div class="fgroup"><div class="flbl">Motivo</div><select id="mov-sel-motivo" onchange="movApplyFilters()" class="fbar select"></select></div>
-    <div class="fgroup"><div class="flbl">Estado</div><select id="mov-sel-estado" onchange="movApplyFilters()"></select></div>
-    <div class="fgroup"><div class="flbl">Marca</div><select id="mov-sel-marca" onchange="movApplyFilters()"></select></div>
+    <div class="fgroup"><div class="flbl">Motivo</div><select id="mov-sel-motivo" onchange="movApplyFilters()"><option value="">Todos</option></select></div>
+    <div class="fgroup"><div class="flbl">Estado</div><select id="mov-sel-estado" onchange="movApplyFilters()"><option value="">Todos</option></select></div>
+    <div class="fgroup"><div class="flbl">Marca</div><select id="mov-sel-marca" onchange="movApplyFilters()"><option value="">Todas</option></select></div>
     <div class="fdiv"></div>
     <div class="fgroup"><div class="flbl">Desde</div><input type="date" id="mov-dfrom" onchange="movApplyFilters()"></div>
     <div class="fgroup"><div class="flbl">Hasta</div><input type="date" id="mov-dto" onchange="movApplyFilters()"></div>
     <button class="clrbtn" onclick="movClearFilters()" style="margin-left:auto;align-self:flex-end">↺ Limpiar</button>
   </div>
+
   <div class="pw">
     <div class="empty-st" id="mov-empty">
       <div class="ei">📦</div>
       <div class="et">Sin datos cargados</div>
       <div class="es">Los datos se cargan automáticamente desde Google Sheets al abrir el dashboard.</div>
     </div>
+
     <div id="mov-dash" style="display:none">
-      <div class="dlayout"><div class="mcol">
-      <div class="stitle"><span class="sdot" style="background:var(--purple)"></span>Indicadores <em>Vista general</em></div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px;margin-bottom:14px">
-        <div class="kcard" id="mov-ck-total" style="--kc:var(--purple)"><div class="kcard-top"><div class="kic" style="--kc:var(--purple)">📦</div><div class="kinfo"><div class="klbl">Total movimientos</div><div class="kval lg" id="mov-k-total">—</div></div></div></div>
-        <div class="kcard" id="mov-ck-unidades" style="--kc:var(--blue)"><div class="kcard-top"><div class="kic" style="--kc:var(--blue)">🚘</div><div class="kinfo"><div class="klbl">Unidades únicas</div><div class="kval lg" id="mov-k-unidades">—</div></div></div></div>
-        <div class="kcard" id="mov-ck-0km" style="--kc:var(--accent)"><div class="kcard-top"><div class="kic" style="--kc:var(--accent)">🆕</div><div class="kinfo"><div class="klbl">0km</div><div class="kval lg" id="mov-k-0km">—</div></div></div></div>
-        <div class="kcard" id="mov-ck-usados" style="--kc:var(--orange)"><div class="kcard-top"><div class="kic" style="--kc:var(--orange)">🔁</div><div class="kinfo"><div class="klbl">Usados</div><div class="kval lg" id="mov-k-usados">—</div></div></div></div>
-        <div class="kcard" id="mov-ck-traslados" style="--kc:var(--blue)"><div class="kcard-top"><div class="kic" style="--kc:var(--blue)">🔀</div><div class="kinfo"><div class="klbl">Traslados</div><div class="kval lg" id="mov-k-traslados">—</div></div></div></div>
-        <div class="kcard" id="mov-ck-confirmados" style="--kc:var(--green)"><div class="kcard-top"><div class="kic" style="--kc:var(--green)">✅</div><div class="kinfo"><div class="klbl">Confirmados</div><div class="kval lg" id="mov-k-confirmados">—</div></div></div></div>
-        <div class="kcard" id="mov-ck-anulados" style="--kc:var(--red)"><div class="kcard-top"><div class="kic" style="--kc:var(--red)">❌</div><div class="kinfo"><div class="klbl">Anulados</div><div class="kval lg" id="mov-k-anulados">—</div></div></div></div>
-      </div>
-      <div class="stitle"><span class="sdot" style="background:var(--blue)"></span>Gráficos</div>
-      <div class="crow c2" style="margin-bottom:14px">
-        <div class="cc">
-          <div class="ctitle" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">Movimientos por fecha
-            <span class="mov-date-chip" id="mov-date-chip" onclick="movClearDateSelection()"><span id="mov-date-chip-val"></span> ✕</span>
+      <div class="dlayout">
+
+        <!-- ── COLUMNA PRINCIPAL ── -->
+        <div class="mcol">
+
+          <!-- KPIs -->
+          <div class="stitle"><span class="sdot" style="background:var(--purple)"></span>Indicadores <em>Vista general</em></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:14px">
+            <div class="kcard" style="--kc:var(--purple)"><div class="kcard-top"><div class="kic" style="--kc:var(--purple)">📦</div><div class="kinfo"><div class="klbl">Total movimientos</div><div class="kval lg" id="mov-k-total">—</div></div></div></div>
+            <div class="kcard" style="--kc:var(--blue)"><div class="kcard-top"><div class="kic" style="--kc:var(--blue)">🚘</div><div class="kinfo"><div class="klbl">Unidades únicas</div><div class="kval lg" id="mov-k-unidades">—</div></div></div></div>
+            <div class="kcard" style="--kc:var(--accent)"><div class="kcard-top"><div class="kic" style="--kc:var(--accent)">🆕</div><div class="kinfo"><div class="klbl">0km</div><div class="kval lg" id="mov-k-0km">—</div></div></div></div>
+            <div class="kcard" style="--kc:var(--orange)"><div class="kcard-top"><div class="kic" style="--kc:var(--orange)">🔁</div><div class="kinfo"><div class="klbl">Usados</div><div class="kval lg" id="mov-k-usados">—</div></div></div></div>
+            <div class="kcard" style="--kc:var(--blue)"><div class="kcard-top"><div class="kic" style="--kc:var(--blue)">🔀</div><div class="kinfo"><div class="klbl">Traslados</div><div class="kval lg" id="mov-k-traslados">—</div></div></div></div>
+            <div class="kcard" style="--kc:var(--green)"><div class="kcard-top"><div class="kic" style="--kc:var(--green)">✅</div><div class="kinfo"><div class="klbl">Confirmados</div><div class="kval lg" id="mov-k-confirmados">—</div></div></div></div>
+            <div class="kcard" style="--kc:var(--red)"><div class="kcard-top"><div class="kic" style="--kc:var(--red)">❌</div><div class="kinfo"><div class="klbl">Anulados</div><div class="kval lg" id="mov-k-anulados">—</div></div></div></div>
           </div>
-          <div class="ch300"><canvas id="mov-chart-fecha"></canvas></div>
-        </div>
-        <div class="cc">
-          <div class="ctitle" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">Distribución por motivo
-            <span class="mov-motivo-chip" id="mov-motivo-chip" onclick="movClearMotivoSelection()"><span id="mov-motivo-chip-val"></span> ✕</span>
+
+          <!-- Gráficos -->
+          <div class="stitle"><span class="sdot" style="background:var(--blue)"></span>Gráficos</div>
+          <div class="crow c2" style="margin-bottom:14px">
+            <div class="cc">
+              <div class="ctitle" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                Movimientos por fecha de pedido
+                <span class="mov-date-chip" id="mov-date-chip" onclick="movClearDateSelection()" style="display:none;align-items:center;gap:5px;border-radius:12px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:500;background:rgba(37,99,235,.1);color:var(--accent);border:1px solid rgba(37,99,235,.35)">
+                  <span id="mov-date-chip-val"></span> ✕
+                </span>
+              </div>
+              <div class="ch300"><canvas id="mov-chart-fecha"></canvas></div>
+            </div>
+            <div class="cc">
+              <div class="ctitle" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                Distribución por motivo
+                <span class="mov-motivo-chip" id="mov-motivo-chip" onclick="movClearMotivoSelection()" style="display:none;align-items:center;gap:5px;border-radius:12px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:500;background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.35)">
+                  <span id="mov-motivo-chip-val"></span> ✕
+                </span>
+              </div>
+              <div class="ch300"><canvas id="mov-chart-motivo"></canvas></div>
+            </div>
           </div>
-          <div class="ch300"><canvas id="mov-chart-motivo"></canvas></div>
-        </div>
-      </div>
-      <div class="stitle"><span class="sdot" style="background:var(--text-dim)"></span>Por Interno / Dominio <em id="mov-tbl-cnt"></em></div>
-      <div class="cc" style="margin-bottom:28px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap">
-          <div class="ctitle" style="margin:0">Detalle por unidad</div>
-          <input type="text" id="mov-search" placeholder="Buscar interno, dominio, modelo…" oninput="movSearchTable()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;width:240px;outline:none;">
-        </div>
-        <div class="twrap">
-          <table>
-            <thead><tr>
-              <th onclick="movSortTable('id')" id="mov-th-id">Interno / Dom <span class="sa"></span></th>
-              <th onclick="movSortTable('tipo')" id="mov-th-tipo">Tipo <span class="sa"></span></th>
-              <th onclick="movSortTable('marca')" id="mov-th-marca">Marca <span class="sa"></span></th>
-              <th onclick="movSortTable('modelo')" id="mov-th-modelo">Modelo <span class="sa"></span></th>
-              <th onclick="movSortTable('movimientos')" id="mov-th-movimientos" class="sort-desc">Movimientos <span class="sa"></span></th>
-              <th onclick="movSortTable('traslados')" id="mov-th-traslados">Traslados <span class="sa"></span></th>
-              <th onclick="movSortTable('ultimo')" id="mov-th-ultimo">Último pedido <span class="sa"></span></th>
-              <th>Estados</th>
-            </tr></thead>
-            <tbody id="mov-tbl-body"></tbody>
-          </table>
-        </div>
-        <div class="pagination">
-          <span id="mov-pag-info"></span>
-          <button class="pbtn" id="mov-btn-prev" onclick="movChangePage(-1)">‹ Ant</button>
-          <button class="pbtn" id="mov-btn-next" onclick="movChangePage(1)">Sig ›</button>
-        </div>
-      </div>
-      </div><!-- /mcol -->
-      <div class="rcol">
-        <div class="rpanel">
-          <div class="rp-hdr">🔁 Top movimientos</div>
-          <div id="mov-top-movimientos" style="padding:14px">
-            <div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargando...</div>
+
+          <!-- Tabla -->
+          <div class="stitle"><span class="sdot" style="background:var(--text-dim)"></span>Por Interno / Dominio <em id="mov-tbl-cnt"></em></div>
+          <div class="cc" style="margin-bottom:28px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap">
+              <div class="ctitle" style="margin:0">Detalle por unidad</div>
+              <input type="text" id="mov-search" placeholder="Buscar interno, dominio, modelo…" oninput="movSearchTable()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;width:240px;outline:none;">
+            </div>
+            <div class="twrap">
+              <table>
+                <thead><tr>
+                  <th onclick="movSortTable('id')" id="mov-th-id">Interno / Dom <span class="sa"></span></th>
+                  <th onclick="movSortTable('tipo')" id="mov-th-tipo">Tipo <span class="sa"></span></th>
+                  <th onclick="movSortTable('marca')" id="mov-th-marca">Marca <span class="sa"></span></th>
+                  <th onclick="movSortTable('modelo')" id="mov-th-modelo">Modelo <span class="sa"></span></th>
+                  <th onclick="movSortTable('movimientos')" id="mov-th-movimientos" class="sort-desc">Movimientos <span class="sa"></span></th>
+                  <th onclick="movSortTable('traslados')" id="mov-th-traslados">Traslados <span class="sa"></span></th>
+                  <th onclick="movSortTable('ultimo')" id="mov-th-ultimo">Último pedido <span class="sa"></span></th>
+                  <th>Estados</th>
+                </tr></thead>
+                <tbody id="mov-tbl-body"></tbody>
+              </table>
+            </div>
+            <div class="pagination">
+              <span id="mov-pag-info"></span>
+              <button class="pbtn" id="mov-btn-prev" onclick="movChangePage(-1)">‹ Ant</button>
+              <button class="pbtn" id="mov-btn-next" onclick="movChangePage(1)">Sig ›</button>
+            </div>
           </div>
-        </div>
-        <div class="rpanel">
-          <div class="rp-hdr">⏳ Más tiempo en predio</div>
-          <div style="padding:6px 14px 4px;font-size:10px;color:var(--text-dim);display:flex;gap:12px">
-            <span>🟢 &lt;15d</span><span>🟡 15-30d</span><span>🔴 &gt;30d</span>
+
+        </div><!-- /mcol -->
+
+        <!-- ── COLUMNA LATERAL ── -->
+        <div class="rcol">
+          <div class="rpanel">
+            <div class="rp-hdr">🔁 Top movimientos</div>
+            <div id="mov-top-movimientos" style="padding:14px">
+              <div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargando...</div>
+            </div>
           </div>
-          <div id="mov-top-predio" style="padding:14px">
-            <div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargando...</div>
+          <div class="rpanel">
+            <div class="rp-hdr">⏳ Más tiempo en predio</div>
+            <div style="padding:6px 14px 4px;font-size:10px;color:var(--text-dim);display:flex;gap:12px">
+              <span>🟢 &lt;15d</span><span>🟡 15-30d</span><span>🔴 &gt;30d</span>
+            </div>
+            <div id="mov-top-predio" style="padding:14px">
+              <div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargando...</div>
+            </div>
           </div>
-        </div>
-      </div><!-- /rcol -->
+        </div><!-- /rcol -->
+
       </div><!-- /dlayout -->
-    </div>
-  </div>`;
+    </div><!-- /mov-dash -->
+  </div><!-- /pw -->
+  `;
   hw.appendChild(div);
 })();
 
@@ -1545,7 +1567,6 @@ function aliClosePanel(){document.getElementById('ali-dpanel').classList.remove(
 let movAllRows=[],movSynRows=[],movGrouped=[],movFiltered=[],movDisplayed=[];
 let movSortKey='movimientos',movSortDir=-1,movPage=1;const MOV_PP=50;
 let movFilterTipo='todos',movSelDate=null,movSelMotivo=null;
-let movChartFecha=null,movChartMotivo=null;
 let movLastChartRows=[];
 
 // ── MOV FERIADOS ──
@@ -1568,38 +1589,27 @@ function movBuildSynRows(rows,cols){
   return result;
 }
 
-// ── MOV FILE LOADING ──
-document.getElementById('mov-fi').addEventListener('change',function(e){
-  const f=e.target.files[0];if(!f)return;
-  ST('fn-mov',f.name);document.getElementById('fd-mov').classList.add('on');
-  document.getElementById('hdr-update').textContent='Actualizado: ahora mismo';
-  const ext=f.name.split('.').pop().toLowerCase();
-  if(ext==='csv'){const r=new FileReader();r.onload=ev=>movParseCSV(ev.target.result);r.readAsText(f,'latin-1');}
-  else{const r=new FileReader();r.onload=ev=>movParseXLSX(ev.target.result);r.readAsArrayBuffer(f);}
-});
-function movParseCSV(t){movProcess(Papa.parse(t,{delimiter:';',header:true,skipEmptyLines:true}).data);}
-function movParseXLSX(b){const wb=XLSX.read(b,{type:'array',cellDates:true});movProcess(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}));}
-
+// ── MOV PROCESS (called from loadSheet after GS fetch) ──
 function movProcess(data){
   movAllRows=data.map(r=>{const o={};Object.keys(r).forEach(k=>o[k.trim()]=(r[k]||'').toString().trim());return o;});
   const keys=Object.keys(movAllRows[0]||{});
-  const cols={marca:keys[0],interno:keys[1],dominio:keys[2],modelo:keys[3],color:keys[4],situacion:keys[5],fechaCarga:keys[6],solicitante:keys[7],fechaPedido:keys[8],motivo:keys[9],ubOrigen:keys[10],ubDestino:keys[11],estado:keys[15]||keys.find(k=>k.toLowerCase().includes('estado'))||''};
-  // Mapeo por nombre exacto para columnas clave
-  cols.motivo = keys.find(k=>k.toLowerCase().includes('motivo')) || keys[9];
-  cols.fechaEstado = keys.find(k=>k.toLowerCase().replace(/\s+/g,' ').includes('fecha de estado')||k.toLowerCase().replace(/\s+/g,' ').includes('fecha estado')) || keys[17] || keys[8];
-  cols.ubicacion = keys.find(k=>k.trim().toLowerCase()==='ubicacion') || keys[10];
-  console.log('[MOV cols] motivo→',cols.motivo,'| fechaEstado→',cols.fechaEstado,'| ubicacion→',cols.ubicacion);
+  const cols={
+    marca:keys[0],interno:keys[1],dominio:keys[2],modelo:keys[3],
+    color:keys[4],situacion:keys[5],fechaCarga:keys[6],solicitante:keys[7],
+    fechaPedido:keys[8],motivo:keys[9],ubOrigen:keys[10],ubDestino:keys[11],
+    estado:keys[15]||keys.find(k=>k.toLowerCase().includes('estado'))||''
+  };
+  cols.motivo=keys.find(k=>k.toLowerCase().includes('motivo'))||keys[9];
+  cols.fechaEstado=keys.find(k=>k.toLowerCase().replace(/\s+/g,' ').includes('fecha de estado')||k.toLowerCase().replace(/\s+/g,' ').includes('fecha estado'))||keys[17]||keys[8];
   window._movCols=cols;
+
   movSynRows=movBuildSynRows(movAllRows,cols);
-  // ── Build predio list desde base Movimientos ──
-  // 3 columnas:
-  //   "Motivo de cambio de ubicacion" = ARRIBO DE UNIDAD  → fecha de estado = fecha arribo
-  //   "Ubicacion" (origen o destino)  = UNIDAD ENTREGADA !!!!  → auto fuera del predio
+
+  // Predio list (unidades actualmente en el predio)
   window._movPredioList=(()=>{
     const today=new Date();today.setHours(0,0,0,0);
-    const ENTREGADO='UNIDAD ENTREGADA !!!!';
-    const map={};
     const SALIDA=new Set(['ENTREGA CON UNIDAD FACTURADA','ENTREGA USADOS','TRASLADO','USADO VENDIDO A REVENTA','USADO VENDIDO SIN FACTURAR','VENDIDO A REVENTA','VENDIDO SIN FACTURAR','EXHIBICION','EXHIBICION USADOS','EXHIBICION VW','EXHIBICION FORD','EXHIBICION GM','EXHIBICION AUDI','UNIDADA DEVUELTA A FABRICA']);
+    const map={};
     movAllRows.forEach(r=>{
       const key=r[cols.interno];if(!key)return;
       const mot=(r[cols.motivo]||'').toUpperCase().trim();
@@ -1608,33 +1618,37 @@ function movProcess(data){
       if(mot==='ARRIBO DE UNIDAD'&&fecha){if(!map[key].ultArribo||fecha>map[key].ultArribo)map[key].ultArribo=fecha;}
       if(SALIDA.has(mot))map[key].entregado=true;
     });
-    return Object.values(map)
-      .filter(u=>u.ultArribo&&!u.entregado)
-      .map(u=>({...u,dias:Math.floor((today-u.ultArribo)/86400000),arriboFmt:movFmtDate(u.ultArribo)}))
-      .filter(u=>u.dias>=0)
-      .sort((a,b)=>b.dias-a.dias);
+    return Object.values(map).filter(u=>u.ultArribo&&!u.entregado).map(u=>({...u,dias:Math.floor((today-u.ultArribo)/86400000),arriboFmt:movFmtDate(u.ultArribo)})).filter(u=>u.dias>=0).sort((a,b)=>b.dias-a.dias);
   })();
+
+  // Poblar selectores de filtro
   const motivos=[...new Set(movSynRows.map(r=>r[cols.motivo]).filter(Boolean))].sort();
   const estados=[...new Set(movSynRows.map(r=>r[cols.estado]).filter(Boolean).filter(e=>e!=='Sintético'))].sort();
   const marcas=[...new Set(movSynRows.map(r=>r[cols.marca]).filter(Boolean))].sort();
   const fSel=id=>document.getElementById(id);
-  [['mov-sel-motivo',motivos,'Todos'],['mov-sel-estado',estados,'Todos'],['mov-sel-marca',marcas,'Todas']].forEach(([id,vals,def])=>{fSel(id).innerHTML=`<option value="">${def}</option>`+vals.map(v=>`<option value="${v}">${v}</option>`).join('');});
+  fSel('mov-sel-motivo').innerHTML='<option value="">Todos</option>'+motivos.map(v=>`<option value="${v}">${v}</option>`).join('');
+  fSel('mov-sel-estado').innerHTML='<option value="">Todos</option>'+estados.map(v=>`<option value="${v}">${v}</option>`).join('');
+  fSel('mov-sel-marca').innerHTML='<option value="">Todas</option>'+marcas.map(v=>`<option value="${v}">${v}</option>`).join('');
+
   const dates=movSynRows.map(r=>movParseDate(r[cols.fechaPedido])).filter(Boolean).sort((a,b)=>a-b);
   if(dates.length){fSel('mov-dfrom').value=movToDate(dates[0]);fSel('mov-dto').value=movToDate(dates[dates.length-1]);}
-  document.getElementById('mov-empty').style.display='none';document.getElementById('mov-dash').style.display='block';
+
+  document.getElementById('mov-empty').style.display='none';
+  document.getElementById('mov-dash').style.display='block';
   document.getElementById('mov-fbar').style.display='flex';
   movApplyFilters();
 }
 
-// ── MOV FILTERS ──
-let movFilterRows=[];
-function movSetTipo(tipo,el){movFilterTipo=tipo;document.querySelectorAll('.mov-chip[data-tipo]').forEach(c=>c.classList.remove('active'));el.classList.add('active');movApplyFilters();}
-
+// ── MOV FILTERS (adaptado de Dash_movimientos.html) ──
 function movGetFiltered({exDate=false,exMotivo=false}={}){
   const c=window._movCols;if(!c)return[];
-  const motivo=document.getElementById('mov-sel-motivo').value,estado=document.getElementById('mov-sel-estado').value,marca=document.getElementById('mov-sel-marca').value;
-  const fromS=document.getElementById('mov-dfrom').value,toS=document.getElementById('mov-dto').value;
-  const from=fromS?new Date(fromS+'T00:00:00'):null,to=toS?new Date(toS+'T23:59:59'):null;
+  const motivo=document.getElementById('mov-sel-motivo').value;
+  const estado=document.getElementById('mov-sel-estado').value;
+  const marca=document.getElementById('mov-sel-marca').value;
+  const fromS=document.getElementById('mov-dfrom').value;
+  const toS=document.getElementById('mov-dto').value;
+  const from=fromS?new Date(fromS+'T00:00:00'):null;
+  const to=toS?new Date(toS+'T23:59:59'):null;
   return movSynRows.filter(r=>{
     const esUsado=!r[c.interno]||r._sinArribo;
     if(movFilterTipo==='usado'&&!esUsado)return false;
@@ -1654,157 +1668,111 @@ function movGetFiltered({exDate=false,exMotivo=false}={}){
 function movApplyFilters(){
   const rows=movGetFiltered();
   movGrouped=movRegroup(rows);
-  movUpdateKPIs(rows);movLastChartRows=rows;movUpdateCharts(rows);
-  movFiltered=[...movGrouped];movSortTable(movSortKey,true);
-  const marca=document.getElementById('mov-sel-marca')?.value||'';
-  ST('mov-sb-tipo',movFilterTipo==='todos'?'Todos':movFilterTipo==='0km'?'0km':'Usados');
-  ST('mov-sb-marca',marca||'Todas');
+  movUpdateKPIs(rows);
+  movLastChartRows=rows;
+  movUpdateCharts(rows);
+  movFiltered=[...movGrouped];
+  movSortTable(movSortKey,true);
   movUpdateRankings();
 }
 
 function movClearFilters(){
-  document.getElementById('mov-sel-motivo').value='';document.getElementById('mov-sel-estado').value='';document.getElementById('mov-sel-marca').value='';
+  document.getElementById('mov-sel-motivo').value='';
+  document.getElementById('mov-sel-estado').value='';
+  document.getElementById('mov-sel-marca').value='';
   document.querySelectorAll('.mov-chip[data-tipo]').forEach(c=>c.classList.remove('active'));
   document.querySelector('.mov-chip[data-tipo="todos"]').classList.add('active');
   movFilterTipo='todos';movSelDate=null;movSelMotivo=null;
-  document.getElementById('mov-date-chip').style.display='none';document.getElementById('mov-motivo-chip').style.display='none';
+  document.getElementById('mov-date-chip').style.display='none';
+  document.getElementById('mov-motivo-chip').style.display='none';
   const dates=movSynRows.map(r=>movParseDate(r[window._movCols.fechaPedido])).filter(Boolean).sort((a,b)=>a-b);
   if(dates.length){document.getElementById('mov-dfrom').value=movToDate(dates[0]);document.getElementById('mov-dto').value=movToDate(dates[dates.length-1]);}
   movApplyFilters();
 }
 
+function movSetTipo(tipo,el){
+  movFilterTipo=tipo;
+  document.querySelectorAll('.mov-chip[data-tipo]').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  movApplyFilters();
+}
+
 function movApplyDateFilter(){
-  const chip=document.getElementById('mov-date-chip');chip.style.display='inline-flex';
-  const[y,m,d]=movSelDate.split('-');ST('mov-date-chip-val',`📅 ${d}/${m}/${y}`);
-  movUpdateKPIs(movGetFiltered());movUpdateCharts(movGetFiltered({exDate:true}));
-  movGrouped=movRegroup(movGetFiltered());movFiltered=[...movGrouped];movSortTable(movSortKey,true);movUpdateRankings();
+  document.getElementById('mov-date-chip').style.display='inline-flex';
+  const[y,m,d]=movSelDate.split('-');
+  ST('mov-date-chip-val',`📅 ${d}/${m}/${y}`);
+  const rows=movGetFiltered();
+  const chartRows=movGetFiltered({exDate:true});
+  movUpdateKPIs(rows);movUpdateCharts(chartRows);
+  movGrouped=movRegroup(rows);movFiltered=[...movGrouped];movSortTable(movSortKey,true);movUpdateRankings();
 }
 function movClearDateSelection(){movSelDate=null;document.getElementById('mov-date-chip').style.display='none';movApplyFilters();}
+
 function movApplyMotivoFilter(){
-  const chip=document.getElementById('mov-motivo-chip');chip.style.display='inline-flex';ST('mov-motivo-chip-val',`🔹 ${movSelMotivo}`);
-  movUpdateKPIs(movGetFiltered());movUpdateCharts(movGetFiltered({exMotivo:true}));
-  movGrouped=movRegroup(movGetFiltered());movFiltered=[...movGrouped];movSortTable(movSortKey,true);movUpdateRankings();
+  document.getElementById('mov-motivo-chip').style.display='inline-flex';
+  ST('mov-motivo-chip-val',movSelMotivo);
+  const rows=movGetFiltered();
+  const chartRows=movGetFiltered({exMotivo:true});
+  movUpdateKPIs(rows);movUpdateCharts(chartRows);
+  movGrouped=movRegroup(rows);movFiltered=[...movGrouped];movSortTable(movSortKey,true);movUpdateRankings();
 }
 function movClearMotivoSelection(){movSelMotivo=null;document.getElementById('mov-motivo-chip').style.display='none';movApplyFilters();}
 
 // ── MOV REGROUP ──
 function movRegroup(rows){
   const c=window._movCols,map={};
-  rows.forEach(r=>{const interno=r[c.interno],key=interno||r[c.dominio];if(!key)return;const esUsado=!interno||r._sinArribo;const esAnulado=(r[c.estado]||'').toLowerCase()==='anulado';if(!map[key])map[key]={id:key,tipo:esUsado?'usado':'0km',marca:r[c.marca],modelo:r[c.modelo],movimientos:0,traslados:0,estados:{},fechas:[],rows:[]};if(!esAnulado){map[key].movimientos++;if((r[c.motivo]||'').toUpperCase()==='TRASLADO')map[key].traslados++;}const est=r[c.estado]||'Sin estado';map[key].estados[est]=(map[key].estados[est]||0)+1;const dd=movParseDate(r[c.fechaPedido]);if(dd)map[key].fechas.push(dd);map[key].rows.push(r);});
-  const res=Object.values(map);res.forEach(g=>{g.ultimo=g.fechas.length?new Date(Math.max(...g.fechas)):null;});return res;
+  rows.forEach(r=>{
+    const interno=r[c.interno],dominio=r[c.dominio],key=interno||dominio;if(!key)return;
+    const esUsado=!interno||r._sinArribo;
+    const esAnulado=(r[c.estado]||'').toLowerCase()==='anulado';
+    if(!map[key])map[key]={id:key,tipo:esUsado?'usado':'0km',marca:r[c.marca],modelo:r[c.modelo],movimientos:0,traslados:0,estados:{},fechas:[],rows:[]};
+    if(!esAnulado){map[key].movimientos++;if((r[c.motivo]||'').toUpperCase()==='TRASLADO')map[key].traslados++;}
+    const est=r[c.estado]||'Sin estado';map[key].estados[est]=(map[key].estados[est]||0)+1;
+    const dd=movParseDate(r[c.fechaPedido]);if(dd)map[key].fechas.push(dd);
+    map[key].rows.push(r);
+  });
+  const res=Object.values(map);
+  res.forEach(g=>{g.ultimo=g.fechas.length?new Date(Math.max(...g.fechas)):null;});
+  return res;
 }
 
 // ── MOV KPIs ──
 function movUpdateKPIs(rows){
   const c=window._movCols;
-  const activos=rows.filter(r=>(r[c.estado]||'').toLowerCase()!=='anulado');
-  const total=activos.length,units=new Set(activos.map(r=>r[c.interno]||r[c.dominio])).size;
-  const km0=activos.filter(r=>r[c.interno]&&!r._sinArribo).length,usados=activos.filter(r=>!r[c.interno]||r._sinArribo).length;
-  const traslados=activos.filter(r=>(r[c.motivo]||'').toUpperCase()==='TRASLADO').length;
-  const conf=rows.filter(r=>r[c.estado]==='Confirmado').length,anul=rows.filter(r=>r[c.estado]==='Anulado').length;
-  ST('mov-k-total',total.toLocaleString('es-AR'));ST('mov-k-unidades',units.toLocaleString('es-AR'));
-  ST('mov-k-0km',km0.toLocaleString('es-AR'));ST('mov-k-usados',usados.toLocaleString('es-AR'));
-  ST('mov-k-traslados',traslados.toLocaleString('es-AR'));ST('mov-k-confirmados',conf.toLocaleString('es-AR'));ST('mov-k-anulados',anul.toLocaleString('es-AR'));
+  const act=rows.filter(r=>(r[c.estado]||'').toLowerCase()!=='anulado');
+  ST('mov-k-total',act.length.toLocaleString('es-AR'));
+  ST('mov-k-unidades',new Set(act.map(r=>r[c.interno]||r[c.dominio])).size.toLocaleString('es-AR'));
+  ST('mov-k-0km',act.filter(r=>r[c.interno]&&!r._sinArribo).length.toLocaleString('es-AR'));
+  ST('mov-k-usados',act.filter(r=>!r[c.interno]||r._sinArribo).length.toLocaleString('es-AR'));
+  ST('mov-k-traslados',act.filter(r=>(r[c.motivo]||'').toUpperCase()==='TRASLADO').length.toLocaleString('es-AR'));
+  ST('mov-k-confirmados',rows.filter(r=>r[c.estado]==='Confirmado').length.toLocaleString('es-AR'));
+  ST('mov-k-anulados',rows.filter(r=>r[c.estado]==='Anulado').length.toLocaleString('es-AR'));
 }
 
 // ── MOV CHARTS ──
-function movGC(){const dk=document.body.classList.contains('dark');return{grid:dk?'#2d3f5e':'#e2e8f0',lbl:dk?'#94a3b8':'#64748b'};}
 function movUpdateCharts(rows){
-  const c=window._movCols,{grid,lbl}=movGC();
-  const byDate={};rows.forEach(r=>{const d=movParseDate(r[c.fechaPedido]);if(!d)return;const k=movToDate(d);byDate[k]=(byDate[k]||0)+1;});
+  const c=window._movCols,{grid,lbl}=gc();
+  // Barras por fecha
+  const byDate={};
+  rows.forEach(r=>{const d=movParseDate(r[c.fechaPedido]);if(!d)return;const k=movToDate(d);byDate[k]=(byDate[k]||0)+1;});
   const dLabels=Object.keys(byDate).sort(),dVals=dLabels.map(k=>byDate[k]);
-  const byMotivo={};rows.forEach(r=>{const m=r[c.motivo]||'Sin motivo';byMotivo[m]=(byMotivo[m]||0)+1;});
-  const mLabels=Object.keys(byMotivo).sort((a,b)=>byMotivo[b]-byMotivo[a]),mVals=mLabels.map(k=>byMotivo[k]);
   DC('mov-chart-fecha');const ce=document.getElementById('mov-chart-fecha');
-  if(ce){const bClr=dLabels.map(l=>l===movSelDate?'rgba(139,92,246,.9)':'rgba(139,92,246,.45)');
-    movChartFecha=new Chart(ce,{type:'bar',data:{labels:dLabels,datasets:[{data:dVals,backgroundColor:bClr,borderColor:dLabels.map(l=>l===movSelDate?'#8b5cf6':'rgba(139,92,246,.6)'),borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>`${c2.raw} movimientos`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:10,maxRotation:35,font:{size:10}}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const f=dLabels[els[0].index];if(movSelDate===f){movClearDateSelection();}else{movSelDate=f;movApplyDateFilter();}},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
+  if(ce){
+    const bClr=dLabels.map(l=>l===movSelDate?'rgba(139,92,246,.9)':'rgba(139,92,246,.45)');
+    AC['mov-chart-fecha']=new Chart(ce,{type:'bar',data:{labels:dLabels,datasets:[{data:dVals,backgroundColor:bClr,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:10,maxRotation:35}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const f=dLabels[els[0].index];if(movSelDate===f)movClearDateSelection();else{movSelDate=f;movApplyDateFilter();}},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
   }
+  // Doughnut por motivo
+  const byMotivo={};
+  rows.forEach(r=>{const m=r[c.motivo]||'Sin motivo';byMotivo[m]=(byMotivo[m]||0)+1;});
+  const mLabels=Object.keys(byMotivo).sort((a,b)=>byMotivo[b]-byMotivo[a]),mVals=mLabels.map(k=>byMotivo[k]);
   const pal=['#8b5cf6','#2563eb','#22c55e','#f59e0b','#ef4444','#06b6d4','#f97316','#84cc16','#a78bfa','#60a5fa'];
+  const sClr=mLabels.map((l,i)=>{const b=pal[i%pal.length];return movSelMotivo?(l===movSelMotivo?b:b+'33'):b;});
   DC('mov-chart-motivo');const cm=document.getElementById('mov-chart-motivo');
-  if(cm){const sClr=mLabels.map((l,i)=>movSelMotivo?(l===movSelMotivo?pal[i%pal.length]:pal[i%pal.length]+'33'):pal[i%pal.length]);
-    movChartMotivo=new Chart(cm,{type:'doughnut',data:{labels:mLabels,datasets:[{data:mVals,backgroundColor:sClr,borderColor:mLabels.map((l,i)=>movSelMotivo&&l===movSelMotivo?pal[i%pal.length]:'transparent'),borderWidth:mLabels.map(l=>movSelMotivo&&l===movSelMotivo?3:2),hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'right',labels:{color:lbl,font:{size:10},boxWidth:10,padding:6}},tooltip:{callbacks:{label:ctx=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return` ${ctx.raw} (${t?(ctx.raw/t*100).toFixed(1):0}%)`;}}}},onClick(evt,els){if(!els.length)return;const mot=mLabels[els[0].index];if(movSelMotivo===mot){movClearMotivoSelection();}else{movSelMotivo=mot;movApplyMotivoFilter();}},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
+  if(cm){
+    AC['mov-chart-motivo']=new Chart(cm,{type:'doughnut',data:{labels:mLabels,datasets:[{data:mVals,backgroundColor:sClr,borderColor:mLabels.map((l,i)=>movSelMotivo&&l===movSelMotivo?pal[i%pal.length]:'transparent'),borderWidth:mLabels.map(l=>movSelMotivo&&l===movSelMotivo?3:2),hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'right',labels:{color:lbl,font:{size:10},boxWidth:10,padding:6}}},onClick(evt,els){if(!els.length)return;const mot=mLabels[els[0].index];if(movSelMotivo===mot)movClearMotivoSelection();else{movSelMotivo=mot;movApplyMotivoFilter();}},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
   }
 }
-function movRedrawCharts(){if(movLastChartRows.length)movUpdateCharts(movLastChartRows);}
-
-// ── MOV RANKINGS ──
-function movUpdateRankings(){
-  const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
-
-  /* ── TOP MOVIMIENTOS ─────────────────────────────────────────
-     movGrouped es el resultado de regroup(getFiltered()) que ya
-     corrió en movApplyFilters justo antes de llamar acá.
-     Es exactamente lo mismo que hace la tabla del archivo de referencia.
-  ──────────────────────────────────────────────────────────── */
-  const elMov = document.getElementById('mov-top-movimientos');
-  if(elMov){
-    const top10 = [...movGrouped].sort((a,b)=>b.movimientos-a.movimientos).slice(0,10);
-    const maxMov = top10.length ? top10[0].movimientos : 1;
-    elMov.innerHTML = top10.length
-      ? top10.map((u,i)=>{
-          const pct = Math.round(u.movimientos/maxMov*100);
-          return '<div style="margin-bottom:10px">'
-            +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">'
-            +'<span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px" title="'+u.id+'">'+medals[i]+' '+u.id
-            +' <span style="font-weight:400;color:var(--text-dim);font-size:11px">'+(u.marca||'')+'</span></span>'
-            +'<span style="font-size:13px;font-weight:800;color:var(--purple);white-space:nowrap;margin-left:6px">'+u.movimientos+'</span>'
-            +'</div>'
-            +'<div style="background:var(--border);border-radius:3px;height:4px;overflow:hidden">'
-            +'<div style="height:100%;width:'+pct+'%;background:var(--purple);border-radius:3px;transition:width .4s"></div>'
-            +'</div></div>';
-        }).join('')
-      : '<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Sin datos</div>';
-  }
-
-  /* ── MÁS TIEMPO EN PREDIO ────────────────────────────────────
-     _movPredioList ya fue calculada al cargar los datos.
-     Acá solo la filtramos por marca (igual que el filtro de marca
-     afecta la tabla).
-  ──────────────────────────────────────────────────────────── */
-  const elPredio = document.getElementById('mov-top-predio');
-  if(!elPredio) return;
-
-  const predioList = window._movPredioList;
-  if(!predioList){
-    elPredio.innerHTML = '<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargando...</div>';
-    return;
-  }
-
-  if(movFilterTipo === 'usado'){
-    elPredio.innerHTML = '<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Sin unidades para este filtro</div>';
-    return;
-  }
-
-  const selMarca = document.getElementById('mov-sel-marca');
-  const marcaVal = (selMarca ? selMarca.value : '').toLowerCase();
-
-  const top10p = predioList
-    .filter(u => !marcaVal || (u.marca||'').toLowerCase() === marcaVal)
-    .slice(0,10);
-
-  if(!top10p.length){
-    elPredio.innerHTML = '<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">No hay unidades en predio para este filtro</div>';
-    return;
-  }
-
-  const maxDias = top10p[0].dias;
-  elPredio.innerHTML = top10p.map((u,i)=>{
-    const pct = Math.round(u.dias/maxDias*100);
-    const cls = u.dias>30 ? 'var(--red)' : u.dias>15 ? 'var(--orange)' : 'var(--green)';
-    const sub = u.modelo || u.marca || '';
-    return '<div style="margin-bottom:12px">'
-      +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">'
-      +'<span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px" title="'+u.id+'">'+medals[i]+' '+u.id
-      +' <span style="font-weight:400;color:var(--text-dim);font-size:11px">'+sub+'</span></span>'
-      +'<span style="font-size:13px;font-weight:800;color:'+cls+';white-space:nowrap;margin-left:6px">'+u.dias+'d</span>'
-      +'</div>'
-      +'<div style="background:var(--border);border-radius:3px;height:4px;overflow:hidden">'
-      +'<div style="height:100%;width:'+pct+'%;background:'+cls+';border-radius:3px;transition:width .4s"></div>'
-      +'</div>'
-      +'<div style="font-size:10px;color:var(--text-dim);margin-top:2px">Arribo: '+u.arriboFmt+'</div>'
-      +'</div>';
-  }).join('');
-}
+function movRedrawCharts(){if(movAllRows.length&&movLastChartRows.length)movUpdateCharts(movLastChartRows);}
 
 // ── MOV TABLE ──
 function movBadgeClass(est){const m={'Confirmado':'mb-confirmado','Anulado':'mb-anulado','Pendiente':'mb-pendiente','En Transito':'mb-transito','Sintético':'mb-sintetico'};return m[est]||'';}
@@ -1828,9 +1796,17 @@ function movRenderTable(){
   const maxBar=Math.max(...movDisplayed.map(r=>r.movimientos),1);
   const slice=movDisplayed.slice((movPage-1)*MOV_PP,movPage*MOV_PP);
   document.getElementById('mov-tbl-body').innerHTML=slice.map(r=>{
-    const bw=Math.round((r.movimientos/maxBar)*60);
+    const bw=Math.round((r.movimientos/maxBar)*80);
     const estHtml=Object.entries(r.estados).map(([k,v])=>`<span class="mbadge ${movBadgeClass(k)}">${k} ${v}</span>`).join(' ');
-    return`<tr onclick="movOpenPanel('${r.id.replace(/'/g,"\\'")}')"><td style="font-family:'Inter',sans-serif;font-weight:500;font-size:12px">${r.id}</td><td><span class="mbadge ${r.tipo==='usado'?'mb-usado':'mb-0km'}">${r.tipo}</span></td><td>${r.marca}</td><td>${r.modelo}</td><td style="font-weight:700">${r.movimientos}<span style="display:inline-block;height:4px;border-radius:3px;background:var(--purple);vertical-align:middle;margin-left:8px;opacity:.5;width:${bw}px"></span></td><td>${r.traslados>0?`<span style="color:var(--accent);font-weight:600">${r.traslados}</span>`:'—'}</td><td style="font-size:12px;color:var(--text-mid)">${movFmtDate(r.ultimo)}</td><td>${estHtml}</td></tr>`;
+    return`<tr onclick="movOpenPanel('${r.id.replace(/'/g,"\\'")}')">
+      <td style="font-family:'Inter',sans-serif;font-weight:500;font-size:12px">${r.id}</td>
+      <td><span class="mbadge ${r.tipo==='usado'?'mb-usado':'mb-0km'}">${r.tipo}</span></td>
+      <td>${r.marca}</td><td>${r.modelo}</td>
+      <td>${r.movimientos}<span style="display:inline-block;height:4px;border-radius:3px;background:var(--purple);vertical-align:middle;margin-left:8px;opacity:.5;width:${bw}px"></span></td>
+      <td>${r.traslados>0?`<span style="color:var(--accent);font-weight:600">${r.traslados}</span>`:'—'}</td>
+      <td style="font-size:12px;color:var(--text-mid)">${movFmtDate(r.ultimo)}</td>
+      <td>${estHtml}</td>
+    </tr>`;
   }).join('')||'<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-dim)">Sin resultados</td></tr>';
 }
 function movChangePage(d){movPage+=d;movRenderTable();}
@@ -1839,12 +1815,56 @@ function movChangePage(d){movPage+=d;movRenderTable();}
 function movOpenPanel(id){
   const unit=movGrouped.find(g=>g.id===id);if(!unit)return;
   const c=window._movCols;
-  ST('mov-dp-title',unit.id);ST('mov-dp-sub',`${unit.tipo.toUpperCase()} · ${unit.marca} ${unit.modelo} · ${unit.movimientos} movimientos`);
+  ST('mov-dp-title',unit.id);
+  ST('mov-dp-sub',`${unit.tipo.toUpperCase()} · ${unit.marca} ${unit.modelo} · ${unit.movimientos} movimientos`);
   const sorted=[...unit.rows].sort((a,b)=>{const da=movParseDate(a[c.fechaPedido]),db=movParseDate(b[c.fechaPedido]);return(da||0)-(db||0);});
-  document.getElementById('mov-dp-events').innerHTML=sorted.map(r=>{const est=r[c.estado]||'';return`<li style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-size:11px;color:var(--text-dim);min-width:80px;font-family:'Inter',sans-serif">${(r[c.fechaPedido]||'—').split(' ')[0]}</span><div style="flex:1"><div style="font-weight:600;font-size:12px">${r[c.motivo]||'—'}${r._synthetic?` <span style="color:var(--purple);font-size:10px">★ estimado</span>`:''}</div><div style="color:var(--text-dim);font-size:11px;margin-top:2px">${r[c.ubOrigen]||''} → ${r[c.ubDestino]||''}</div><div style="margin-top:3px"><span class="mbadge ${movBadgeClass(est)}">${est}</span></div></div></li>`;}).join('');
-  document.getElementById('mov-dpanel').classList.add('open');document.getElementById('mov-overlay').classList.add('show');
+  document.getElementById('mov-dp-events').innerHTML=sorted.map(r=>{
+    const est=r[c.estado]||'';
+    return`<li style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="font-size:11px;color:var(--text-dim);min-width:80px">${(r[c.fechaPedido]||'—').split(' ')[0]}</span>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:12px">${r[c.motivo]||'—'}${r._synthetic?' <span style="color:var(--purple);font-size:10px">★ estimado</span>':''}</div>
+        <div style="color:var(--text-dim);font-size:11px;margin-top:2px">${r[c.ubOrigen]||''} → ${r[c.ubDestino]||''}</div>
+        <div style="margin-top:3px"><span class="mbadge ${movBadgeClass(est)}">${est}</span></div>
+      </div>
+    </li>`;
+  }).join('');
+  document.getElementById('mov-dpanel').classList.add('open');
+  document.getElementById('mov-overlay').classList.add('show');
 }
 function movClosePanel(){document.getElementById('mov-dpanel').classList.remove('open');document.getElementById('mov-overlay').classList.remove('show');}
+
+// ── MOV RANKINGS (sidebars) ──
+function movUpdateRankings(){
+  const medals=['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+
+  // TOP MOVIMIENTOS — directo de movGrouped (ya filtrado)
+  const elMov=document.getElementById('mov-top-movimientos');
+  if(elMov){
+    const top10=[...movGrouped].sort((a,b)=>b.movimientos-a.movimientos).slice(0,10);
+    const max=top10.length?top10[0].movimientos:1;
+    elMov.innerHTML=top10.length
+      ?top10.map((u,i)=>{const pct=Math.round(u.movimientos/max*100);return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px"><span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px" title="${u.id}">${medals[i]} ${u.id} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${u.marca||''}</span></span><span style="font-size:13px;font-weight:800;color:var(--purple);white-space:nowrap;margin-left:6px">${u.movimientos}</span></div><div style="background:var(--border);border-radius:3px;height:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--purple);border-radius:3px;transition:width .4s"></div></div></div>`;}).join('')
+      :'<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Sin datos</div>';
+  }
+
+  // MÁS TIEMPO EN PREDIO — de _movPredioList filtrada por marca
+  const elPredio=document.getElementById('mov-top-predio');
+  if(!elPredio)return;
+  const predioList=window._movPredioList;
+  if(!predioList){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargando...</div>';return;}
+  if(movFilterTipo==='usado'){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Sin unidades para este filtro</div>';return;}
+  const marcaFiltro=(document.getElementById('mov-sel-marca')?.value||'').toLowerCase();
+  const top10p=predioList.filter(u=>!marcaFiltro||(u.marca||'').toLowerCase()===marcaFiltro).slice(0,10);
+  if(!top10p.length){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">No hay unidades en predio para este filtro</div>';return;}
+  const maxDias=top10p[0].dias;
+  elPredio.innerHTML=top10p.map((u,i)=>{
+    const pct=Math.round(u.dias/maxDias*100);
+    const cls=u.dias>30?'var(--red)':u.dias>15?'var(--orange)':'var(--green)';
+    const sub=u.modelo||u.marca||'';
+    return`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px"><span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px" title="${u.id}">${medals[i]} ${u.id} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${sub}</span></span><span style="font-size:13px;font-weight:800;color:${cls};white-space:nowrap;margin-left:6px">${u.dias}d</span></div><div style="background:var(--border);border-radius:3px;height:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${cls};border-radius:3px;transition:width .4s"></div></div><div style="font-size:10px;color:var(--text-dim);margin-top:2px">Arribo: ${u.arriboFmt}</div></div>`;
+  }).join('');
+}
 
 // ══════════════════════════════════════════════════════════════
 // AUTO-LOAD DESDE GOOGLE SHEETS
