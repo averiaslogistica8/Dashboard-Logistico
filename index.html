@@ -1730,54 +1730,40 @@ function movRedrawCharts(){if(movLastChartRows.length)movUpdateCharts(movLastCha
 // ── MOV RANKINGS ──
 function movUpdateRankings(){
   const medals=['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+  const c=window._movCols;
+  const _marca=(document.getElementById('mov-sel-marca')?.value||'').toLowerCase();
+  const _tipo=movFilterTipo;
 
-  // ── Top 10 por movimientos ──
-  // movGrouped ya tiene aplicados TODOS los filtros activos (marca, tipo, fecha, motivo, estado)
-  const top10mov=[...movGrouped].sort((a,b)=>b.movimientos-a.movimientos).slice(0,10);
-  const maxMov=top10mov.length?top10mov[0].movimientos:1;
+  // ── TOP MOVIMIENTOS ──
+  // Lee movGetFiltered() directo para garantizar que usa los filtros activos en este momento
   const elMov=document.getElementById('mov-top-movimientos');
-  if(elMov){elMov.innerHTML=top10mov.length?top10mov.map((u,i)=>{const pct=Math.round(u.movimientos/maxMov*100);return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px"><span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px" title="${u.id}">${medals[i]} ${u.id} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${u.marca||''}</span></span><span style="font-size:13px;font-weight:800;color:var(--purple);white-space:nowrap;margin-left:6px">${u.movimientos}</span></div><div style="background:var(--border);border-radius:3px;height:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--purple);border-radius:3px;transition:width .4s"></div></div></div>`;}).join(''):'<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Sin datos</div>';}
+  if(elMov&&c){
+    const filtRows=movGetFiltered();
+    const cntMap={};
+    filtRows.forEach(r=>{
+      if((r[c.estado]||'').toLowerCase()==='anulado')return;
+      const key=r[c.interno]||r[c.dominio];if(!key)return;
+      if(!cntMap[key])cntMap[key]={id:key,marca:r[c.marca]||'',cnt:0};
+      cntMap[key].cnt++;
+    });
+    const top10mov=Object.values(cntMap).sort((a,b)=>b.cnt-a.cnt).slice(0,10);
+    const maxCnt=top10mov.length?top10mov[0].cnt:1;
+    elMov.innerHTML=top10mov.length?top10mov.map((u,i)=>{
+      const pct=Math.round(u.cnt/maxCnt*100);
+      return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px"><span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px" title="${u.id}">${medals[i]} ${u.id} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${u.marca}</span></span><span style="font-size:13px;font-weight:800;color:var(--purple);white-space:nowrap;margin-left:6px">${u.cnt}</span></div><div style="background:var(--border);border-radius:3px;height:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--purple);border-radius:3px;transition:width .4s"></div></div></div>`;
+    }).join(''):'<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Sin datos</div>';
+  }
 
-  // ── Top 10 por tiempo en predio ──
-  // Filtros aplicados: marca y tipo. Sin filtro de fecha (el predio muestra estado actual).
+  // ── MÁS TIEMPO EN PREDIO ──
+  // Usa _movPredioList (ya calculada) y la filtra por marca y tipo
   const elPredio=document.getElementById('mov-top-predio');
   if(!elPredio)return;
-  const c=window._movCols;
-  if(!c||!movAllRows.length){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargando...</div>';return;}
-
-  const _marca=document.getElementById('mov-sel-marca')?.value||'';
-  const _tipo=movFilterTipo;
+  const predioList=window._movPredioList;
+  if(!predioList||!predioList.length){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargando...</div>';return;}
   if(_tipo==='usado'){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Sin unidades para este filtro</div>';return;}
-
-  const today=new Date();today.setHours(0,0,0,0);
-  const SALIDA=new Set(['ENTREGA CON UNIDAD FACTURADA','ENTREGA USADOS','TRASLADO','USADO VENDIDO A REVENTA','USADO VENDIDO SIN FACTURAR','VENDIDO A REVENTA','VENDIDO SIN FACTURAR','EXHIBICION','EXHIBICION USADOS','EXHIBICION VW','EXHIBICION FORD','EXHIBICION GM','EXHIBICION AUDI','UNIDADA DEVUELTA A FABRICA']);
-
-  // Pasada 1: marcar todas las unidades entregadas (sin filtro de marca ni fecha)
-  const entregados=new Set();
-  movAllRows.forEach(r=>{
-    const key=r[c.interno];if(!key)return;
-    if(SALIDA.has((r[c.motivo]||'').toUpperCase().trim()))entregados.add(key);
-  });
-
-  // Pasada 2: registrar el último arribo por unidad, filtrando solo por marca
-  const arriboMap={};
-  movAllRows.forEach(r=>{
-    const key=r[c.interno];if(!key)return;
-    if(_marca&&r[c.marca]!==_marca)return;
-    if((r[c.motivo]||'').toUpperCase().trim()!=='ARRIBO DE UNIDAD')return;
-    const fecha=movParseDate(r[c.fechaEstado]);if(!fecha)return;
-    if(!arriboMap[key]||fecha>arriboMap[key].fecha)arriboMap[key]={id:key,marca:r[c.marca],modelo:r[c.modelo],fecha};
-  });
-
-  const filteredPredio=Object.values(arriboMap)
-    .filter(u=>!entregados.has(u.id))
-    .map(u=>({...u,dias:Math.floor((today-u.fecha)/86400000),arriboFmt:movFmtDate(u.fecha)}))
-    .filter(u=>u.dias>=0)
-    .sort((a,b)=>b.dias-a.dias)
-    .slice(0,10);
-
-  const maxDias=filteredPredio.length?filteredPredio[0].dias:1;
-  elPredio.innerHTML=filteredPredio.length?filteredPredio.map((u,i)=>{
+  const top10p=predioList.filter(u=>!_marca||(u.marca||'').toLowerCase()===_marca).slice(0,10);
+  const maxDias=top10p.length?top10p[0].dias:1;
+  elPredio.innerHTML=top10p.length?top10p.map((u,i)=>{
     const pct=Math.round(u.dias/maxDias*100);
     const cls=u.dias>30?'var(--red)':u.dias>15?'var(--orange)':'var(--green)';
     const lbl=u.modelo?`${u.id} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${u.modelo}</span>`:`${u.id} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${u.marca||''}</span>`;
