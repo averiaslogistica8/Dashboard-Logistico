@@ -1520,13 +1520,13 @@ function aliClosePanel(){document.getElementById('ali-dpanel').classList.remove(
       </div><!-- /mcol -->
       <div class="rcol">
         <div class="rpanel">
-          <div class="rp-hdr">🔁 Top movimientos</div>
+          <div class="rp-hdr" id="mov-hdr-movimientos">🔁 Top movimientos</div>
           <div id="mov-top-movimientos" style="padding:14px">
             <div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargando...</div>
           </div>
         </div>
         <div class="rpanel">
-          <div class="rp-hdr">⏳ Más tiempo en predio</div>
+          <div class="rp-hdr" id="mov-hdr-predio">⏳ Más tiempo en predio</div>
           <div style="padding:6px 14px 4px;font-size:10px;color:var(--text-dim);display:flex;gap:12px">
             <span>🟢 &lt;15d</span><span>🟡 15-30d</span><span>🔴 &gt;30d</span>
           </div>
@@ -1731,66 +1731,86 @@ function movRedrawCharts(){if(movLastChartRows.length)movUpdateCharts(movLastCha
 function movUpdateRankings(){
   const medals=['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
 
-  // ── Top 10 por movimientos (usa movGrouped, ya filtrado por todos los filtros activos) ──
+  // Leer filtros activos una sola vez
+  const _marca=document.getElementById('mov-sel-marca')?.value||'';
+  const _tipo=movFilterTipo;
+  const fromS=document.getElementById('mov-dfrom')?.value||'';
+  const toS=document.getElementById('mov-dto')?.value||'';
+  const from=fromS?new Date(fromS+'T00:00:00'):null;
+  const to=toS?new Date(toS+'T23:59:59'):null;
+
+  // Armar etiqueta de filtros activos para los headers
+  const partes=[];
+  if(_tipo&&_tipo!=='todos')partes.push(_tipo.toUpperCase());
+  if(_marca)partes.push(_marca);
+  if(fromS&&toS){const[fy,fm,fd]=fromS.split('-');const[ty,tm,td]=toS.split('-');partes.push(`${fd}/${fm}/${fy} – ${td}/${tm}/${ty}`);}
+  else if(fromS){const[fy,fm,fd]=fromS.split('-');partes.push(`desde ${fd}/${fm}/${fy}`);}
+  else if(toS){const[ty,tm,td]=toS.split('-');partes.push(`hasta ${td}/${tm}/${ty}`);}
+  const filtroTag=partes.length?` <span style="font-size:9px;font-weight:500;color:var(--accent);text-transform:none;letter-spacing:0;margin-left:4px">[${partes.join(' · ')}]</span>`:'';
+
+  // ── Top 10 por movimientos (usa movGrouped — datos ya filtrados) ──
+  const hdrMov=document.getElementById('mov-hdr-movimientos');
+  if(hdrMov)hdrMov.innerHTML=`🔁 Top movimientos${filtroTag}`;
+
   const top10mov=[...movGrouped].sort((a,b)=>b.movimientos-a.movimientos).slice(0,10);
   const maxMov=top10mov.length?top10mov[0].movimientos:1;
   const elMov=document.getElementById('mov-top-movimientos');
-  if(elMov){elMov.innerHTML=top10mov.length?top10mov.map((u,i)=>{const pct=Math.round(u.movimientos/maxMov*100);return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px"><span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px" title="${u.id}">${medals[i]} ${u.id} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${u.marca||''}</span></span><span style="font-size:13px;font-weight:800;color:var(--purple);white-space:nowrap;margin-left:6px">${u.movimientos}</span></div><div style="background:var(--border);border-radius:3px;height:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--purple);border-radius:3px;transition:width .4s"></div></div></div>`; }).join(''):'<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Sin datos</div>';}
+  if(elMov){elMov.innerHTML=top10mov.length?top10mov.map((u,i)=>{const pct=Math.round(u.movimientos/maxMov*100);return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px"><span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px" title="${u.id}">${medals[i]} ${u.id} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${u.marca||''}</span></span><span style="font-size:13px;font-weight:800;color:var(--purple);white-space:nowrap;margin-left:6px">${u.movimientos}</span></div><div style="background:var(--border);border-radius:3px;height:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--purple);border-radius:3px;transition:width .4s"></div></div></div>`;}).join(''):'<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Sin datos</div>';}
 
   // ── Top 10 por tiempo en predio (reconstruido dinámicamente con filtros activos) ──
+  const hdrPredio=document.getElementById('mov-hdr-predio');
+  if(hdrPredio)hdrPredio.innerHTML=`⏳ Más tiempo en predio${filtroTag}`;
+
   const elPredio=document.getElementById('mov-top-predio');
-  if(elPredio){
-    const c=window._movCols;
-    if(!c||!movAllRows.length){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargando...</div>';return;}
+  if(!elPredio)return;
 
-    const _marca=document.getElementById('mov-sel-marca')?.value||'';
-    const _tipo=movFilterTipo;
+  const c=window._movCols;
+  if(!c||!movAllRows.length){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Cargando...</div>';return;}
 
-    // Predio solo contiene 0km → si el filtro es "usado" no hay nada que mostrar
-    if(_tipo==='usado'){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Sin unidades para este filtro</div>';return;}
+  if(_tipo==='usado'){elPredio.innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">Sin unidades para este filtro</div>';return;}
 
-    // Leer rango de fechas activo
-    const fromS=document.getElementById('mov-dfrom')?.value||'';
-    const toS=document.getElementById('mov-dto')?.value||'';
-    const from=fromS?new Date(fromS+'T00:00:00'):null;
-    const to=toS?new Date(toS+'T23:59:59'):null;
+  const today=new Date();today.setHours(0,0,0,0);
+  const SALIDA=new Set(['ENTREGA CON UNIDAD FACTURADA','ENTREGA USADOS','TRASLADO','USADO VENDIDO A REVENTA','USADO VENDIDO SIN FACTURAR','VENDIDO A REVENTA','VENDIDO SIN FACTURAR','EXHIBICION','EXHIBICION USADOS','EXHIBICION VW','EXHIBICION FORD','EXHIBICION GM','EXHIBICION AUDI','UNIDADA DEVUELTA A FABRICA']);
 
-    const today=new Date();today.setHours(0,0,0,0);
-    const SALIDA=new Set(['ENTREGA CON UNIDAD FACTURADA','ENTREGA USADOS','TRASLADO','USADO VENDIDO A REVENTA','USADO VENDIDO SIN FACTURAR','VENDIDO A REVENTA','VENDIDO SIN FACTURAR','EXHIBICION','EXHIBICION USADOS','EXHIBICION VW','EXHIBICION FORD','EXHIBICION GM','EXHIBICION AUDI','UNIDADA DEVUELTA A FABRICA']);
-    const map={};
+  // Pasada 1: detectar unidades entregadas en TODOS los datos (sin filtro de fecha ni marca)
+  const entregados=new Set();
+  movAllRows.forEach(r=>{
+    const key=r[c.interno];if(!key)return;
+    const mot=(r[c.motivo]||'').toUpperCase().trim();
+    if(SALIDA.has(mot))entregados.add(key);
+  });
 
-    movAllRows.forEach(r=>{
-      const key=r[c.interno];if(!key)return;
-      // Aplicar filtro de marca
-      if(_marca&&r[c.marca]!==_marca)return;
-      const mot=(r[c.motivo]||'').toUpperCase().trim();
-      const fecha=movParseDate(r[c.fechaEstado]);
-      if(!map[key])map[key]={id:key,marca:r[c.marca],modelo:r[c.modelo],ultArribo:null,entregado:false};
-      if(mot==='ARRIBO DE UNIDAD'&&fecha){
-        // Aplicar filtro de fechas al arribo: solo considerar arribos dentro del rango activo
-        if(from&&fecha<from)return;
-        if(to&&fecha>to)return;
-        if(!map[key].ultArribo||fecha>map[key].ultArribo)map[key].ultArribo=fecha;
-      }
-      // La salida/entrega se evalúa sobre todos los datos (sin filtro de fecha)
-      if(SALIDA.has(mot))map[key].entregado=true;
-    });
+  // Pasada 2: encontrar el último arribo dentro del rango filtrado, filtrando por marca si aplica
+  const arriboMap={};
+  movAllRows.forEach(r=>{
+    const key=r[c.interno];if(!key)return;
+    if(_marca&&r[c.marca]!==_marca)return;
+    const mot=(r[c.motivo]||'').toUpperCase().trim();
+    if(mot!=='ARRIBO DE UNIDAD')return;
+    const fecha=movParseDate(r[c.fechaEstado]);
+    if(!fecha)return;
+    // Aplicar filtro de fechas al arribo
+    if(from&&fecha<from)return;
+    if(to&&fecha>to)return;
+    if(!arriboMap[key]||fecha>arriboMap[key].fecha){
+      arriboMap[key]={id:key,marca:r[c.marca],modelo:r[c.modelo],fecha};
+    }
+  });
 
-    const filteredPredio=Object.values(map)
-      .filter(u=>u.ultArribo&&!u.entregado)
-      .map(u=>({...u,dias:Math.floor((today-u.ultArribo)/86400000),arriboFmt:movFmtDate(u.ultArribo)}))
-      .filter(u=>u.dias>=0)
-      .sort((a,b)=>b.dias-a.dias)
-      .slice(0,10);
+  const filteredPredio=Object.values(arriboMap)
+    .filter(u=>!entregados.has(u.id))
+    .map(u=>({...u,dias:Math.floor((today-u.fecha)/86400000),arriboFmt:movFmtDate(u.fecha)}))
+    .filter(u=>u.dias>=0)
+    .sort((a,b)=>b.dias-a.dias)
+    .slice(0,10);
 
-    const maxDias=filteredPredio.length?filteredPredio[0].dias:1;
-    elPredio.innerHTML=filteredPredio.length?filteredPredio.map((u,i)=>{
-      const pct=Math.round(u.dias/maxDias*100);
-      const cls=u.dias>30?'var(--red)':u.dias>15?'var(--orange)':'var(--green)';
-      const lbl=u.modelo?`${u.id} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${u.modelo}</span>`:`${u.id} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${u.marca||''}</span>`;
-      return`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px"><span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px" title="${u.id}">${medals[i]} ${lbl}</span><span style="font-size:13px;font-weight:800;color:${cls};white-space:nowrap;margin-left:6px">${u.dias}d</span></div><div style="background:var(--border);border-radius:3px;height:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${cls};border-radius:3px;transition:width .4s"></div></div><div style="font-size:10px;color:var(--text-dim);margin-top:2px">Arribo: ${u.arriboFmt}</div></div>`;
-    }).join(''):'<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">No hay unidades pendientes de entrega</div>';
-  }
+  const maxDias=filteredPredio.length?filteredPredio[0].dias:1;
+  elPredio.innerHTML=filteredPredio.length?filteredPredio.map((u,i)=>{
+    const pct=Math.round(u.dias/maxDias*100);
+    const cls=u.dias>30?'var(--red)':u.dias>15?'var(--orange)':'var(--green)';
+    const lbl=u.modelo?`${u.id} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${u.modelo}</span>`:`${u.id} <span style="font-weight:400;color:var(--text-dim);font-size:11px">${u.marca||''}</span>`;
+    return`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px"><span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px" title="${u.id}">${medals[i]} ${lbl}</span><span style="font-size:13px;font-weight:800;color:${cls};white-space:nowrap;margin-left:6px">${u.dias}d</span></div><div style="background:var(--border);border-radius:3px;height:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${cls};border-radius:3px;transition:width .4s"></div></div><div style="font-size:10px;color:var(--text-dim);margin-top:2px">Arribo: ${u.arriboFmt}</div></div>`;
+  }).join(''):'<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0">No hay unidades pendientes de entrega</div>';
 }
 
 // ── MOV TABLE ──
