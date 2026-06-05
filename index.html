@@ -1003,7 +1003,7 @@ function avrClearChartFilter(){
   if(chip)chip.style.display='none';
   avrRecalc();
 }
-function avrFD(){
+function avrFD(exChart=false){
   const dv=document.getElementById('avr-desde').value,hv=document.getElementById('avr-hasta').value;
   const ds=dv?new Date(dv+'T00:00:00'):null,hs=hv?new Date(hv+'T23:59:59'):null;
   return avrRaw.filter(r=>{
@@ -1014,7 +1014,7 @@ function avrFD(){
     if(!AVRF.tipo.has('__all__')&&AVRF.tipo.size>0&&!AVRF.tipo.has(tp))return false;
     if(!AVRF.cierre.has('__all__')&&AVRF.cierre.size>0&&!AVRF.cierre.has(c))return false;
     if(ds||hs){const f=avrPD(avrGV(r,'Fecha de Carga','Fecha Carga'));if(!f)return false;if(ds&&f<ds)return false;if(hs&&f>hs)return false;}
-    if(avrChartFilter.key&&avrChartFilter.val){
+    if(!exChart&&avrChartFilter.key&&avrChartFilter.val){
       const ck=avrChartFilter.key,cv=avrChartFilter.val;
       if(ck==='marca'&&m!==cv)return false;
       if(ck==='inst'&&i!==cv)return false;
@@ -1027,7 +1027,9 @@ function avrFD(){
   });
 }
 function avrRecalc(){
-  const data=avrFD(),u=parseInt(document.getElementById('avr-umbral').value)||15;
+  const u=parseInt(document.getElementById('avr-umbral').value)||15;
+  const data=avrFD(); // for KPIs / alerts / tables (includes chart filter)
+  const chartData=avrChartFilter.key?avrFD(true):data; // for chart rendering (without chart filter)
   document.getElementById('avr-empty').style.display='none';document.getElementById('avr-dash').style.display='block';
   const tot=data.length,dem=data.map(r=>avrGD(r)).filter(v=>v>=0);
   const avg=dem.length?dem.reduce((a,b)=>a+b,0)/dem.length:0,mx=dem.length?Math.max(...dem):0;
@@ -1093,14 +1095,24 @@ function avrRecalc(){
   if(mK.length){const mi=mA.indexOf(Math.max(...mA));al.push({c:mA[mi]>u?'var(--red)':mA[mi]>u*.6?'var(--orange)':'var(--green)',i:'🚗',t:mK[mi]+': '+mA[mi].toFixed(1)+' días prom.',s:'Marca con mayor demora promedio'});}
   document.getElementById('avr-alerts').innerHTML=al.map(a=>`<div class="acard" style="--ac:${a.c}"><div class="aiw">${a.i}</div><div><div class="atitle">${a.t}</div><div class="asub">${a.s}</div></div></div>`).join('');
   const{grid,lbl}=gc();Chart.defaults.color=lbl;Chart.defaults.borderColor=grid;
-  const aveO=['AVE.1','AVE.2','AVE.3','AVE.4','AVE.5','AVE.6'],aveL=aveO.filter(g=>gSC[g]);
-  avrDonut('avr-c-aveG',aveL,aveL.map(g=>gSC[g]||0),aveL.map(g=>GC[g]),'grado');
-  const fO=['FALT.1','FALT.2','FALT.3'],fL=fO.filter(g=>gSC[g]);
-  avrDonut('avr-c-faltG',fL,fL.map(g=>gSC[g]||0),fL.map(g=>GC[g]),'grado');
-  const dS=Object.entries(dC).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  // ── Chart aggregations – use chartData (without chart-click filter) so ALL segments stay visible ──
+  const chGC={};chartData.forEach(r=>{const g=avrGV(r,'Grado de Complejidad','Grado');if(g)chGC[g]=(chGC[g]||0)+1;});
+  const chGSC={};Object.entries(chGC).forEach(([k,v])=>{const s=GS[k]||k;chGSC[s]=(chGSC[s]||0)+v;});
+  const chDC={};chartData.forEach(r=>{const d=avrGV(r,'Desc. del Problema','Desc del Problema','Descripcion');if(d)chDC[d]=(chDC[d]||0)+1;});
+  const chCC={};chartData.forEach(r=>{const c=avrGV(r,'Tipo de Cierre','Tipo Cierre');if(c)chCC[c]=(chCC[c]||0)+1;});
+  const chIM={};chartData.forEach(r=>{const i=avrGV(r,'Instancia de Carga','Instancia');if(i)chIM[i]=(chIM[i]||0)+1;});
+  const chRM={};chartData.forEach(r=>{const rp=avrGV(r,'Responsable Carga','Responsable');if(rp)chRM[rp]=(chRM[rp]||0)+1;});
+  const chMMap={};chartData.forEach(r=>{const m=avrGV(r,'Marca'),d=avrGD(r);if(m){if(!chMMap[m])chMMap[m]=[];chMMap[m].push(d);}});
+  const chMK=Object.keys(chMMap).sort();
+  const chMA=chMK.map(m=>{const a=chMMap[m];return a.length?a.reduce((x,y)=>x+y,0)/a.length:0;});
+  const aveO=['AVE.1','AVE.2','AVE.3','AVE.4','AVE.5','AVE.6'],aveL=aveO.filter(g=>chGSC[g]);
+  avrDonut('avr-c-aveG',aveL,aveL.map(g=>chGSC[g]||0),aveL.map(g=>GC[g]),'grado');
+  const fO=['FALT.1','FALT.2','FALT.3'],fL=fO.filter(g=>chGSC[g]);
+  avrDonut('avr-c-faltG',fL,fL.map(g=>chGSC[g]||0),fL.map(g=>GC[g]),'grado');
+  const dS=Object.entries(chDC).sort((a,b)=>b[1]-a[1]).slice(0,10);
   avrBar('avr-c-tipo',dS.map(x=>x[0]),dS.map(x=>x[1]),{h:true,cls:['#2563eb'],lbl:true,clickKey:'tipo',opts:{plugins:{legend:{display:false}},scales:{x:{grid:{color:grid},ticks:{color:lbl}},y:{grid:{display:false},ticks:{font:{size:11},color:lbl}}}}});
-  avrBar('avr-c-dem',mK,mA.map(v=>+v.toFixed(1)),{cls:COLORS,multi:true,lbl:true,clickKey:'marca',opts:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:grid},ticks:{color:lbl}},x:{grid:{display:false},ticks:{color:lbl}}}}});
-  const cS=Object.entries(cC).sort((a,b)=>b[1]-a[1]);
+  avrBar('avr-c-dem',chMK,chMA.map(v=>+v.toFixed(1)),{cls:COLORS,multi:true,lbl:true,clickKey:'marca',opts:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:grid},ticks:{color:lbl}},x:{grid:{display:false},ticks:{color:lbl}}}}});
+  const cS=Object.entries(chCC).sort((a,b)=>b[1]-a[1]);
   DC('avr-c-cierre');const ce=document.getElementById('avr-c-cierre');
   if(ce){
     const isFiltCierre=avrChartFilter.key==='cierre';
@@ -1108,9 +1120,9 @@ function avrRecalc(){
     const cBd=COLORS.map((c,i)=>{const l=cS[i]?.[0];return isFiltCierre?(avrChartFilter.val===l?c:c+'22'):c;});
     AC['avr-c-cierre']=new Chart(ce,{type:'pie',data:{labels:cS.map(x=>x[0]),datasets:[{data:cS.map(x=>x[1]),backgroundColor:cBg,borderColor:cBd,borderWidth:2,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:11,padding:10,font:{size:11},color:lbl}}},onClick(evt,els){if(!els.length)return;const l=cS[els[0].index][0];if(avrChartFilter.key==='cierre'&&avrChartFilter.val===l)avrClearChartFilter();else avrSetChartFilter('cierre',l);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
   }
-  const iM={};data.forEach(r=>{const i=avrGV(r,'Instancia de Carga','Instancia');if(i)iM[i]=(iM[i]||0)+1;});const iS=Object.entries(iM).sort((a,b)=>b[1]-a[1]);
+  const iS=Object.entries(chIM).sort((a,b)=>b[1]-a[1]);
   avrBar('avr-c-inst',iS.map(x=>x[0]),iS.map(x=>x[1]),{h:true,cls:['#3b82f6'],lbl:true,clickKey:'inst',opts:{plugins:{legend:{display:false}},scales:{x:{grid:{color:grid},ticks:{color:lbl}},y:{grid:{display:false},ticks:{font:{size:11},color:lbl}}}}});
-  const rM={};data.forEach(r=>{const rp=avrGV(r,'Responsable Carga','Responsable');if(rp)rM[rp]=(rM[rp]||0)+1;});const rS=Object.entries(rM).sort((a,b)=>b[1]-a[1]);
+  const rS=Object.entries(chRM).sort((a,b)=>b[1]-a[1]);
   avrBar('avr-c-resp',rS.map(x=>avrSN(x[0])),rS.map(x=>x[1]),{cls:COLORS,multi:true,lbl:true,clickKey:'resp',vals:rS.map(x=>x[0]),opts:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:grid},ticks:{color:lbl}},x:{grid:{display:false},ticks:{font:{size:11},color:lbl}}}}});
   const mxMA=mA.length?Math.max(...mA):1;
   document.getElementById('avr-t-marca').innerHTML=`<thead><tr><th>Marca</th><th>Averías</th><th>Demora Prom.</th><th>% Sobre Límite</th></tr></thead><tbody>${mK.map((m,i)=>{const a=mMap[m],sb=a.filter(v=>v>u).length,p=avrPN(sb,a.length);return`<tr><td><strong>${m}</strong></td><td style="font-weight:700;font-size:15px">${a.length}</td><td><div class="biw"><span style="font-weight:700;min-width:44px">${mA[i].toFixed(1)}d</span><div class="bbg"><div class="bfill" style="width:${mxMA?(mA[i]/mxMA*100):0}%;background:var(--orange)"></div></div></div></td><td><span class="pcel ${avrPC2(p)}">${p.toFixed(1)}%</span> <span style="color:var(--text-dim);font-size:11px">(${sb})</span></td></tr>`;}).join('')}</tbody>`;
@@ -1289,13 +1301,12 @@ function aliSetMes(){const ym=document.getElementById('ali-smes').value;if(!ym)r
 function aliApply(){
   const marca=document.getElementById('ali-smarca').value,op=document.getElementById('ali-sop').value;
   const clrs=aliGetClrs(),from=aliPD(document.getElementById('ali-dfrom').value),to=aliPD(document.getElementById('ali-dto').value);
-  aliFiltered=aliAll.filter(r=>{if(!r._fin)return false;if(marca&&r._marca!==marca)return false;if(op&&r._op!==op)return false;if(clrs.length&&!clrs.includes(r._clr))return false;if(from&&r._fin<from)return false;if(to&&r._fin>new Date(to.getFullYear(),to.getMonth(),to.getDate(),23,59,59))return false;return true;});
-  if(aliChartFilter.key&&aliChartFilter.val){
-    const ck=aliChartFilter.key,cv=aliChartFilter.val;
-    if(ck==='marca')aliFiltered=aliFiltered.filter(r=>r._marca===cv);
-    else if(ck==='op')aliFiltered=aliFiltered.filter(r=>r._op===cv);
-    else if(ck==='dia')aliFiltered=aliFiltered.filter(r=>r._fin&&aliYMD(r._fin)===cv);
-  }
+  // Base filter (without chart-click filter) → used for chart rendering
+  const baseRows=aliAll.filter(r=>{if(!r._fin)return false;if(marca&&r._marca!==marca)return false;if(op&&r._op!==op)return false;if(clrs.length&&!clrs.includes(r._clr))return false;if(from&&r._fin<from)return false;if(to&&r._fin>new Date(to.getFullYear(),to.getMonth(),to.getDate(),23,59,59))return false;return true;});
+  // Full filter (with chart-click filter) → used for KPIs / alerts / tables
+  aliFiltered=aliChartFilter.key&&aliChartFilter.val?baseRows.filter(r=>{const ck=aliChartFilter.key,cv=aliChartFilter.val;if(ck==='marca')return r._marca===cv;if(ck==='op')return r._op===cv;if(ck==='dia')return r._fin&&aliYMD(r._fin)===cv;return true;}):baseRows;
+  // Chart-specific sums (from baseRows so all segments stay visible)
+  const cs=aliComputeSums(baseRows);aliOpSumChart=cs.opSum;aliDaySumChart=cs.daySum;
   aliBuildSum();aliUpdateKPIs();aliUpdateCharts();aliSort(aliSortKey,true);
 }
 function aliClear(){document.getElementById('ali-smarca').value='';document.getElementById('ali-sop').value='';aliSelClr(true);document.getElementById('ali-smes').value='';const ds=aliAll.map(r=>r._fin).filter(Boolean).sort((a,b)=>a-b);if(ds.length){document.getElementById('ali-dfrom').value=aliYMD(ds[0]);document.getElementById('ali-dto').value=aliYMD(ds[ds.length-1]);}aliChartFilter={key:null,val:null};const chip=document.getElementById('ali-chart-chip');if(chip)chip.style.display='none';aliApply();}
@@ -1321,14 +1332,20 @@ function movTK(id,v){const e=document.getElementById(id);if(e){if(v)e.removeAttr
 function movSetAllK(v){['total','unidades','0km','usados','traslados','confirmados','anulados'].forEach(id=>{const cb=document.getElementById('mvk-'+id);if(cb)cb.checked=v;movTK('mov-ck-'+id,v);});}
 function movToggleKpiMenu(e){e.stopPropagation();document.getElementById('mov-kpi-menu').classList.toggle('open');}
 document.addEventListener('click',e=>{const m=document.getElementById('mov-kpi-menu');if(m&&!m.parentElement.contains(e.target))m.classList.remove('open');});
-function aliBuildSum(){
+function aliComputeSums(rows){
   const oM={};
-  aliFiltered.forEach(r=>{const op=r._op;if(!oM[op])oM[op]={operario:op,total:0,vw:0,ford:0,chev:0,audi:0,dias:new Set(),ts:[]};oM[op].total++;if(r._marca==='VOLKSWAGEN')oM[op].vw++;if(r._marca==='FORD')oM[op].ford++;if(r._marca==='CHEVROLET')oM[op].chev++;if(r._marca==='AUDI')oM[op].audi++;if(r._fin)oM[op].dias.add(aliYMD(r._fin));const t=aliDB(r._arri,r._fin);if(t!==null&&t>=0)oM[op].ts.push(t);});
   const from=aliPD(document.getElementById('ali-dfrom').value),to=aliPD(document.getElementById('ali-dto').value);
   const hd=aliWD(from,to),p=aliGP();
-  aliOpSum=Object.values(oM).map(o=>{const ci=hd*p.cap;return{...o,diasTrab:o.dias.size,capInd:ci,rend:ci>0?o.total/ci:0,tprom:o.ts.length?o.ts.reduce((a,b)=>a+b,0)/o.ts.length:null};});
-  const dM={};aliFiltered.forEach(r=>{if(!r._fin)return;const k=aliYMD(r._fin);if(!dM[k])dM[k]={dia:k,vw:0,ford:0,chev:0,audi:0,total:0};dM[k].total++;if(r._marca==='VOLKSWAGEN')dM[k].vw++;if(r._marca==='FORD')dM[k].ford++;if(r._marca==='CHEVROLET')dM[k].chev++;if(r._marca==='AUDI')dM[k].audi++;});
-  aliDaySum=Object.values(dM).sort((a,b)=>a.dia.localeCompare(b.dia));
+  rows.forEach(r=>{const op=r._op;if(!oM[op])oM[op]={operario:op,total:0,vw:0,ford:0,chev:0,audi:0,dias:new Set(),ts:[]};oM[op].total++;if(r._marca==='VOLKSWAGEN')oM[op].vw++;if(r._marca==='FORD')oM[op].ford++;if(r._marca==='CHEVROLET')oM[op].chev++;if(r._marca==='AUDI')oM[op].audi++;if(r._fin)oM[op].dias.add(aliYMD(r._fin));const t=aliDB(r._arri,r._fin);if(t!==null&&t>=0)oM[op].ts.push(t);});
+  const opSum=Object.values(oM).map(o=>{const ci=hd*p.cap;return{...o,diasTrab:o.dias.size,capInd:ci,rend:ci>0?o.total/ci:0,tprom:o.ts.length?o.ts.reduce((a,b)=>a+b,0)/o.ts.length:null};});
+  const dM={};rows.forEach(r=>{if(!r._fin)return;const k=aliYMD(r._fin);if(!dM[k])dM[k]={dia:k,vw:0,ford:0,chev:0,audi:0,total:0};dM[k].total++;if(r._marca==='VOLKSWAGEN')dM[k].vw++;if(r._marca==='FORD')dM[k].ford++;if(r._marca==='CHEVROLET')dM[k].chev++;if(r._marca==='AUDI')dM[k].audi++;});
+  const daySum=Object.values(dM).sort((a,b)=>a.dia.localeCompare(b.dia));
+  return{opSum,daySum};
+}
+let aliOpSumChart=[],aliDaySumChart=[];
+function aliBuildSum(){
+  const{opSum,daySum}=aliComputeSums(aliFiltered);
+  aliOpSum=opSum;aliDaySum=daySum;
 }
 function aliKM(val,meta,dir,fmt){const ok=dir==='>='?val>=meta:val<=meta;const w=dir==='>='?val>=meta*.75:val<=meta*1.5;const cls=ok?'bgrn':w?'born':'bred';const ic=ok?'✅':w?'⚠':'⛔';return`<span class="kbadge ${cls}">${ic} meta ${dir} ${fmt(meta)}</span>`;}
 function aliUpdateKPIs(){
@@ -1399,36 +1416,38 @@ function aliUpdateKPIs(){
 }
 function aliUpdateCharts(){
   const{grid,lbl}=gc(),capD=aliCD();
-  const labels=aliDaySum.map(d=>{const[,m,dd]=d.dia.split('-');return`${dd}/${m}`;});
+  // Chart rendering uses aliDaySumChart/aliOpSumChart (without chart-click filter) so all bars/slices stay visible
+  const chartLabels=aliDaySumChart.map(d=>{const[,m,dd]=d.dia.split('-');return`${dd}/${m}`;});
   DC('ali-c-rend-line');const re=document.getElementById('ali-c-rend-line');
   if(re){
-    const pcts=aliDaySum.map(d=>+(d.total/capD*100).toFixed(1));
+    const pcts=aliDaySum.map(d=>+(d.total/capD*100).toFixed(1)); // KPI stats from filtered
     const avgR=pcts.length?pcts.reduce((a,b)=>a+b,0)/pcts.length:0;
     const maxRI=pcts.indexOf(Math.max(...pcts)),minRI=pcts.indexOf(Math.min(...pcts));
     ST('ali-cs-avgr',avgR.toFixed(1)+'%');
     ST('ali-cs-best',pcts[maxRI]!==undefined?pcts[maxRI].toFixed(1)+'%':'—');ST('ali-cs-best-d',aliDaySum[maxRI]?aliDaySum[maxRI].dia.split('-').slice(1).reverse().join('/'):'');
     ST('ali-cs-worst',pcts[minRI]!==undefined?pcts[minRI].toFixed(1)+'%':'—');ST('ali-cs-worst-d',aliDaySum[minRI]?aliDaySum[minRI].dia.split('-').slice(1).reverse().join('/'):'');
     const dc=pcts.filter(p=>p>=100).length;ST('ali-cs-dcap',dc);ST('ali-cs-dcap-s',aliDaySum.length>0?(dc/aliDaySum.length*100).toFixed(0)+'% del período':'');
-    AC['ali-c-rend-line']=new Chart(re,{type:'line',data:{labels,datasets:[
-      {label:'Rendimiento (%)',data:pcts,borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.06)',fill:true,tension:0.35,pointRadius:2,pointHoverRadius:5,borderWidth:2},
-      {label:'Capacidad (100%)',data:labels.map(()=>100),borderColor:'rgba(100,116,139,0.4)',borderDash:[5,4],borderWidth:1.5,pointRadius:0,fill:false}
+    AC['ali-c-rend-line']=new Chart(re,{type:'line',data:{labels:chartLabels,datasets:[
+      {label:'Rendimiento (%)',data:aliDaySumChart.map(d=>+(d.total/capD*100).toFixed(1)),borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.06)',fill:true,tension:0.35,pointRadius:2,pointHoverRadius:5,borderWidth:2},
+      {label:'Capacidad (100%)',data:chartLabels.map(()=>100),borderColor:'rgba(100,116,139,0.4)',borderDash:[5,4],borderWidth:1.5,pointRadius:0,fill:false}
     ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:lbl,font:{size:10},boxWidth:10,padding:8}},tooltip:{mode:'index',intersect:false}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:40,font:{size:10}}},y:{grid:{color:grid},ticks:{color:lbl,callback:v=>v+'%'}}}}});
     ST('ali-periodo-lbl',aliFM(document.getElementById('ali-dfrom').value.slice(0,7)||''));
   }
   DC('ali-c-daily-bars');const db=document.getElementById('ali-c-daily-bars');
   if(db){
-    const tots=aliDaySum.map(d=>d.total);
-    const avgD=tots.length?tots.reduce((a,b)=>a+b,0)/tots.length:0;
-    const maxDI=tots.indexOf(Math.max(...tots)),minDI=tots.indexOf(Math.min(...tots));
-    ST('ali-cs-avgd',avgD.toFixed(1));ST('ali-cs-totd',aliDaySum.length);
-    ST('ali-cs-maxd',tots[maxDI]||'—');ST('ali-cs-maxd-d',aliDaySum[maxDI]?aliDaySum[maxDI].dia.split('-').slice(1).reverse().join('/'):'');
-    ST('ali-cs-mind',tots[minDI]||'—');ST('ali-cs-mind-d',aliDaySum[minDI]?aliDaySum[minDI].dia.split('-').slice(1).reverse().join('/'):'');
+    const tots=aliDaySumChart.map(d=>d.total); // chart data from unfiltered
+    const totsKpi=aliDaySum.map(d=>d.total);   // KPI stats from filtered
+    const avgD=totsKpi.length?totsKpi.reduce((a,b)=>a+b,0)/totsKpi.length:0;
+    const maxDI=totsKpi.indexOf(Math.max(...totsKpi)),minDI=totsKpi.indexOf(Math.min(...totsKpi));
+    ST('ali-cs-avgd',avgD.toFixed(1));ST('ali-cs-totd',aliDaySumChart.length);
+    ST('ali-cs-maxd',tots[tots.indexOf(Math.max(...tots))]||'—');ST('ali-cs-maxd-d',aliDaySumChart[tots.indexOf(Math.max(...tots))]?aliDaySumChart[tots.indexOf(Math.max(...tots))].dia.split('-').slice(1).reverse().join('/'):'');
+    ST('ali-cs-mind',tots[tots.indexOf(Math.min(...tots))]||'—');ST('ali-cs-mind-d',aliDaySumChart[tots.indexOf(Math.min(...tots))]?aliDaySumChart[tots.indexOf(Math.min(...tots))].dia.split('-').slice(1).reverse().join('/'):'');
     const isFilteredDia=aliChartFilter.key==='dia';
-    const dBgColors=aliDaySum.map((d,i)=>{const baseColor=tots[i]>=capD?[34,197,94]:tots[i]>=capD*.75?[245,158,11]:[239,68,68];const alpha=isFilteredDia?(aliChartFilter.val===d.dia?.85:.2):.75;return`rgba(${baseColor.join(',')},${alpha})`;});
-    AC['ali-c-daily-bars']=new Chart(db,{type:'bar',data:{labels,datasets:[{data:tots,backgroundColor:dBgColors,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} alistajes`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:40,font:{size:10}}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const d=aliDaySum[els[0].index];if(!d)return;const dia=d.dia;const diaDisp=dia.split('-').slice(1).reverse().join('/');if(aliChartFilter.key==='dia'&&aliChartFilter.val===dia)aliClearChartFilter();else aliSetChartFilter('dia',dia,diaDisp);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
+    const dBgColors=aliDaySumChart.map((d,i)=>{const baseColor=tots[i]>=capD?[34,197,94]:tots[i]>=capD*.75?[245,158,11]:[239,68,68];const alpha=isFilteredDia?(aliChartFilter.val===d.dia?.9:.2):.75;return`rgba(${baseColor.join(',')},${alpha})`;});
+    AC['ali-c-daily-bars']=new Chart(db,{type:'bar',data:{labels:chartLabels,datasets:[{data:tots,backgroundColor:dBgColors,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} alistajes`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:40,font:{size:10}}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const d=aliDaySumChart[els[0].index];if(!d)return;const dia=d.dia;const diaDisp=dia.split('-').slice(1).reverse().join('/');if(aliChartFilter.key==='dia'&&aliChartFilter.val===dia)aliClearChartFilter();else aliSetChartFilter('dia',dia,diaDisp);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
   }
   DC('ali-c-op');const opEl=document.getElementById('ali-c-op');
-  if(opEl){const opS=[...aliOpSum].sort((a,b)=>b.total-a.total);const opL=opS.map(o=>o.operario.split(' ').slice(0,2).join(' '));
+  if(opEl){const opS=[...aliOpSumChart].sort((a,b)=>b.total-a.total);const opL=opS.map(o=>o.operario.split(' ').slice(0,2).join(' '));
     const isFilteredOp=aliChartFilter.key==='op';
     const opAlpha=(i)=>isFilteredOp?(aliChartFilter.val===opS[i].operario?.9:.2):.8;
     AC['ali-c-op']=new Chart(opEl,{type:'bar',data:{labels:opL,datasets:[
@@ -1436,16 +1455,20 @@ function aliUpdateCharts(){
       {label:'Ford',data:opS.map(o=>o.ford),backgroundColor:opS.map((_,i)=>`rgba(59,130,246,${opAlpha(i)})`),stack:'s'},
       {label:'Chevrolet',data:opS.map(o=>o.chev),backgroundColor:opS.map((_,i)=>`rgba(245,158,11,${opAlpha(i)})`),stack:'s'},
       {label:'Audi',data:opS.map(o=>o.audi),backgroundColor:opS.map((_,i)=>`rgba(239,68,68,${opAlpha(i)})`),stack:'s'}
-    ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:lbl,font:{size:9},boxWidth:8,padding:4}}},scales:{x:{stacked:true,grid:{color:grid},ticks:{color:lbl}},y:{stacked:true,grid:{display:false},ticks:{color:lbl,font:{size:10}}}},onClick(evt,els){if(!els.length)return;const op=opS[els[0].index]?.operario;if(!op)return;const opShort=op.split(' ').slice(0,2).join(' ');if(aliChartFilter.key==='op'&&aliChartFilter.val===op)aliClearChartFilter();else aliSetChartFilter('op',op,opShort);},minusOnHover(evt,els){},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});}
+    ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:lbl,font:{size:9},boxWidth:8,padding:4}}},scales:{x:{stacked:true,grid:{color:grid},ticks:{color:lbl}},y:{stacked:true,grid:{display:false},ticks:{color:lbl,font:{size:10}}}},onClick(evt,els){if(!els.length)return;const op=opS[els[0].index]?.operario;if(!op)return;const opShort=op.split(' ').slice(0,2).join(' ');if(aliChartFilter.key==='op'&&aliChartFilter.val===op)aliClearChartFilter();else aliSetChartFilter('op',op,opShort);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});}
   DC('ali-c-marca');const mc=document.getElementById('ali-c-marca');
-  if(mc){const md=MARCAS.map(m=>aliFiltered.filter(r=>r._marca===m).length);
+  if(mc){
+    // Marca counts from chart data (unfiltered) so all slices remain visible
+    const md=MARCAS.map(m=>aliOpSumChart.reduce((sum,o)=>sum+(m==='VOLKSWAGEN'?o.vw:m==='FORD'?o.ford:m==='CHEVROLET'?o.chev:o.audi),0));
     const isFilteredMarca=aliChartFilter.key==='marca';
     const mBgColors=['rgba(30,58,138,','rgba(59,130,246,','rgba(245,158,11,','rgba(239,68,68,'].map((c,i)=>{const alpha=isFilteredMarca?(aliChartFilter.val===MARCAS[i]?.9:.2):.85;return c+alpha+')';});
-    AC['ali-c-marca']=new Chart(mc,{type:'doughnut',data:{labels:MARCAS.map(m=>MA[m]),datasets:[{data:md,backgroundColor:mBgColors,borderColor:'transparent',hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{color:lbl,font:{size:10},boxWidth:10,padding:6}},tooltip:{callbacks:{label:ctx=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return` ${ctx.raw} (${t?(ctx.raw/t*100).toFixed(1):0}%)`;}}}},onClick(evt,els){if(!els.length)return;const m=MARCAS[els[0].index];if(aliChartFilter.key==='marca'&&aliChartFilter.val===m)aliClearChartFilter();else aliSetChartFilter('marca',m,MA[m]);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});}
+    const mBdColors=MARCAS.map((m,i)=>isFilteredMarca&&aliChartFilter.val===m?['#1e3a8a','#3b82f6','#f59e0b','#ef4444'][i]:'transparent');
+    const mBdWidths=MARCAS.map(m=>isFilteredMarca&&aliChartFilter.val===m?3:0);
+    AC['ali-c-marca']=new Chart(mc,{type:'doughnut',data:{labels:MARCAS.map(m=>MA[m]),datasets:[{data:md,backgroundColor:mBgColors,borderColor:mBdColors,borderWidth:mBdWidths,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{color:lbl,font:{size:10},boxWidth:10,padding:6}},tooltip:{callbacks:{label:ctx=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return` ${ctx.raw} (${t?(ctx.raw/t*100).toFixed(1):0}%)`;}}}},onClick(evt,els){if(!els.length)return;const m=MARCAS[els[0].index];if(aliChartFilter.key==='marca'&&aliChartFilter.val===m)aliClearChartFilter();else aliSetChartFilter('marca',m,MA[m]);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});}
   DC('ali-c-oprend');const or=document.getElementById('ali-c-oprend');
-  if(or){const opS=[...aliOpSum].sort((a,b)=>b.total-a.total);const opL=opS.map(o=>o.operario.split(' ').slice(0,2).join(' '));
+  if(or){const opS=[...aliOpSumChart].sort((a,b)=>b.total-a.total);const opL=opS.map(o=>o.operario.split(' ').slice(0,2).join(' '));
     const isFilteredOp2=aliChartFilter.key==='op';
-    AC['ali-c-oprend']=new Chart(or,{type:'bar',data:{labels:opL,datasets:[{data:opS.map(o=>+(o.rend*100).toFixed(1)),backgroundColor:opS.map((o,i)=>{const base=o.rend>=.85?'rgba(34,197,94,':o.rend>=.65?'rgba(245,158,11,':'rgba(239,68,68,';const alpha=isFilteredOp2?(aliChartFilter.val===o.operario?.85:.2):.8;return base+alpha+')'}),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw}%`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,callback:v=>v+'%'},max:130},y:{grid:{display:false},ticks:{color:lbl,font:{size:10}}}},onClick(evt,els){if(!els.length)return;const op=opS[els[0].index]?.operario;if(!op)return;const opShort=op.split(' ').slice(0,2).join(' ');if(aliChartFilter.key==='op'&&aliChartFilter.val===op)aliClearChartFilter();else aliSetChartFilter('op',op,opShort);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});}
+    AC['ali-c-oprend']=new Chart(or,{type:'bar',data:{labels:opL,datasets:[{data:opS.map(o=>+(o.rend*100).toFixed(1)),backgroundColor:opS.map((o,i)=>{const base=o.rend>=.85?'rgba(34,197,94,':o.rend>=.65?'rgba(245,158,11,':'rgba(239,68,68,';const alpha=isFilteredOp2?(aliChartFilter.val===o.operario?.9:.2):.8;return base+alpha+')'}),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw}%`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,callback:v=>v+'%'},max:130},y:{grid:{display:false},ticks:{color:lbl,font:{size:10}}}},onClick(evt,els){if(!els.length)return;const op=opS[els[0].index]?.operario;if(!op)return;const opShort=op.split(' ').slice(0,2).join(' ');if(aliChartFilter.key==='op'&&aliChartFilter.val===op)aliClearChartFilter();else aliSetChartFilter('op',op,opShort);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});}
   aliRenderDT();aliUpdateSB();
 }
 let aliDispOps=[];
