@@ -4,7 +4,643 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Movimiento 0km · Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+// ══════════ STOCK PREDIO ══════════
+/* ══════════════════════════════════════════════════
+   COLUMN CANDIDATES
+══════════════════════════════════════════════════ */
+const STK_COL_CANDS={
+  marca:    ['Marca','marca','MARCA','Fabricante','fabricante'],
+  modelo:   ['Modelo','modelo','MODELO','Descripcion','Descripción','Descripcion del Vehiculo','Tipo'],
+  color:    ['Color','color','COLOR'],
+  fecha:    ['Fecha Arribo'],
+  vin:      ['Interno','N° Interno','Nro Interno','interno','INTERNO',
+             'VIN','Chasis','chasis','N° Chasis','Nro Chasis','Nro. Chasis','Motor','Nro Motor'],
+  estado:   ['Estado','estado','ESTADO','Status','status'],
+  ubicacion:['Ubicacion','Ubicación','ubicacion','Dique','Sector','Posicion','Posición'],
+};
+
+
+// ── STK: local alias and init via Sheets ──
+function ge_stk(id){return document.getElementById(id);}
+
+function stkProcess(rawData){
+  if(!rawData||!rawData.length){
+    gsSetStatus('stk','err','Sin datos'); return;
+  }
+  // Clean rows (strip BOM, trailing empty cols)
+  const cleaned=rawData.map(row=>{
+    const out={};
+    for(const k in row){
+      const key=k.replace(/^\uFEFF/,'').trim();
+      if(!key)continue;
+      out[key]=(row[k]??'').toString().trim();
+    }
+    return out;
+  });
+  const headers=Object.keys(cleaned[0]||{});
+  stkCols={};
+  for(const [field,cands] of Object.entries(STK_COL_CANDS)){
+    const hit=cands.find(c=>headers.some(h=>h.toLowerCase()===c.toLowerCase()));
+    stkCols[field]=hit?headers.find(h=>h.toLowerCase()===hit.toLowerCase()):null;
+  }
+  stkAll=cleaned.map(r=>{
+    const out={_raw:r};
+    for(const [f,col] of Object.entries(stkCols)) out[f]=col?(r[col]||''):'';
+    out.marcaNorm=stkNormBrand(out.marca);
+    out.dias=stkParseDias(out.fecha);
+    out.ageClass=stkAgeClass(out.dias);
+    return out;
+  });
+  stkFiltered=[...stkAll];
+  // Show dashboard
+  const empty=document.getElementById('stk-empty');
+  const dash=document.getElementById('stk-dash');
+  const fbar=document.getElementById('stk-fbar');
+  if(empty) empty.style.display='none';
+  if(dash)  dash.style.display='block';
+  if(fbar)  fbar.style.display='flex';
+  stkBuildBrandChips();
+  stkRenderAll();
+}
+
+/* ══════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════ */
+let stkAll=[], stkFiltered=[], stkDisplayed=[];
+let stkCols={}, stkActiveBrand='all', stkCurrentPage=1;
+const STK_PP=30;
+
+
+function getCap(){return +ge_stk('p-cap').value||1000;}
+function getCrit(){return +ge_stk('p-crit').value||60;}
+function getAlert(){return +ge_stk('p-alert').value||30;}
+
+/* ══════════════════════════════════════════════════
+   THEME
+══════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════
+   FILE INPUT
+══════════════════════════════════════════════════ */
+
+function stkProcessRow(raw){
+  const r={_raw:raw};
+  for(const [f,col] of Object.entries(stkCols)) r[f]=col?(raw[col]||''):'';
+  r.marcaNorm=stkNormBrand(r.marca);
+  r.dias=stkParseDias(r.fecha);
+  r.ageClass=stkAgeClass(r.dias);
+  return r;
+}
+
+function stkAgeClass(dias){
+  if(dias===null) return 'nd';
+  if(dias>getCrit()) return 'crit';
+  if(dias>getAlert()) return 'warn';
+  return 'ok';
+}
+
+function stkNormBrand(raw){
+  const s=(raw||'').toUpperCase().replace(/[\s.]/g,'');
+  if(s.includes('VOLKSWAGEN')||s.includes('VW')) return 'Volkswagen';
+  if(s.includes('FORD')) return 'Ford';
+  if(s.includes('CHEVROLET')||s.includes('GM')||s.includes('GENERALMOTOR')) return 'Chevrolet';
+  if(s.includes('AUDI')) return 'Audi';
+  return raw?raw.trim():'Otra';
+}
+
+function stkParseDias(str){
+  if(!str)return null;
+  const s=str.trim();
+  let m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(m){return stkDiff(new Date(+m[3],+m[2]-1,+m[1]));}
+  m=s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if(m){return stkDiff(new Date(+m[1],+m[2]-1,+m[3]));}
+  const d=new Date(s);
+  if(!isNaN(d))return stkDiff(d);
+  return null;
+}
+function stkDiff(d){
+  const t=new Date();t.setHours(0,0,0,0);d.setHours(0,0,0,0);
+  const v=Math.floor((t-d)/86400000);
+  return v>=0?v:null;
+}
+
+/* ══════════════════════════════════════════════════
+   RECALC (on param change)
+══════════════════════════════════════════════════ */
+function stkRecalc(){
+  stkAll.forEach(r=>{r.ageClass=stkAgeClass(r.dias);});
+  stkFiltered=stkActiveBrand==='all'?[...stkAll]:stkAll.filter(r=>r.marcaNorm===stkActiveBrand);
+  stkRenderAll();
+}
+
+/* ══════════════════════════════════════════════════
+   BRAND CHIPS
+══════════════════════════════════════════════════ */
+function stkBuildBrandChips(){
+  const brands=[...new Set(stkAll.map(r=>r.marcaNorm))].sort();
+  const c=ge_stk('stk-brand-chips');c.innerHTML='';
+  const add=(brand,lbl)=>{
+    const b=document.createElement('button');
+    b.className='bchip'+(brand===stkActiveBrand?' active':'');
+    b.dataset.brand=brand; b.textContent=lbl;
+    b.onclick=()=>stkSetBrand(brand);
+    c.appendChild(b);
+  };
+  add('all',`Todas (${stkAll.length})`);
+  brands.forEach(br=>add(br,`${br} (${stkAll.filter(r=>r.marcaNorm===br).length})`));
+}
+
+function stkSetBrand(brand){
+  stkActiveBrand=brand;
+  document.querySelectorAll('.bchip').forEach(b=>b.classList.toggle('active',b.dataset.brand===brand));
+  stkFiltered=brand==='all'?[...stkAll]:stkAll.filter(r=>r.marcaNorm===brand);
+  stkCurrentPage=1; stkRenderAll();
+}
+
+/* ══════════════════════════════════════════════════
+   FILTERS
+══════════════════════════════════════════════════ */
+function stkApplyFilters(){
+  stkFiltered=stkActiveBrand==='all'?[...stkAll]:stkAll.filter(r=>r.marcaNorm===stkActiveBrand);
+  const age=ge_stk('f-age').value;
+  if(age) stkFiltered=stkFiltered.filter(r=>r.ageClass===age);
+  stkCurrentPage=1; stkRenderAll();
+}
+
+function stkClear(){
+  ge_stk('f-age').value=''; ge_stk('f-sort').value='dias-d'; ge_stk('stk-search').value='';
+  stkActiveBrand='all';
+  document.querySelectorAll('.bchip').forEach(b=>b.classList.toggle('active',b.dataset.brand==='all'));
+  stkFiltered=[...stkAll]; stkCurrentPage=1; stkRenderAll();
+}
+
+/* ══════════════════════════════════════════════════
+   RENDER ALL
+══════════════════════════════════════════════════ */
+function stkRenderAll(){
+  stkRenderKPIs();
+  stkRenderAlerts();
+  stkRenderCharts();
+  stkRenderRightCol();
+  stkRenderModRankings();
+  stkRT();
+}
+
+/* ══════════════════════════════════════════════════
+   SPARKLINE HELPER
+══════════════════════════════════════════════════ */
+function stkDrawSpark(id,vals,color){
+  const p=ge_stk(id); if(!p||!vals.length)return;
+  const max=Math.max(...vals,1),w=200,h=36,pad=4;
+  let d;
+  if(vals.length===1){const y=h-pad-(vals[0]/max)*(h-pad*2);d=`M0,${y}L${w},${y}`;}
+  else{d=vals.map((v,i)=>{const x=i*(w/(vals.length-1));const y=h-pad-(v/max)*(h-pad*2);return`${i?'L':'M'}${x},${y}`;}).join(' ');}
+  p.setAttribute('d',d); p.setAttribute('stroke',color);
+}
+
+/* ══════════════════════════════════════════════════
+   KPIs
+══════════════════════════════════════════════════ */
+const BRAND_C={Volkswagen:'#1e3a8a',Ford:'#3b82f6',Chevrolet:'#f59e0b',Audi:'#ef4444',Otra:'#94a3b8'};
+
+function stkRenderKPIs(){
+  const rows=stkFiltered, total=rows.length;
+  const cap=getCap(), crit=getCrit(), alert2=getAlert();
+  const ocup=total/cap*100;
+  const rowsF=rows.filter(r=>r.dias!==null);
+  const prom=rowsF.length?Math.round(rowsF.reduce((s,r)=>s+r.dias,0)/rowsF.length):null;
+  const maxDias=rowsF.length?Math.max(...rowsF.map(r=>r.dias)):null;
+  const nCrit=rows.filter(r=>r.ageClass==='crit').length;
+  const nWarn=rows.filter(r=>r.ageClass==='warn').length;
+  const nOk=rows.filter(r=>r.ageClass==='ok').length;
+  const nND=rows.filter(r=>r.ageClass==='nd').length;
+
+  const mCnt={}; rows.forEach(r=>mCnt[r.marcaNorm]=(mCnt[r.marcaNorm]||0)+1);
+  const topM=Object.entries(mCnt).sort((a,b)=>b[1]-a[1])[0];
+  const modCnt={}; rows.forEach(r=>{if(r.modelo)modCnt[r.modelo]=(modCnt[r.modelo]||0)+1;});
+  const topMod=Object.entries(modCnt).sort((a,b)=>b[1]-a[1])[0];
+
+  // TOTAL
+  ST('stk-k-total',total.toLocaleString('es-AR'));
+  ST('stk-k-total-s',`de ${cap.toLocaleString('es-AR')} de capacidad`);
+  stkDrawSpark('sp-total',[nOk,nWarn,nCrit,nND>0?nND:0],'var(--accent)');
+  ST('sp-total-t',`${nOk} OK · ${nWarn} alerta · ${nCrit} crítico`);
+
+  // OCUPACIÓN
+  ST('stk-k-ocup',`${ocup.toFixed(1)}%`);
+  ST('stk-k-ocup-s',`${total} de ${cap} lugares`);
+  const fill=ge_stk('stk-ocup-fill'), badge=ge_stk('stk-b-ocup'), kic=ge_stk('kic-ocup'), kc=ge_stk('stk-ck-ocup');
+  const [oColor,oCls,oTxt]=ocup>90?['var(--red)','bred','Ocupación crítica']:ocup>70?['var(--orange)','born','Ocupación elevada']:['var(--green)','bgrn','Normal'];
+  if(fill){fill.style.width=Math.min(ocup,100)+'%';fill.style.background=oColor;}
+  if(badge){badge.className='kbadge '+oCls;badge.textContent=oTxt;}
+  if(kic)kic.style.setProperty('--kc',oColor);
+  if(kc)kc.style.setProperty('--kc',oColor);
+  stkDrawSpark('sp-ocup',[ocup,100-ocup],'var(--green)');
+  ST('sp-ocup-t',`${(cap-total).toLocaleString('es-AR')} lugares disponibles`);
+
+  // PERMANENCIA PROMEDIO
+  ST('stk-k-prom',prom!==null?prom:'—');
+  if(prom!==null){
+    const pb=ge_stk('stk-b-prom');
+    const [pc,pt]=prom>crit?['bred',`Alto (>${crit}d)`]:prom>alert2?['born',`Alerta (>${alert2}d)`]:['bgrn','Normal'];
+    if(pb){pb.className='kbadge '+pc;pb.textContent=pt;}
+    const spark=rowsF.sort((a,b)=>a.dias-b.dias).map(r=>r.dias);
+    stkDrawSpark('sp-prom',spark.slice(-30),'var(--orange)');
+    ST('sp-prom-t',prom>crit?`⚠ Promedio supera ${crit}d`:prom>alert2?`Promedio supera ${alert2}d`:'Dentro del objetivo');
+  }
+
+  // CRÍTICAS
+  ST('stk-k-crit',nCrit);
+  ST('stk-k-crit-s',`Más de ${crit} días sin entrega`);
+  const bcrit=ge_stk('stk-b-crit'), ext=ge_stk('stk-crit-extra');
+  if(bcrit){
+    bcrit.className='kbadge '+(nCrit>0?'bred':'bgrn');
+    bcrit.textContent=nCrit>0?`${total?((nCrit/total)*100).toFixed(1):0}% del stock`:'Sin críticos';
+  }
+  if(ext) ext.textContent=nWarn>0?`· ${nWarn} en alerta`:'';
+  stkDrawSpark('sp-crit',[nOk,nWarn,nCrit],'var(--red)');
+  ST('sp-crit-t',`${nWarn} en alerta (${alert2}–${crit}d)`);
+
+  // MÁXIMA
+  ST('stk-k-max',maxDias!==null?maxDias:'—');
+  if(maxDias!==null){
+    const mx=rowsF.find(r=>r.dias===maxDias);
+    ST('stk-k-max-s',mx&&mx.modelo?`${mx.marcaNorm} · ${mx.modelo}`:'Unidad más antigua');
+  }
+
+  // MARCA DOMINANTE
+  if(topM){
+    ST('stk-k-marca',topM[0]);
+    ST('stk-k-marca-s',`${topM[1]} uds. · ${total?((topM[1]/total)*100).toFixed(1):0}% del stock`);
+    const bc=BRAND_C[topM[0]]||'var(--accent)';
+    ge_stk('stk-ck-marca')?.style.setProperty('--kc',bc);
+    ge_stk('kic-marca')?.style.setProperty('--kc',bc);
+  }
+
+  // MODELO
+  if(topMod){
+    ST('stk-k-modelo',topMod[0]);
+    ST('stk-k-modelo-s',`${topMod[1]} unidades`);
+  }
+
+  // SIN FECHA
+  ST('stk-k-sinfecha',nND);
+  const bsf=ge_stk('stk-b-sinfecha');
+  if(bsf){
+    bsf.className='kbadge '+(nND===0?'bgrn':'born');
+    bsf.textContent=nND===0?'Datos completos':`${total?Math.round(nND/total*100):0}% del stock`;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   ALERTS
+══════════════════════════════════════════════════ */
+function stkRenderAlerts(){
+  const rows=stkFiltered, total=rows.length;
+  const crit=getCrit(), alert2=getAlert(), cap=getCap();
+  const nCrit=rows.filter(r=>r.ageClass==='crit').length;
+  const nWarn=rows.filter(r=>r.ageClass==='warn').length;
+  const nND=rows.filter(r=>r.ageClass==='nd').length;
+  const ocup=total/cap*100;
+
+  const alerts=[];
+  if(nCrit>0) alerts.push({ico:'🔴',ac:'var(--red)',title:`${nCrit} unidad${nCrit>1?'es':''} crítica${nCrit>1?'s':''}`,sub:`Más de ${crit} días en predio. Requieren atención inmediata.`});
+  if(nWarn>0) alerts.push({ico:'🟡',ac:'var(--orange)',title:`${nWarn} unidad${nWarn>1?'es':''} en alerta`,sub:`Entre ${alert2} y ${crit} días. Monitorear de cerca.`});
+  if(ocup>80) alerts.push({ico:'📊',ac:'var(--orange)',title:`Ocupación elevada · ${ocup.toFixed(1)}%`,sub:`El predio supera el 80% de capacidad máxima (${cap} lugares).`});
+  if(nND>0) alerts.push({ico:'📅',ac:'var(--blue)',title:`${nND} registro${nND>1?'s':''} sin fecha`,sub:`Sin fecha de ingreso. Completar en el sistema.`});
+  if(!alerts.length) alerts.push({ico:'✅',ac:'var(--green)',title:'Todo en orden',sub:'No se detectaron alertas en el stock actual del predio.'});
+
+  ge_stk('stk-alerts').innerHTML=alerts.map(a=>`
+    <div class="acard" style="--ac:${a.ac}">
+      <div class="aiw" style="--ac:${a.ac}">${a.ico}</div>
+      <div><div class="atitle">${a.title}</div><div class="asub">${a.sub}</div></div>
+    </div>`).join('');
+}
+
+/* ══════════════════════════════════════════════════
+   CHARTS
+══════════════════════════════════════════════════ */
+;}
+function DC(id){if(AC[id]){AC[id].destroy();delete AC[id];}}
+function stkRenderCharts(){stkChartMarca();stkChartAging();stkChartModelos();stkChartMarcaDias();stkChartModProm();}
+function stkRedrawCharts(){if(stkAll.length){stkRenderCharts();stkRenderModRankings();}}
+
+function stkChartMarca(){
+  DC('marca'); const {grid,lbl}=gc();
+  const MAIN=['Volkswagen','Ford','Chevrolet','Audi'];
+  const otras=stkFiltered.filter(r=>!MAIN.includes(r.marcaNorm));
+  const labels=[...MAIN.filter(b=>stkFiltered.some(r=>r.marcaNorm===b))];
+  if(otras.length)labels.push('Otra');
+  const data=labels.map(b=>b==='Otra'?otras.length:stkFiltered.filter(r=>r.marcaNorm===b).length);
+  const colors=labels.map(b=>BRAND_C[b]||'#94a3b8');
+  const tot=stkFiltered.length;
+  AC['marca']=new Chart(ge_stk('stk-c-marca'),{
+    type:'doughnut',
+    data:{labels,datasets:[{data,backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,hoverOffset:8}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{position:'bottom',labels:{color:lbl,font:{size:11},padding:14,boxWidth:11}},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw} uds. (${tot?(ctx.raw/tot*100).toFixed(1):0}%)`}}}}
+  });
+  ge_stk('stk-cs-marca').innerHTML=labels.map((b,i)=>`
+    <div class="cstat"><div class="cstat-lbl">${b}</div>
+    <div class="cstat-val" style="color:${colors[i]}">${data[i]}</div>
+    <div class="cstat-sub">${tot?(data[i]/tot*100).toFixed(1):0}%</div></div>`).join('');
+}
+
+function stkChartAging(){
+  DC('aging'); const {grid,lbl}=gc();
+  const g1=stkFiltered.filter(r=>r.dias!==null&&r.dias<=15).length;
+  const g2=stkFiltered.filter(r=>r.dias!==null&&r.dias>=16&&r.dias<=30).length;
+  const g3=stkFiltered.filter(r=>r.dias!==null&&r.dias>=31&&r.dias<=60).length;
+  const g4=stkFiltered.filter(r=>r.dias!==null&&r.dias>60).length;
+  const groups=['0 – 15d','16 – 30d','31 – 60d','+ 60d'];
+  const colors=['#22c55e','#84cc16','#f59e0b','#ef4444'];
+  AC['aging']=new Chart(ge_stk('stk-c-aging'),{
+    type:'bar',
+    data:{labels:groups,datasets:[{label:'Unidades',data:[g1,g2,g3,g4],backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} unidades`}}},
+      scales:{x:{ticks:{color:lbl},grid:{color:grid}},y:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true}}}
+  });
+  ST('cs-g1',g1); ST('cs-g2',g2); ST('cs-g3',g3); ST('cs-g4',g4);
+}
+
+function stkChartModelos(){
+  DC('modelos'); const {grid,lbl}=gc();
+  const cnt={};
+  stkFiltered.forEach(r=>{if(r.modelo)cnt[r.modelo]=(cnt[r.modelo]||0)+1;});
+  const sorted=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if(!sorted.length)return;
+  const labels=sorted.map(x=>x[0]), data=sorted.map(x=>x[1]);
+  const bgC=labels.map(l=>{const r=stkFiltered.find(x=>x.modelo===l);return(BRAND_C[r?.marcaNorm]||'#3b82f6')+'cc';});
+  const bdC=labels.map(l=>{const r=stkFiltered.find(x=>x.modelo===l);return BRAND_C[r?.marcaNorm]||'#3b82f6';});
+  AC['modelos']=new Chart(ge_stk('stk-c-modelos'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Unidades',data,backgroundColor:bgC,borderColor:bdC,borderWidth:2,borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} unidades`}}},
+      scales:{x:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true},y:{ticks:{color:lbl,font:{size:11}},grid:{display:false}}}}
+  });
+}
+
+function stkChartMarcaDias(){
+  DC('marcaDias'); const {grid,lbl}=gc();
+  const MAIN=['Volkswagen','Ford','Chevrolet','Audi'];
+  const brs=MAIN.filter(b=>stkFiltered.some(r=>r.marcaNorm===b));
+  const data=brs.map(b=>{const rr=stkFiltered.filter(r=>r.marcaNorm===b&&r.dias!==null);return rr.length?Math.round(rr.reduce((s,r)=>s+r.dias,0)/rr.length):0;});
+  const colors=brs.map(b=>BRAND_C[b]||'#3b82f6');
+  AC['marcaDias']=new Chart(ge_stk('stk-c-marcadias'),{
+    type:'bar',
+    data:{labels:brs,datasets:[{label:'Días promedio',data,backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} días promedio`}}},
+      scales:{x:{ticks:{color:lbl},grid:{color:grid}},y:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true}}}
+  });
+  const crit=getCrit(), alt=getAlert();
+  ge_stk('stk-cs-marcadias').innerHTML=brs.map((b,i)=>{
+    const cls=data[i]>crit?'red':data[i]>alt?'orn':'grn';
+    return`<div class="cstat"><div class="cstat-lbl">${b}</div><div class="cstat-val ${cls}">${data[i]}d</div></div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════
+   RIGHT COLUMN
+══════════════════════════════════════════════════ */
+function stkRenderRightCol(){
+  // Top 10 oldest
+  const top5=stkFiltered.filter(r=>r.dias!==null).sort((a,b)=>b.dias-a.dias).slice(0,10);
+  ge_stk('stk-top5').innerHTML=top5.length?top5.map((r,i)=>{
+    const bc={'Volkswagen':'mb-vw','Ford':'mb-ford','Chevrolet':'mb-chev','Audi':'mb-audi'}[r.marcaNorm]||'mb-otra';
+    const rankCls=i===0?'t1':r.ageClass==='crit'?'t2':'';
+    return`<div class="rp-item">
+      <div class="rp-rank ${rankCls}">${i+1}</div>
+      <div class="rp-item-info">
+        <div class="rp-item-main">${r.vin||r.modelo||'Sin interno'} <span class="mbadge ${bc}" style="font-size:9px">${r.marcaNorm}</span></div>
+        <div class="rp-item-sub">${r.modelo||'—'}${r.color?' · '+r.color:''}</div>
+      </div>
+      <div class="rp-item-val">${r.dias}d</div>
+    </div>`;
+  }).join(''):`<div style="padding:20px;font-size:12px;color:var(--text-dim);text-align:center">Sin datos de fecha</div>`;
+
+  // Critical brands panel
+  const MAIN_B=['Volkswagen','Ford','Chevrolet','Audi'];
+  const critBrands=MAIN_B.map(b=>({
+    brand:b,
+    crit:stkFiltered.filter(r=>r.marcaNorm===b&&r.ageClass==='crit').length,
+    warn:stkFiltered.filter(r=>r.marcaNorm===b&&r.ageClass==='warn').length,
+    total:stkFiltered.filter(r=>r.marcaNorm===b).length,
+  })).filter(b=>b.total>0).sort((a,b)=>b.crit-a.crit);
+  const totalCrit=stkFiltered.filter(r=>r.ageClass==='crit').length;
+  const critPanel=ge_stk('stk-crit-brands-panel');
+  if(critPanel){critPanel.style.display=totalCrit>0?'block':'none';}
+  if(totalCrit>0){
+    const maxCrit=Math.max(...critBrands.map(b=>b.crit),1);
+    ge_stk('stk-crit-brands').innerHTML=critBrands.map(b=>{
+      if(!b.crit&&!b.warn) return'';
+      const pctBar=Math.round((b.crit/maxCrit)*100);
+      const c=BRAND_C[b.brand]||'#94a3b8';
+      return`<div class="rp-brand-row">
+        <div class="rp-brand-top">
+          <span style="font-size:12px;font-weight:700;color:${c}">${b.brand}</span>
+          <span style="font-size:13px;font-weight:800;color:var(--red)">${b.crit} críticas</span>
+        </div>
+        <div class="dbw"><div class="dbf" style="width:${pctBar}%;background:var(--red)"></div></div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px">${b.warn} en alerta · ${b.total} totales</div>
+      </div>`;
+    }).join('');
+  }
+
+
+  const MAIN=['Volkswagen','Ford','Chevrolet','Audi'];
+  const total=stkFiltered.length||1;
+  const otras=stkFiltered.filter(r=>!MAIN.includes(r.marcaNorm)).length;
+  const brs=[...MAIN.filter(b=>stkFiltered.some(r=>r.marcaNorm===b))];
+  if(otras>0)brs.push('Otra');
+  ge_stk('stk-brand-sum').innerHTML=brs.map(b=>{
+    const n=b==='Otra'?otras:stkFiltered.filter(r=>r.marcaNorm===b).length;
+    const pct=Math.round(n/total*100);
+    const c=BRAND_C[b]||'#94a3b8';
+    // avg days for brand
+    const rr=stkFiltered.filter(r=>r.marcaNorm===b&&r.dias!==null);
+    const avg=rr.length?Math.round(rr.reduce((s,r)=>s+r.dias,0)/rr.length):null;
+    return`<div class="rp-brand-row">
+      <div class="rp-brand-top">
+        <span class="rp-brand-name" style="color:${c}">${b}</span>
+        <span class="rp-brand-cnt">${n}</span>
+      </div>
+      <div class="dbw"><div class="dbf" style="width:${pct}%;background:${c}"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:2px">
+        <span>${pct}% del stock</span>
+        ${avg!==null?`<span>Prom: ${avg}d</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Top colors
+  if(stkCols.color){
+    const colorCnt={};
+    stkFiltered.forEach(r=>{if(r.color)colorCnt[r.color]=(colorCnt[r.color]||0)+1;});
+    const topC=Object.entries(colorCnt).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    if(topC.length){
+      ge_stk('stk-color-panel').style.display='block';
+      ge_stk('stk-color-sum').innerHTML=topC.map(([color,n])=>{
+        const pct=Math.round(n/total*100);
+        return`<div class="rp-brand-row">
+          <div class="rp-brand-top"><span style="font-size:12px;font-weight:600">${color}</span><span class="rp-brand-cnt">${n}</span></div>
+          <div class="dbw"><div class="dbf" style="width:${pct}%;background:var(--accent)"></div></div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:2px">${pct}%</div>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   TABLE
+══════════════════════════════════════════════════ */
+function stkRT(){
+  const search=ge_stk('stk-search').value.toLowerCase().trim();
+  const sortV=ge_stk('f-sort').value;
+  let rows=[...stkFiltered];
+  if(search) rows=rows.filter(r=>Object.values(r._raw).some(v=>v.toString().toLowerCase().includes(search)));
+  const sf={
+    'dias-d':(a,b)=>(b.dias??-1)-(a.dias??-1),
+    'dias-a':(a,b)=>(a.dias??999999)-(b.dias??999999),
+    'marca': (a,b)=>a.marcaNorm.localeCompare(b.marcaNorm),
+    'modelo':(a,b)=>(a.modelo||'').localeCompare(b.modelo||''),
+  };
+  rows.sort(sf[sortV]||sf['dias-d']);
+  stkDisplayed=rows;
+  stkCurrentPage=1; stkRenderTable();
+}
+
+function stkRenderTable(){
+  const total=stkDisplayed.length;
+  const pages=Math.max(1,Math.ceil(total/STK_PP));
+  if(stkCurrentPage>pages)stkCurrentPage=pages;
+  ge_stk('stk-pag-info').textContent=`Mostrando ${total===0?0:(stkCurrentPage-1)*STK_PP+1}–${Math.min(stkCurrentPage*STK_PP,total)} de ${total}`;
+  ge_stk('stk-btn-prev').disabled=stkCurrentPage<=1;
+  ge_stk('stk-btn-next').disabled=stkCurrentPage>=pages;
+  ST('stk-tbl-cnt',`(${total} unidades)`);
+
+  const slice=stkDisplayed.slice((stkCurrentPage-1)*STK_PP,stkCurrentPage*STK_PP);
+
+  const visCols=[];
+  if(stkCols.vin)      visCols.push({k:'vin',      l:'N° Interno'});
+  visCols.push(         {k:'marcaNorm',             l:'Marca'});
+  if(stkCols.modelo)   visCols.push({k:'modelo',    l:'Modelo'});
+  if(stkCols.color)    visCols.push({k:'color',     l:'Color'});
+  if(stkCols.estado)   visCols.push({k:'estado',    l:'Estado'});
+  if(stkCols.ubicacion)visCols.push({k:'ubicacion', l:'Ubicación'});
+  visCols.push(         {k:'fecha',                 l:'Fecha Ingreso'});
+  visCols.push(         {k:'dias',                  l:'Días en Predio'});
+
+  ge_stk('stk-thead').innerHTML=visCols.map(c=>`<th>${c.l}<span class="sa"></span></th>`).join('');
+
+  const crit=getCrit(), alt=getAlert();
+  ge_stk('stk-tbody').innerHTML=slice.map(r=>{
+    const bc={'Volkswagen':'mb-vw','Ford':'mb-ford','Chevrolet':'mb-chev','Audi':'mb-audi'}[r.marcaNorm]||'mb-otra';
+    const cells=visCols.map(c=>{
+      if(c.k==='marcaNorm') return`<td><span class="mbadge ${bc}">${r.marcaNorm}</span></td>`;
+      if(c.k==='dias'){
+        if(r.dias===null) return`<td style="color:var(--text-dim)">—</td>`;
+        const cls=r.dias>crit?'rbad':r.dias>alt?'rmed':'rok';
+        return`<td><span class="rpill ${cls}">${r.dias}d${r.dias>crit?' ⚠':''}</span></td>`;
+      }
+      const v=r[c.k]||'—';
+      return`<td${v==='—'?' style="color:var(--text-dim)"':''}>${v}</td>`;
+    }).join('');
+    const rowBg=r.ageClass==='crit'?'background:rgba(239,68,68,.03)':'';
+    return`<tr style="${rowBg}">${cells}</tr>`;
+  }).join('')||`<tr><td colspan="${visCols.length}" style="text-align:center;padding:30px;color:var(--text-dim)">Sin resultados</td></tr>`;
+}
+
+function stkChartModProm(){
+  DC('modProm'); const {grid,lbl}=gc();
+  // avg days per model (only models with fecha)
+  const cnt={}, sum={};
+  stkFiltered.forEach(r=>{if(r.modelo&&r.dias!==null){cnt[r.modelo]=(cnt[r.modelo]||0)+1;sum[r.modelo]=(sum[r.modelo]||0)+r.dias;}});
+  const avgs=Object.entries(cnt).map(([m,n])=>({m,avg:Math.round(sum[m]/n),n})).filter(x=>x.n>=1).sort((a,b)=>b.avg-a.avg).slice(0,10);
+  if(!avgs.length)return;
+
+  const labels=avgs.map(x=>x.m), data=avgs.map(x=>x.avg);
+  const crit=getCrit(), alt=getAlert();
+  const bgC=data.map(v=>v>crit?'rgba(239,68,68,.7)':v>alt?'rgba(245,158,11,.7)':'rgba(34,197,94,.7)');
+  const bdC=data.map(v=>v>crit?'#ef4444':v>alt?'#f59e0b':'#22c55e');
+
+  AC['modProm']=new Chart(ge_stk('stk-c-mod-prom'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Días promedio',data,backgroundColor:bgC,borderColor:bdC,borderWidth:2,borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} días promedio (${avgs[c2.dataIndex].n} uds.)`}}},
+      scales:{x:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true},y:{ticks:{color:lbl,font:{size:11}},grid:{display:false}}}}
+  });
+
+  // footer stats
+  ST('cs-modmax-name',avgs[0]?.m||'—');
+  ST('cs-modmax-dias',avgs[0]?`${avgs[0].avg} días · ${avgs[0].n} uds.`:'');
+  const avg10=avgs.length?Math.round(avgs.reduce((s,x)=>s+x.avg,0)/avgs.length):0;
+  ST('cs-modprom-avg',avg10);
+  // total distinct models
+  const totalMods=new Set(stkFiltered.filter(r=>r.modelo).map(r=>r.modelo)).size;
+  ST('cs-mod-total',totalMods);
+}
+
+function stkRenderModRankings(){
+  // Top 10 modelos por unidad más antigua (worst case per model)
+  const worstByModel={};
+  stkFiltered.forEach(r=>{
+    if(!r.modelo||r.dias===null)return;
+    if(!worstByModel[r.modelo]||r.dias>worstByModel[r.modelo].dias) worstByModel[r.modelo]=r;
+  });
+  const sorted=Object.values(worstByModel).sort((a,b)=>b.dias-a.dias).slice(0,10);
+  const crit=getCrit(), alt=getAlert();
+  const container=ge_stk('stk-mod-max-list');
+  if(!container)return;
+
+  container.innerHTML=sorted.length?sorted.map((r,i)=>{
+    const bc={'Volkswagen':'mb-vw','Ford':'mb-ford','Chevrolet':'mb-chev','Audi':'mb-audi'}[r.marcaNorm]||'mb-otra';
+    const pillCls=r.dias>crit?'rbad':r.dias>alt?'rmed':'rok';
+    const rankCls=i===0?'t1':r.ageClass==='crit'?'t2':'';
+    const vin=r.vin?`<span style="font-size:10px;color:var(--text-dim);font-family:'Inter',sans-serif"> · ${r.vin}</span>`:'';
+    return`<div style="display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--border)">
+      <div class="rp-rank ${rankCls}" style="flex-shrink:0">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+          ${r.modelo} <span class="mbadge ${bc}" style="font-size:9px">${r.marcaNorm}</span>${vin}
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px">Peor unidad del modelo</div>
+      </div>
+      <span class="rpill ${pillCls}" style="white-space:nowrap">${r.dias}d${r.dias>crit?' ⚠':''}</span>
+    </div>`;
+  }).join(''):`<div style="padding:20px;text-align:center;font-size:12px;color:var(--text-dim)">Sin datos de fecha</div>`;
+}
+
+
+
+/* ══════════════════════════════════════════════════
+   EXPORT
+══════════════════════════════════════════════════ */
+function stkExport(){
+  if(!stkDisplayed.length){alert('Sin datos para exportar.');return;}
+  const h=Object.keys(stkDisplayed[0]._raw);
+  const csv=[h.join(';'),...stkDisplayed.map(r=>h.map(k=>`"${(r._raw[k]||'').replace(/"/g,'""')}"`).join(';'))].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download=`stock_predio_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+/* ══════════════════════════════════════════════════
+   KPI TOGGLE
+══════════════════════════════════════════════════ */
+function stkTK(id,show){const el=ge_stk(id);if(el)el.toggleAttribute('hidden-kpi',!show);}
+function stkSetAllK(on){document.querySelectorAll('#stk-kpi-menu input[type=checkbox]').forEach(cb=>{cb.checked=on;cb.dispatchEvent(new Event('change'));});}
+function stkToggleKpiMenu(e){e.stopPropagation();ge_stk('stk-kpi-menu').classList.toggle('open');}
+document.addEventListener('click',()=>ge_stk('stk-kpi-menu')?.classList.remove('open'));
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -382,6 +1018,23 @@ tbody tr:hover td{background:var(--surface2);}
 }
 .splash-btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 16px 40px rgba(37,99,235,.5);}
 @keyframes splashFadeIn{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:translateY(0);}}
+
+/* ══ STOCK PREDIO extras ══ */
+.bchip-wrap{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.bchip{background:var(--surface2);border:1px solid var(--border);color:var(--text-mid);padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;}
+.bchip:hover{border-color:var(--accent);color:var(--accent);}
+.bchip.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.cstats-4{grid-template-columns:repeat(4,1fr);}
+.cstats-3{grid-template-columns:repeat(3,1fr);}
+.rp-rank.t1{background:rgba(239,68,68,.12);color:var(--red);}
+.rp-rank.t2{background:rgba(245,158,11,.12);color:var(--orange);}
+.rp-brand-row{padding:10px 16px;border-bottom:1px solid var(--border);}
+.rp-brand-row:last-child{border-bottom:none;}
+.rp-brand-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
+.rp-brand-name{font-size:12px;font-weight:700;}
+.rp-brand-cnt{font-size:13px;font-weight:800;color:var(--text);}
+#stk-kpi-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:400;background:var(--surface);border:1px solid var(--border);border-radius:10px;min-width:230px;box-shadow:var(--shadow-md);padding:6px 0;}
+#stk-kpi-menu.open{display:block;}
 </style>
 </head>
 <body>
@@ -407,6 +1060,7 @@ tbody tr:hover td{background:var(--surface2);}
     <button class="nav-item active" id="nav-avr" onclick="switchTab('avr')"><span class="ni">🔧</span> Averías</button>
     <button class="nav-item" id="nav-ali" onclick="switchTab('ali')"><span class="ni">🚗</span> Alistaje</button>
     <button class="nav-item" id="nav-mov" onclick="switchTab('mov')"><span class="ni">📦</span> Movimientos</button>
+    <button class="nav-item" id="nav-stk" onclick="switchTab('stk')"><span class="ni">🏭</span> Stock Predio</button>
     <div class="nav-sep"></div>
     <!-- Params Averías -->
     <div id="sb-p-avr" style="padding:8px 18px 4px">
@@ -492,6 +1146,44 @@ tbody tr:hover td{background:var(--surface2);}
         </div>
       </div>
     </div>
+
+    <!-- Params Stock Predio -->
+    <div id="sb-p-stk" style="display:none;padding:8px 18px 4px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--sb-txt);margin-bottom:8px">Parámetros</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--sb-txt)">Capacidad predio</span>
+        <input type="number" id="p-cap" value="1000" min="1" onchange="stkRecalc()" style="width:50px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;padding:3px 6px;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;text-align:center;outline:none;">
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--sb-txt)">Días crítico</span>
+        <input type="number" id="p-crit" value="60" min="1" onchange="stkRecalc()" style="width:50px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;padding:3px 6px;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;text-align:center;outline:none;">
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--sb-txt)">Días alerta</span>
+        <input type="number" id="p-alert" value="30" min="1" onchange="stkRecalc()" style="width:50px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;padding:3px 6px;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;text-align:center;outline:none;">
+      </div>
+      <div class="kcfg-wrap" style="margin-top:6px">
+        <button class="kcfg-btn" style="width:100%;justify-content:center" onclick="stkToggleKpiMenu(event)">⚙ Configurar KPIs</button>
+        <div id="stk-kpi-menu">
+          <div class="kmlbl">Indicadores estratégicos</div>
+          <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-total',this.checked)"> Total en Predio</label>
+          <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-ocup',this.checked)"> Ocupación</label>
+          <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-prom',this.checked)"> Permanencia Promedio</label>
+          <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-crit',this.checked)"> Unidades Críticas</label>
+          <div class="kmsep"></div>
+          <div class="kmlbl">Indicadores operativos</div>
+          <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-max',this.checked)"> Permanencia Máxima</label>
+          <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-marca',this.checked)"> Marca Dominante</label>
+          <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-modelo',this.checked)"> Modelo Frecuente</label>
+          <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-sinfecha',this.checked)"> Sin Fecha Ingreso</label>
+          <div class="kmsep"></div>
+          <div style="display:flex;gap:6px;padding:6px 14px">
+            <button onclick="stkSetAllK(true)" class="kcfg-btn" style="flex:1;font-size:10px;padding:3px 8px">Todos</button>
+            <button onclick="stkSetAllK(false)" class="kcfg-btn" style="flex:1;font-size:10px;padding:3px 8px">Ninguno</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </nav>
   <div class="sb-bottom">
     <div class="sb-filters-title">Filtros activos</div>
@@ -506,6 +1198,10 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="sb-upload-area" id="sb-upload-ali" style="display:none">
       <button class="sb-upload-btn grn" onclick="loadSheet('ali')" id="btn-ali">↻ Actualizar Alistaje</button>
       <div class="sb-file-info"><div class="sb-file-dot" id="fd-ali"></div><div class="sb-file-name" id="fn-ali">Esperando...</div></div>
+    </div>
+    <div class="sb-upload-area" id="sb-upload-stk" style="display:none">
+      <button class="sb-upload-btn" style="background:#0f766e" onclick="loadSheet('stk')" id="btn-stk">↻ Actualizar Stock</button>
+      <div class="sb-file-info"><div class="sb-file-dot" id="fd-stk"></div><div class="sb-file-name" id="fn-stk">Esperando...</div></div>
     </div>
     <div class="sb-upload-area" id="sb-upload-mov" style="display:none">
       <button class="sb-upload-btn" style="background:#7c3aed" onclick="loadSheet('mov')" id="btn-mov">↻ Actualizar Movimientos</button>
@@ -847,6 +1543,271 @@ tbody tr:hover td{background:var(--surface2);}
   </div>
 </div>
 
+
+<!-- ══ TAB STOCK PREDIO ══ -->
+<div id="tab-stk" style="display:none">
+  <!-- FILTER BAR -->
+  <div class="fbar" id="stk-fbar" style="display:none">
+    <div class="fgroup">
+      <div class="flbl">Marca</div>
+      <div class="bchip-wrap" id="stk-brand-chips"></div>
+    </div>
+    <div class="fdiv"></div>
+    <div class="fgroup">
+      <div class="flbl">Antigüedad</div>
+      <select id="f-age" onchange="stkApplyFilters()">
+        <option value="">Todas</option>
+        <option value="ok">0 – 30 días (OK)</option>
+        <option value="warn">31 – 60 días (Alerta)</option>
+        <option value="crit">Más de 60 días (Crítico)</option>
+        <option value="nd">Sin fecha</option>
+      </select>
+    </div>
+    <div class="fdiv"></div>
+    <div class="fgroup">
+      <div class="flbl">Ordenar tabla</div>
+      <select id="f-sort" onchange="stkRT()">
+        <option value="dias-d">Mayor antigüedad primero</option>
+        <option value="dias-a">Menor antigüedad primero</option>
+        <option value="marca">Por marca</option>
+        <option value="modelo">Por modelo</option>
+      </select>
+    </div>
+    <button class="clrbtn" onclick="stkClear()">↺ Limpiar</button>
+  </div>
+
+  <div class="pw">
+    <!-- EMPTY STATE -->
+    <div class="empty-st" id="stk-empty">
+      <div class="ei">🏭</div>
+      <div class="et">Sin datos cargados</div>
+      <div class="es">Los datos se cargan automáticamente desde Google Sheets al abrir el dashboard.</div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="stk-dash" style="display:none">
+      <div class="dlayout">
+        <div class="mcol">
+
+          <!-- ── KPIs ESTRATÉGICOS ── -->
+          <div class="stitle"><span class="sdot"></span>KPIs Estratégicos <em>Visión general del predio</em></div>
+          <div class="kgrid4">
+
+            <div class="kcard" id="stk-ck-total" style="--kc:var(--accent)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--accent)">🚗</div>
+                <div class="kinfo">
+                  <div class="klbl">Total en Predio</div>
+                  <div class="kval lg" id="stk-k-total">—</div>
+                  <div class="ksub" id="stk-k-total-s">unidades registradas</div>
+                </div>
+              </div>
+              <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-total" class="spark-path" style="stroke:var(--accent)"/></svg></div>
+              <div class="kcard-trend"><span id="sp-total-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> distribución de antigüedad</span></div>
+            </div>
+
+            <div class="kcard" id="stk-ck-ocup" style="--kc:var(--green)">
+              <div class="kcard-top">
+                <div class="kic" id="kic-ocup" style="--kc:var(--green)">📊</div>
+                <div class="kinfo">
+                  <div class="klbl">Ocupación del Predio</div>
+                  <div class="kval lg" id="stk-k-ocup">—</div>
+                  <div class="ksub" id="stk-k-ocup-s"></div>
+                  <div class="kmeta"><div id="stk-b-ocup" class="kbadge bgrn">Normal</div></div>
+                  <div class="kpbar"><div class="kpfill" id="stk-ocup-fill" style="width:0%;background:var(--green)"></div></div>
+                </div>
+              </div>
+              <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-ocup" class="spark-path" style="stroke:var(--green)"/></svg></div>
+              <div class="kcard-trend"><span id="sp-ocup-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> lugares disponibles</span></div>
+            </div>
+
+            <div class="kcard" id="stk-ck-prom" style="--kc:var(--orange)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--orange)">⏱</div>
+                <div class="kinfo">
+                  <div class="klbl">Permanencia Promedio</div>
+                  <div style="display:flex;align-items:baseline;gap:4px">
+                    <div class="kval lg" id="stk-k-prom">—</div>
+                    <span class="kunit" style="color:var(--orange)">días</span>
+                  </div>
+                  <div class="ksub">Promedio general del predio</div>
+                  <div class="kmeta"><div id="stk-b-prom" class="kbadge born">—</div></div>
+                </div>
+              </div>
+              <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-prom" class="spark-path" style="stroke:var(--orange)"/></svg></div>
+              <div class="kcard-trend"><span id="sp-prom-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> días en predio</span></div>
+            </div>
+
+            <div class="kcard" id="stk-ck-crit" style="--kc:var(--red)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--red)">⚠️</div>
+                <div class="kinfo">
+                  <div class="klbl">Unidades Críticas</div>
+                  <div class="kval lg" id="stk-k-crit">—</div>
+                  <div class="ksub" id="stk-k-crit-s"></div>
+                  <div class="kmeta"><div id="stk-b-crit" class="kbadge bred">—</div><span style="font-size:10px;color:var(--text-dim)" id="stk-crit-extra"></span></div>
+                </div>
+              </div>
+              <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-crit" class="spark-path" style="stroke:var(--red)"/></svg></div>
+              <div class="kcard-trend"><span id="sp-crit-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> en alerta</span></div>
+            </div>
+          </div>
+
+          <!-- ── KPIs OPERATIVOS ── -->
+          <div class="stitle"><span class="sdot" style="background:var(--blue)"></span>KPIs Operativos <em>Gestión diaria</em></div>
+          <div class="kgrid4">
+            <div class="kcard" id="stk-ck-max" style="--kc:var(--red)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--red)">📈</div>
+                <div class="kinfo">
+                  <div class="klbl">Permanencia Máxima</div>
+                  <div style="display:flex;align-items:baseline;gap:4px">
+                    <div class="kval md" id="stk-k-max">—</div>
+                    <span class="kunit" style="color:var(--red)">días</span>
+                  </div>
+                  <div class="ksub" id="stk-k-max-s">Unidad más antigua en predio</div>
+                </div>
+              </div>
+            </div>
+            <div class="kcard" id="stk-ck-marca" style="--kc:var(--accent)">
+              <div class="kcard-top">
+                <div class="kic" id="kic-marca" style="--kc:var(--accent)">🏆</div>
+                <div class="kinfo">
+                  <div class="klbl">Marca Dominante</div>
+                  <div class="kval leader" id="stk-k-marca">—</div>
+                  <div class="ksub" id="stk-k-marca-s"></div>
+                </div>
+              </div>
+            </div>
+            <div class="kcard" id="stk-ck-modelo" style="--kc:var(--purple)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--purple)">🔢</div>
+                <div class="kinfo">
+                  <div class="klbl">Modelo Más Frecuente</div>
+                  <div class="kval leader" id="stk-k-modelo">—</div>
+                  <div class="ksub" id="stk-k-modelo-s"></div>
+                </div>
+              </div>
+            </div>
+            <div class="kcard" id="stk-ck-sinfecha" style="--kc:var(--orange)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--orange)">📅</div>
+                <div class="kinfo">
+                  <div class="klbl">Sin Fecha de Ingreso</div>
+                  <div class="kval md" id="stk-k-sinfecha">—</div>
+                  <div class="ksub">Registros sin fecha cargada</div>
+                  <div class="kmeta"><div id="stk-b-sinfecha" class="kbadge born">—</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── ALERTAS ── -->
+          <div class="stitle"><span class="sdot" style="background:var(--red)"></span>Alertas Automáticas</div>
+          <div class="agrid" id="stk-alerts"></div>
+
+          <!-- ── CHARTS ROW 1 ── -->
+          <div class="stitle"><span class="sdot" style="background:var(--blue)"></span>Distribución del Stock</div>
+          <div class="crow c2">
+            <div class="cc">
+              <div class="ctitle">Stock por Marca</div>
+              <div class="ch260"><canvas id="stk-c-marca"></canvas></div>
+              <div class="cstats cstats-4" id="stk-cs-marca"></div>
+            </div>
+            <div class="cc">
+              <div class="ctitle">Antigüedad en Predio · <span id="stk-aging-lbl">distribución por rangos</span></div>
+              <div class="ch260"><canvas id="stk-c-aging"></canvas></div>
+              <div class="cstats cstats-4">
+                <div class="cstat"><div class="cstat-lbl">0 – 15 días</div><div class="cstat-val grn" id="cs-g1">—</div></div>
+                <div class="cstat"><div class="cstat-lbl">16 – 30 días</div><div class="cstat-val grn" id="cs-g2">—</div></div>
+                <div class="cstat"><div class="cstat-lbl">31 – 60 días</div><div class="cstat-val orn" id="cs-g3">—</div></div>
+                <div class="cstat"><div class="cstat-lbl">+ 60 días</div><div class="cstat-val red" id="cs-g4">—</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── CHARTS ROW 2 ── -->
+          <div class="stitle"><span class="sdot" style="background:var(--green)"></span>Modelos y Permanencia por Marca</div>
+          <div class="crow c2">
+            <div class="cc">
+              <div class="ctitle">Top 10 Modelos en Stock</div>
+              <div class="ch300"><canvas id="stk-c-modelos"></canvas></div>
+            </div>
+            <div class="cc">
+              <div class="ctitle">Permanencia Promedio por Marca · <span>días</span></div>
+              <div class="ch300"><canvas id="stk-c-marcadias"></canvas></div>
+              <div class="cstats cstats-4" id="stk-cs-marcadias"></div>
+            </div>
+          </div>
+
+          <!-- ── RANKINGS DE PERMANENCIA ── -->
+          <div class="stitle"><span class="sdot" style="background:var(--purple)"></span>Rankings de Permanencia <em>por modelo</em></div>
+          <div class="crow c2">
+            <div class="cc">
+              <div class="ctitle">Top 10 Modelos · Permanencia Promedio · <span>días promedio en predio</span></div>
+              <div class="ch300"><canvas id="stk-c-mod-prom"></canvas></div>
+              <div class="cstats cstats-3">
+                <div class="cstat"><div class="cstat-lbl">Modelo más lento</div><div class="cstat-val red" id="cs-modmax-name" style="font-size:13px;font-weight:700;letter-spacing:0">—</div><div class="cstat-sub" id="cs-modmax-dias"></div></div>
+                <div class="cstat"><div class="cstat-lbl">Promedio top 10</div><div class="cstat-val orn" id="cs-modprom-avg">—</div><div class="cstat-sub">días</div></div>
+                <div class="cstat"><div class="cstat-lbl">Modelos distintos</div><div class="cstat-val" id="cs-mod-total">—</div><div class="cstat-sub">en predio</div></div>
+              </div>
+            </div>
+            <div class="cc" style="display:flex;flex-direction:column;gap:0;padding:0">
+              <div class="ctitle" style="padding:20px 20px 0">Top 10 Modelos · Unidad Más Antigua</div>
+              <div id="stk-mod-max-list" style="overflow-y:auto;max-height:370px;margin-top:12px"></div>
+            </div>
+          </div>
+
+          <!-- ── TABLE ── -->
+          <div class="stitle"><span class="sdot" style="background:var(--text-dim)"></span>Detalle del Stock</div>
+          <div class="cc" style="padding:0;margin-bottom:28px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+              <div class="ctitle" style="margin:0">Inventario Predio <span id="stk-tbl-cnt" style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;font-size:12px"></span></div>
+              <input type="text" id="stk-search" placeholder="🔍 Buscar interno, modelo, color..." oninput="stkRT()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;width:250px;outline:none;">
+            </div>
+            <div class="twrap">
+              <table><thead><tr id="stk-thead"></tr></thead><tbody id="stk-tbody"></tbody></table>
+            </div>
+            <div class="pagination">
+              <span id="stk-pag-info" style="margin-right:auto"></span>
+              <button class="pbtn" id="stk-btn-prev" onclick="stkPage(-1)" disabled>← Anterior</button>
+              <button class="pbtn" id="stk-btn-next" onclick="stkPage(1)"  disabled>Siguiente →</button>
+            </div>
+          </div>
+        </div><!-- /mcol -->
+
+        <!-- ── RIGHT COLUMN ── -->
+        <div class="rcol">
+
+          <!-- Top 10 más antiguas -->
+          <div class="rpanel">
+            <div class="rp-hdr">⏱ Top 10 · Mayor Antigüedad</div>
+            <div id="stk-top5"></div>
+          </div>
+
+          <!-- Top marcas por críticas -->
+          <div class="rpanel" id="stk-crit-brands-panel" style="display:none">
+            <div class="rp-hdr">🔴 Críticas por Marca</div>
+            <div id="stk-crit-brands"></div>
+          </div>
+
+          <!-- Resumen por marca -->
+          <div class="rpanel">
+            <div class="rp-hdr">🚗 Resumen por Marca</div>
+            <div id="stk-brand-sum"></div>
+          </div>
+
+          <!-- Top colores (solo si columna existe) -->
+          <div class="rpanel" id="stk-color-panel" style="display:none">
+            <div class="rp-hdr">🎨 Top Colores</div>
+            <div id="stk-color-sum"></div>
+          </div>
+        </div>
+      </div><!-- /dlayout -->
+    </div><!-- /stk-dash -->
+  </div><!-- /pw -->
+</div>
+
 <!-- Slide panel -->
 <div class="overlay" id="ali-overlay" onclick="aliClosePanel()"></div>
 <div class="dpanel" id="ali-dpanel">
@@ -886,13 +1847,13 @@ tbody tr:hover td{background:var(--surface2);}
 const COLORS=['#2563eb','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16'];
 let AC={};
 function switchTab(t){
-  ['avr','ali','mov'].forEach(id=>{
+  ['avr','ali','mov','stk'].forEach(id=>{
     const tab=document.getElementById('tab-'+id);if(tab)tab.style.display=id===t?'':'none';
     document.getElementById('nav-'+id).classList.toggle('active',id===t);
     document.getElementById('sb-p-'+id).style.display=id===t?'':'none';
     document.getElementById('sb-upload-'+id).style.display=id===t?'':'none';
   });
-  const titles={avr:'Dashboard Averías',ali:'Dashboard Alistaje',mov:'Dashboard Movimientos'};
+  const titles={avr:'Dashboard Averías',ali:'Dashboard Alistaje',mov:'Dashboard Movimientos',stk:'Stock Predio'};
   document.getElementById('hdr-sub').textContent=titles[t]||'';
 }
 document.getElementById('sb-p-ali').style.display='none';
@@ -907,6 +1868,7 @@ function toggleTheme(){
   if(avrRaw.length)avrRecalc();
   if(aliFiltered.length){aliUpdateKPIs();aliUpdateCharts();}
   if(movAllRows.length)movRedrawCharts();
+  if(stkAll&&stkAll.length)stkRedrawCharts();
 }
 function gc(){const d=document.body.classList.contains('dark');return{grid:d?'#2d3f5e':'#e2e8f0',lbl:d?'#94a3b8':'#64748b'};}
 function DC(id){if(AC[id]){AC[id].destroy();delete AC[id];}}
@@ -1982,7 +2944,8 @@ function movUpdateRankings(){
 const GS_URLS = {
   avr: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRajCdRSVbHrwPCJEc8r_HP2tXw93X-2yHNpWHykbkoDwsaRh1GLilPK_3uB6YqOyArCpScOkpNkePx/pub?output=csv',
   ali: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4SHTzQiqQOjLYcGErelIRGlnml9cPzgoXi5M0LAdmmqGLgk8kxMG1_SlC7DdBBt_f6bJkyPkPC9wX/pub?output=csv&gid=127628867',
-  mov: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtC2eRdTMsJV50O6rDDEB4Pdn8NZPJSWvJIYGSnRh9Luu5FNxK5e0aQIfvltTUpy0_in80shzsSUdm/pub?output=csv&gid=1181695820'
+  mov: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtC2eRdTMsJV50O6rDDEB4Pdn8NZPJSWvJIYGSnRh9Luu5FNxK5e0aQIfvltTUpy0_in80shzsSUdm/pub?output=csv&gid=1181695820',
+  stk: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtC2eRdTMsJV50O6rDDEB4Pdn8NZPJSWvJIYGSnRh9Luu5FNxK5e0aQIfvltTUpy0_in80shzsSUdm/pub?output=csv'
 };
 
 function gsSetStatus(key, state, msg) {
@@ -2031,6 +2994,8 @@ async function loadSheet(key) {
       aliProcess(parsed.data);
     } else if (key === 'mov') {
       movProcess(parsed.data);
+    } else if (key === 'stk') {
+      stkProcess(parsed.data);
     }
 
     gsSetStatus(key, 'ok', 'Actualizado ' + fmtNow());
@@ -2047,6 +3012,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadSheet('avr');
   setTimeout(() => loadSheet('ali'), 600);
   setTimeout(() => loadSheet('mov'), 1200);
+  setTimeout(() => loadSheet('stk'), 1800);
 });
 
 // ══ SPLASH ══
