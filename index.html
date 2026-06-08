@@ -4,643 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Movimiento 0km · Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
-// ══════════ STOCK PREDIO ══════════
-/* ══════════════════════════════════════════════════
-   COLUMN CANDIDATES
-══════════════════════════════════════════════════ */
-const STK_COL_CANDS={
-  marca:    ['Marca','marca','MARCA','Fabricante','fabricante'],
-  modelo:   ['Modelo','modelo','MODELO','Descripcion','Descripción','Descripcion del Vehiculo','Tipo'],
-  color:    ['Color','color','COLOR'],
-  fecha:    ['Fecha Arribo'],
-  vin:      ['Interno','N° Interno','Nro Interno','interno','INTERNO',
-             'VIN','Chasis','chasis','N° Chasis','Nro Chasis','Nro. Chasis','Motor','Nro Motor'],
-  estado:   ['Estado','estado','ESTADO','Status','status'],
-  ubicacion:['Ubicacion','Ubicación','ubicacion','Dique','Sector','Posicion','Posición'],
-};
-
-
-// ── STK: local alias and init via Sheets ──
-function ge_stk(id){return document.getElementById(id);}
-
-function stkProcess(rawData){
-  if(!rawData||!rawData.length){
-    gsSetStatus('stk','err','Sin datos'); return;
-  }
-  // Clean rows (strip BOM, trailing empty cols)
-  const cleaned=rawData.map(row=>{
-    const out={};
-    for(const k in row){
-      const key=k.replace(/^\uFEFF/,'').trim();
-      if(!key)continue;
-      out[key]=(row[k]??'').toString().trim();
-    }
-    return out;
-  });
-  const headers=Object.keys(cleaned[0]||{});
-  stkCols={};
-  for(const [field,cands] of Object.entries(STK_COL_CANDS)){
-    const hit=cands.find(c=>headers.some(h=>h.toLowerCase()===c.toLowerCase()));
-    stkCols[field]=hit?headers.find(h=>h.toLowerCase()===hit.toLowerCase()):null;
-  }
-  stkAll=cleaned.map(r=>{
-    const out={_raw:r};
-    for(const [f,col] of Object.entries(stkCols)) out[f]=col?(r[col]||''):'';
-    out.marcaNorm=stkNormBrand(out.marca);
-    out.dias=stkParseDias(out.fecha);
-    out.ageClass=stkAgeClass(out.dias);
-    return out;
-  });
-  stkFiltered=[...stkAll];
-  // Show dashboard
-  const empty=document.getElementById('stk-empty');
-  const dash=document.getElementById('stk-dash');
-  const fbar=document.getElementById('stk-fbar');
-  if(empty) empty.style.display='none';
-  if(dash)  dash.style.display='block';
-  if(fbar)  fbar.style.display='flex';
-  stkBuildBrandChips();
-  stkRenderAll();
-}
-
-/* ══════════════════════════════════════════════════
-   STATE
-══════════════════════════════════════════════════ */
-let stkAll=[], stkFiltered=[], stkDisplayed=[];
-let stkCols={}, stkActiveBrand='all', stkCurrentPage=1;
-const STK_PP=30;
-
-
-function getCap(){return +ge_stk('p-cap').value||1000;}
-function getCrit(){return +ge_stk('p-crit').value||60;}
-function getAlert(){return +ge_stk('p-alert').value||30;}
-
-/* ══════════════════════════════════════════════════
-   THEME
-══════════════════════════════════════════════════ */
-
-/* ══════════════════════════════════════════════════
-   FILE INPUT
-══════════════════════════════════════════════════ */
-
-function stkProcessRow(raw){
-  const r={_raw:raw};
-  for(const [f,col] of Object.entries(stkCols)) r[f]=col?(raw[col]||''):'';
-  r.marcaNorm=stkNormBrand(r.marca);
-  r.dias=stkParseDias(r.fecha);
-  r.ageClass=stkAgeClass(r.dias);
-  return r;
-}
-
-function stkAgeClass(dias){
-  if(dias===null) return 'nd';
-  if(dias>getCrit()) return 'crit';
-  if(dias>getAlert()) return 'warn';
-  return 'ok';
-}
-
-function stkNormBrand(raw){
-  const s=(raw||'').toUpperCase().replace(/[\s.]/g,'');
-  if(s.includes('VOLKSWAGEN')||s.includes('VW')) return 'Volkswagen';
-  if(s.includes('FORD')) return 'Ford';
-  if(s.includes('CHEVROLET')||s.includes('GM')||s.includes('GENERALMOTOR')) return 'Chevrolet';
-  if(s.includes('AUDI')) return 'Audi';
-  return raw?raw.trim():'Otra';
-}
-
-function stkParseDias(str){
-  if(!str)return null;
-  const s=str.trim();
-  let m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if(m){return stkDiff(new Date(+m[3],+m[2]-1,+m[1]));}
-  m=s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-  if(m){return stkDiff(new Date(+m[1],+m[2]-1,+m[3]));}
-  const d=new Date(s);
-  if(!isNaN(d))return stkDiff(d);
-  return null;
-}
-function stkDiff(d){
-  const t=new Date();t.setHours(0,0,0,0);d.setHours(0,0,0,0);
-  const v=Math.floor((t-d)/86400000);
-  return v>=0?v:null;
-}
-
-/* ══════════════════════════════════════════════════
-   RECALC (on param change)
-══════════════════════════════════════════════════ */
-function stkRecalc(){
-  stkAll.forEach(r=>{r.ageClass=stkAgeClass(r.dias);});
-  stkFiltered=stkActiveBrand==='all'?[...stkAll]:stkAll.filter(r=>r.marcaNorm===stkActiveBrand);
-  stkRenderAll();
-}
-
-/* ══════════════════════════════════════════════════
-   BRAND CHIPS
-══════════════════════════════════════════════════ */
-function stkBuildBrandChips(){
-  const brands=[...new Set(stkAll.map(r=>r.marcaNorm))].sort();
-  const c=ge_stk('stk-brand-chips');c.innerHTML='';
-  const add=(brand,lbl)=>{
-    const b=document.createElement('button');
-    b.className='bchip'+(brand===stkActiveBrand?' active':'');
-    b.dataset.brand=brand; b.textContent=lbl;
-    b.onclick=()=>stkSetBrand(brand);
-    c.appendChild(b);
-  };
-  add('all',`Todas (${stkAll.length})`);
-  brands.forEach(br=>add(br,`${br} (${stkAll.filter(r=>r.marcaNorm===br).length})`));
-}
-
-function stkSetBrand(brand){
-  stkActiveBrand=brand;
-  document.querySelectorAll('.bchip').forEach(b=>b.classList.toggle('active',b.dataset.brand===brand));
-  stkFiltered=brand==='all'?[...stkAll]:stkAll.filter(r=>r.marcaNorm===brand);
-  stkCurrentPage=1; stkRenderAll();
-}
-
-/* ══════════════════════════════════════════════════
-   FILTERS
-══════════════════════════════════════════════════ */
-function stkApplyFilters(){
-  stkFiltered=stkActiveBrand==='all'?[...stkAll]:stkAll.filter(r=>r.marcaNorm===stkActiveBrand);
-  const age=ge_stk('f-age').value;
-  if(age) stkFiltered=stkFiltered.filter(r=>r.ageClass===age);
-  stkCurrentPage=1; stkRenderAll();
-}
-
-function stkClear(){
-  ge_stk('f-age').value=''; ge_stk('f-sort').value='dias-d'; ge_stk('stk-search').value='';
-  stkActiveBrand='all';
-  document.querySelectorAll('.bchip').forEach(b=>b.classList.toggle('active',b.dataset.brand==='all'));
-  stkFiltered=[...stkAll]; stkCurrentPage=1; stkRenderAll();
-}
-
-/* ══════════════════════════════════════════════════
-   RENDER ALL
-══════════════════════════════════════════════════ */
-function stkRenderAll(){
-  stkRenderKPIs();
-  stkRenderAlerts();
-  stkRenderCharts();
-  stkRenderRightCol();
-  stkRenderModRankings();
-  stkRT();
-}
-
-/* ══════════════════════════════════════════════════
-   SPARKLINE HELPER
-══════════════════════════════════════════════════ */
-function stkDrawSpark(id,vals,color){
-  const p=ge_stk(id); if(!p||!vals.length)return;
-  const max=Math.max(...vals,1),w=200,h=36,pad=4;
-  let d;
-  if(vals.length===1){const y=h-pad-(vals[0]/max)*(h-pad*2);d=`M0,${y}L${w},${y}`;}
-  else{d=vals.map((v,i)=>{const x=i*(w/(vals.length-1));const y=h-pad-(v/max)*(h-pad*2);return`${i?'L':'M'}${x},${y}`;}).join(' ');}
-  p.setAttribute('d',d); p.setAttribute('stroke',color);
-}
-
-/* ══════════════════════════════════════════════════
-   KPIs
-══════════════════════════════════════════════════ */
-const BRAND_C={Volkswagen:'#1e3a8a',Ford:'#3b82f6',Chevrolet:'#f59e0b',Audi:'#ef4444',Otra:'#94a3b8'};
-
-function stkRenderKPIs(){
-  const rows=stkFiltered, total=rows.length;
-  const cap=getCap(), crit=getCrit(), alert2=getAlert();
-  const ocup=total/cap*100;
-  const rowsF=rows.filter(r=>r.dias!==null);
-  const prom=rowsF.length?Math.round(rowsF.reduce((s,r)=>s+r.dias,0)/rowsF.length):null;
-  const maxDias=rowsF.length?Math.max(...rowsF.map(r=>r.dias)):null;
-  const nCrit=rows.filter(r=>r.ageClass==='crit').length;
-  const nWarn=rows.filter(r=>r.ageClass==='warn').length;
-  const nOk=rows.filter(r=>r.ageClass==='ok').length;
-  const nND=rows.filter(r=>r.ageClass==='nd').length;
-
-  const mCnt={}; rows.forEach(r=>mCnt[r.marcaNorm]=(mCnt[r.marcaNorm]||0)+1);
-  const topM=Object.entries(mCnt).sort((a,b)=>b[1]-a[1])[0];
-  const modCnt={}; rows.forEach(r=>{if(r.modelo)modCnt[r.modelo]=(modCnt[r.modelo]||0)+1;});
-  const topMod=Object.entries(modCnt).sort((a,b)=>b[1]-a[1])[0];
-
-  // TOTAL
-  ST('stk-k-total',total.toLocaleString('es-AR'));
-  ST('stk-k-total-s',`de ${cap.toLocaleString('es-AR')} de capacidad`);
-  stkDrawSpark('sp-total',[nOk,nWarn,nCrit,nND>0?nND:0],'var(--accent)');
-  ST('sp-total-t',`${nOk} OK · ${nWarn} alerta · ${nCrit} crítico`);
-
-  // OCUPACIÓN
-  ST('stk-k-ocup',`${ocup.toFixed(1)}%`);
-  ST('stk-k-ocup-s',`${total} de ${cap} lugares`);
-  const fill=ge_stk('stk-ocup-fill'), badge=ge_stk('stk-b-ocup'), kic=ge_stk('kic-ocup'), kc=ge_stk('stk-ck-ocup');
-  const [oColor,oCls,oTxt]=ocup>90?['var(--red)','bred','Ocupación crítica']:ocup>70?['var(--orange)','born','Ocupación elevada']:['var(--green)','bgrn','Normal'];
-  if(fill){fill.style.width=Math.min(ocup,100)+'%';fill.style.background=oColor;}
-  if(badge){badge.className='kbadge '+oCls;badge.textContent=oTxt;}
-  if(kic)kic.style.setProperty('--kc',oColor);
-  if(kc)kc.style.setProperty('--kc',oColor);
-  stkDrawSpark('sp-ocup',[ocup,100-ocup],'var(--green)');
-  ST('sp-ocup-t',`${(cap-total).toLocaleString('es-AR')} lugares disponibles`);
-
-  // PERMANENCIA PROMEDIO
-  ST('stk-k-prom',prom!==null?prom:'—');
-  if(prom!==null){
-    const pb=ge_stk('stk-b-prom');
-    const [pc,pt]=prom>crit?['bred',`Alto (>${crit}d)`]:prom>alert2?['born',`Alerta (>${alert2}d)`]:['bgrn','Normal'];
-    if(pb){pb.className='kbadge '+pc;pb.textContent=pt;}
-    const spark=rowsF.sort((a,b)=>a.dias-b.dias).map(r=>r.dias);
-    stkDrawSpark('sp-prom',spark.slice(-30),'var(--orange)');
-    ST('sp-prom-t',prom>crit?`⚠ Promedio supera ${crit}d`:prom>alert2?`Promedio supera ${alert2}d`:'Dentro del objetivo');
-  }
-
-  // CRÍTICAS
-  ST('stk-k-crit',nCrit);
-  ST('stk-k-crit-s',`Más de ${crit} días sin entrega`);
-  const bcrit=ge_stk('stk-b-crit'), ext=ge_stk('stk-crit-extra');
-  if(bcrit){
-    bcrit.className='kbadge '+(nCrit>0?'bred':'bgrn');
-    bcrit.textContent=nCrit>0?`${total?((nCrit/total)*100).toFixed(1):0}% del stock`:'Sin críticos';
-  }
-  if(ext) ext.textContent=nWarn>0?`· ${nWarn} en alerta`:'';
-  stkDrawSpark('sp-crit',[nOk,nWarn,nCrit],'var(--red)');
-  ST('sp-crit-t',`${nWarn} en alerta (${alert2}–${crit}d)`);
-
-  // MÁXIMA
-  ST('stk-k-max',maxDias!==null?maxDias:'—');
-  if(maxDias!==null){
-    const mx=rowsF.find(r=>r.dias===maxDias);
-    ST('stk-k-max-s',mx&&mx.modelo?`${mx.marcaNorm} · ${mx.modelo}`:'Unidad más antigua');
-  }
-
-  // MARCA DOMINANTE
-  if(topM){
-    ST('stk-k-marca',topM[0]);
-    ST('stk-k-marca-s',`${topM[1]} uds. · ${total?((topM[1]/total)*100).toFixed(1):0}% del stock`);
-    const bc=BRAND_C[topM[0]]||'var(--accent)';
-    ge_stk('stk-ck-marca')?.style.setProperty('--kc',bc);
-    ge_stk('kic-marca')?.style.setProperty('--kc',bc);
-  }
-
-  // MODELO
-  if(topMod){
-    ST('stk-k-modelo',topMod[0]);
-    ST('stk-k-modelo-s',`${topMod[1]} unidades`);
-  }
-
-  // SIN FECHA
-  ST('stk-k-sinfecha',nND);
-  const bsf=ge_stk('stk-b-sinfecha');
-  if(bsf){
-    bsf.className='kbadge '+(nND===0?'bgrn':'born');
-    bsf.textContent=nND===0?'Datos completos':`${total?Math.round(nND/total*100):0}% del stock`;
-  }
-}
-
-/* ══════════════════════════════════════════════════
-   ALERTS
-══════════════════════════════════════════════════ */
-function stkRenderAlerts(){
-  const rows=stkFiltered, total=rows.length;
-  const crit=getCrit(), alert2=getAlert(), cap=getCap();
-  const nCrit=rows.filter(r=>r.ageClass==='crit').length;
-  const nWarn=rows.filter(r=>r.ageClass==='warn').length;
-  const nND=rows.filter(r=>r.ageClass==='nd').length;
-  const ocup=total/cap*100;
-
-  const alerts=[];
-  if(nCrit>0) alerts.push({ico:'🔴',ac:'var(--red)',title:`${nCrit} unidad${nCrit>1?'es':''} crítica${nCrit>1?'s':''}`,sub:`Más de ${crit} días en predio. Requieren atención inmediata.`});
-  if(nWarn>0) alerts.push({ico:'🟡',ac:'var(--orange)',title:`${nWarn} unidad${nWarn>1?'es':''} en alerta`,sub:`Entre ${alert2} y ${crit} días. Monitorear de cerca.`});
-  if(ocup>80) alerts.push({ico:'📊',ac:'var(--orange)',title:`Ocupación elevada · ${ocup.toFixed(1)}%`,sub:`El predio supera el 80% de capacidad máxima (${cap} lugares).`});
-  if(nND>0) alerts.push({ico:'📅',ac:'var(--blue)',title:`${nND} registro${nND>1?'s':''} sin fecha`,sub:`Sin fecha de ingreso. Completar en el sistema.`});
-  if(!alerts.length) alerts.push({ico:'✅',ac:'var(--green)',title:'Todo en orden',sub:'No se detectaron alertas en el stock actual del predio.'});
-
-  ge_stk('stk-alerts').innerHTML=alerts.map(a=>`
-    <div class="acard" style="--ac:${a.ac}">
-      <div class="aiw" style="--ac:${a.ac}">${a.ico}</div>
-      <div><div class="atitle">${a.title}</div><div class="asub">${a.sub}</div></div>
-    </div>`).join('');
-}
-
-/* ══════════════════════════════════════════════════
-   CHARTS
-══════════════════════════════════════════════════ */
-;}
-function DC(id){if(AC[id]){AC[id].destroy();delete AC[id];}}
-function stkRenderCharts(){stkChartMarca();stkChartAging();stkChartModelos();stkChartMarcaDias();stkChartModProm();}
-function stkRedrawCharts(){if(stkAll.length){stkRenderCharts();stkRenderModRankings();}}
-
-function stkChartMarca(){
-  DC('marca'); const {grid,lbl}=gc();
-  const MAIN=['Volkswagen','Ford','Chevrolet','Audi'];
-  const otras=stkFiltered.filter(r=>!MAIN.includes(r.marcaNorm));
-  const labels=[...MAIN.filter(b=>stkFiltered.some(r=>r.marcaNorm===b))];
-  if(otras.length)labels.push('Otra');
-  const data=labels.map(b=>b==='Otra'?otras.length:stkFiltered.filter(r=>r.marcaNorm===b).length);
-  const colors=labels.map(b=>BRAND_C[b]||'#94a3b8');
-  const tot=stkFiltered.length;
-  AC['marca']=new Chart(ge_stk('stk-c-marca'),{
-    type:'doughnut',
-    data:{labels,datasets:[{data,backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,hoverOffset:8}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
-      plugins:{legend:{position:'bottom',labels:{color:lbl,font:{size:11},padding:14,boxWidth:11}},
-        tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw} uds. (${tot?(ctx.raw/tot*100).toFixed(1):0}%)`}}}}
-  });
-  ge_stk('stk-cs-marca').innerHTML=labels.map((b,i)=>`
-    <div class="cstat"><div class="cstat-lbl">${b}</div>
-    <div class="cstat-val" style="color:${colors[i]}">${data[i]}</div>
-    <div class="cstat-sub">${tot?(data[i]/tot*100).toFixed(1):0}%</div></div>`).join('');
-}
-
-function stkChartAging(){
-  DC('aging'); const {grid,lbl}=gc();
-  const g1=stkFiltered.filter(r=>r.dias!==null&&r.dias<=15).length;
-  const g2=stkFiltered.filter(r=>r.dias!==null&&r.dias>=16&&r.dias<=30).length;
-  const g3=stkFiltered.filter(r=>r.dias!==null&&r.dias>=31&&r.dias<=60).length;
-  const g4=stkFiltered.filter(r=>r.dias!==null&&r.dias>60).length;
-  const groups=['0 – 15d','16 – 30d','31 – 60d','+ 60d'];
-  const colors=['#22c55e','#84cc16','#f59e0b','#ef4444'];
-  AC['aging']=new Chart(ge_stk('stk-c-aging'),{
-    type:'bar',
-    data:{labels:groups,datasets:[{label:'Unidades',data:[g1,g2,g3,g4],backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,borderRadius:6}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} unidades`}}},
-      scales:{x:{ticks:{color:lbl},grid:{color:grid}},y:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true}}}
-  });
-  ST('cs-g1',g1); ST('cs-g2',g2); ST('cs-g3',g3); ST('cs-g4',g4);
-}
-
-function stkChartModelos(){
-  DC('modelos'); const {grid,lbl}=gc();
-  const cnt={};
-  stkFiltered.forEach(r=>{if(r.modelo)cnt[r.modelo]=(cnt[r.modelo]||0)+1;});
-  const sorted=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  if(!sorted.length)return;
-  const labels=sorted.map(x=>x[0]), data=sorted.map(x=>x[1]);
-  const bgC=labels.map(l=>{const r=stkFiltered.find(x=>x.modelo===l);return(BRAND_C[r?.marcaNorm]||'#3b82f6')+'cc';});
-  const bdC=labels.map(l=>{const r=stkFiltered.find(x=>x.modelo===l);return BRAND_C[r?.marcaNorm]||'#3b82f6';});
-  AC['modelos']=new Chart(ge_stk('stk-c-modelos'),{
-    type:'bar',
-    data:{labels,datasets:[{label:'Unidades',data,backgroundColor:bgC,borderColor:bdC,borderWidth:2,borderRadius:4}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} unidades`}}},
-      scales:{x:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true},y:{ticks:{color:lbl,font:{size:11}},grid:{display:false}}}}
-  });
-}
-
-function stkChartMarcaDias(){
-  DC('marcaDias'); const {grid,lbl}=gc();
-  const MAIN=['Volkswagen','Ford','Chevrolet','Audi'];
-  const brs=MAIN.filter(b=>stkFiltered.some(r=>r.marcaNorm===b));
-  const data=brs.map(b=>{const rr=stkFiltered.filter(r=>r.marcaNorm===b&&r.dias!==null);return rr.length?Math.round(rr.reduce((s,r)=>s+r.dias,0)/rr.length):0;});
-  const colors=brs.map(b=>BRAND_C[b]||'#3b82f6');
-  AC['marcaDias']=new Chart(ge_stk('stk-c-marcadias'),{
-    type:'bar',
-    data:{labels:brs,datasets:[{label:'Días promedio',data,backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,borderRadius:6}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} días promedio`}}},
-      scales:{x:{ticks:{color:lbl},grid:{color:grid}},y:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true}}}
-  });
-  const crit=getCrit(), alt=getAlert();
-  ge_stk('stk-cs-marcadias').innerHTML=brs.map((b,i)=>{
-    const cls=data[i]>crit?'red':data[i]>alt?'orn':'grn';
-    return`<div class="cstat"><div class="cstat-lbl">${b}</div><div class="cstat-val ${cls}">${data[i]}d</div></div>`;
-  }).join('');
-}
-
-/* ══════════════════════════════════════════════════
-   RIGHT COLUMN
-══════════════════════════════════════════════════ */
-function stkRenderRightCol(){
-  // Top 10 oldest
-  const top5=stkFiltered.filter(r=>r.dias!==null).sort((a,b)=>b.dias-a.dias).slice(0,10);
-  ge_stk('stk-top5').innerHTML=top5.length?top5.map((r,i)=>{
-    const bc={'Volkswagen':'mb-vw','Ford':'mb-ford','Chevrolet':'mb-chev','Audi':'mb-audi'}[r.marcaNorm]||'mb-otra';
-    const rankCls=i===0?'t1':r.ageClass==='crit'?'t2':'';
-    return`<div class="rp-item">
-      <div class="rp-rank ${rankCls}">${i+1}</div>
-      <div class="rp-item-info">
-        <div class="rp-item-main">${r.vin||r.modelo||'Sin interno'} <span class="mbadge ${bc}" style="font-size:9px">${r.marcaNorm}</span></div>
-        <div class="rp-item-sub">${r.modelo||'—'}${r.color?' · '+r.color:''}</div>
-      </div>
-      <div class="rp-item-val">${r.dias}d</div>
-    </div>`;
-  }).join(''):`<div style="padding:20px;font-size:12px;color:var(--text-dim);text-align:center">Sin datos de fecha</div>`;
-
-  // Critical brands panel
-  const MAIN_B=['Volkswagen','Ford','Chevrolet','Audi'];
-  const critBrands=MAIN_B.map(b=>({
-    brand:b,
-    crit:stkFiltered.filter(r=>r.marcaNorm===b&&r.ageClass==='crit').length,
-    warn:stkFiltered.filter(r=>r.marcaNorm===b&&r.ageClass==='warn').length,
-    total:stkFiltered.filter(r=>r.marcaNorm===b).length,
-  })).filter(b=>b.total>0).sort((a,b)=>b.crit-a.crit);
-  const totalCrit=stkFiltered.filter(r=>r.ageClass==='crit').length;
-  const critPanel=ge_stk('stk-crit-brands-panel');
-  if(critPanel){critPanel.style.display=totalCrit>0?'block':'none';}
-  if(totalCrit>0){
-    const maxCrit=Math.max(...critBrands.map(b=>b.crit),1);
-    ge_stk('stk-crit-brands').innerHTML=critBrands.map(b=>{
-      if(!b.crit&&!b.warn) return'';
-      const pctBar=Math.round((b.crit/maxCrit)*100);
-      const c=BRAND_C[b.brand]||'#94a3b8';
-      return`<div class="rp-brand-row">
-        <div class="rp-brand-top">
-          <span style="font-size:12px;font-weight:700;color:${c}">${b.brand}</span>
-          <span style="font-size:13px;font-weight:800;color:var(--red)">${b.crit} críticas</span>
-        </div>
-        <div class="dbw"><div class="dbf" style="width:${pctBar}%;background:var(--red)"></div></div>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:2px">${b.warn} en alerta · ${b.total} totales</div>
-      </div>`;
-    }).join('');
-  }
-
-
-  const MAIN=['Volkswagen','Ford','Chevrolet','Audi'];
-  const total=stkFiltered.length||1;
-  const otras=stkFiltered.filter(r=>!MAIN.includes(r.marcaNorm)).length;
-  const brs=[...MAIN.filter(b=>stkFiltered.some(r=>r.marcaNorm===b))];
-  if(otras>0)brs.push('Otra');
-  ge_stk('stk-brand-sum').innerHTML=brs.map(b=>{
-    const n=b==='Otra'?otras:stkFiltered.filter(r=>r.marcaNorm===b).length;
-    const pct=Math.round(n/total*100);
-    const c=BRAND_C[b]||'#94a3b8';
-    // avg days for brand
-    const rr=stkFiltered.filter(r=>r.marcaNorm===b&&r.dias!==null);
-    const avg=rr.length?Math.round(rr.reduce((s,r)=>s+r.dias,0)/rr.length):null;
-    return`<div class="rp-brand-row">
-      <div class="rp-brand-top">
-        <span class="rp-brand-name" style="color:${c}">${b}</span>
-        <span class="rp-brand-cnt">${n}</span>
-      </div>
-      <div class="dbw"><div class="dbf" style="width:${pct}%;background:${c}"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:2px">
-        <span>${pct}% del stock</span>
-        ${avg!==null?`<span>Prom: ${avg}d</span>`:''}
-      </div>
-    </div>`;
-  }).join('');
-
-  // Top colors
-  if(stkCols.color){
-    const colorCnt={};
-    stkFiltered.forEach(r=>{if(r.color)colorCnt[r.color]=(colorCnt[r.color]||0)+1;});
-    const topC=Object.entries(colorCnt).sort((a,b)=>b[1]-a[1]).slice(0,6);
-    if(topC.length){
-      ge_stk('stk-color-panel').style.display='block';
-      ge_stk('stk-color-sum').innerHTML=topC.map(([color,n])=>{
-        const pct=Math.round(n/total*100);
-        return`<div class="rp-brand-row">
-          <div class="rp-brand-top"><span style="font-size:12px;font-weight:600">${color}</span><span class="rp-brand-cnt">${n}</span></div>
-          <div class="dbw"><div class="dbf" style="width:${pct}%;background:var(--accent)"></div></div>
-          <div style="font-size:10px;color:var(--text-dim);margin-top:2px">${pct}%</div>
-        </div>`;
-      }).join('');
-    }
-  }
-}
-
-/* ══════════════════════════════════════════════════
-   TABLE
-══════════════════════════════════════════════════ */
-function stkRT(){
-  const search=ge_stk('stk-search').value.toLowerCase().trim();
-  const sortV=ge_stk('f-sort').value;
-  let rows=[...stkFiltered];
-  if(search) rows=rows.filter(r=>Object.values(r._raw).some(v=>v.toString().toLowerCase().includes(search)));
-  const sf={
-    'dias-d':(a,b)=>(b.dias??-1)-(a.dias??-1),
-    'dias-a':(a,b)=>(a.dias??999999)-(b.dias??999999),
-    'marca': (a,b)=>a.marcaNorm.localeCompare(b.marcaNorm),
-    'modelo':(a,b)=>(a.modelo||'').localeCompare(b.modelo||''),
-  };
-  rows.sort(sf[sortV]||sf['dias-d']);
-  stkDisplayed=rows;
-  stkCurrentPage=1; stkRenderTable();
-}
-
-function stkRenderTable(){
-  const total=stkDisplayed.length;
-  const pages=Math.max(1,Math.ceil(total/STK_PP));
-  if(stkCurrentPage>pages)stkCurrentPage=pages;
-  ge_stk('stk-pag-info').textContent=`Mostrando ${total===0?0:(stkCurrentPage-1)*STK_PP+1}–${Math.min(stkCurrentPage*STK_PP,total)} de ${total}`;
-  ge_stk('stk-btn-prev').disabled=stkCurrentPage<=1;
-  ge_stk('stk-btn-next').disabled=stkCurrentPage>=pages;
-  ST('stk-tbl-cnt',`(${total} unidades)`);
-
-  const slice=stkDisplayed.slice((stkCurrentPage-1)*STK_PP,stkCurrentPage*STK_PP);
-
-  const visCols=[];
-  if(stkCols.vin)      visCols.push({k:'vin',      l:'N° Interno'});
-  visCols.push(         {k:'marcaNorm',             l:'Marca'});
-  if(stkCols.modelo)   visCols.push({k:'modelo',    l:'Modelo'});
-  if(stkCols.color)    visCols.push({k:'color',     l:'Color'});
-  if(stkCols.estado)   visCols.push({k:'estado',    l:'Estado'});
-  if(stkCols.ubicacion)visCols.push({k:'ubicacion', l:'Ubicación'});
-  visCols.push(         {k:'fecha',                 l:'Fecha Ingreso'});
-  visCols.push(         {k:'dias',                  l:'Días en Predio'});
-
-  ge_stk('stk-thead').innerHTML=visCols.map(c=>`<th>${c.l}<span class="sa"></span></th>`).join('');
-
-  const crit=getCrit(), alt=getAlert();
-  ge_stk('stk-tbody').innerHTML=slice.map(r=>{
-    const bc={'Volkswagen':'mb-vw','Ford':'mb-ford','Chevrolet':'mb-chev','Audi':'mb-audi'}[r.marcaNorm]||'mb-otra';
-    const cells=visCols.map(c=>{
-      if(c.k==='marcaNorm') return`<td><span class="mbadge ${bc}">${r.marcaNorm}</span></td>`;
-      if(c.k==='dias'){
-        if(r.dias===null) return`<td style="color:var(--text-dim)">—</td>`;
-        const cls=r.dias>crit?'rbad':r.dias>alt?'rmed':'rok';
-        return`<td><span class="rpill ${cls}">${r.dias}d${r.dias>crit?' ⚠':''}</span></td>`;
-      }
-      const v=r[c.k]||'—';
-      return`<td${v==='—'?' style="color:var(--text-dim)"':''}>${v}</td>`;
-    }).join('');
-    const rowBg=r.ageClass==='crit'?'background:rgba(239,68,68,.03)':'';
-    return`<tr style="${rowBg}">${cells}</tr>`;
-  }).join('')||`<tr><td colspan="${visCols.length}" style="text-align:center;padding:30px;color:var(--text-dim)">Sin resultados</td></tr>`;
-}
-
-function stkChartModProm(){
-  DC('modProm'); const {grid,lbl}=gc();
-  // avg days per model (only models with fecha)
-  const cnt={}, sum={};
-  stkFiltered.forEach(r=>{if(r.modelo&&r.dias!==null){cnt[r.modelo]=(cnt[r.modelo]||0)+1;sum[r.modelo]=(sum[r.modelo]||0)+r.dias;}});
-  const avgs=Object.entries(cnt).map(([m,n])=>({m,avg:Math.round(sum[m]/n),n})).filter(x=>x.n>=1).sort((a,b)=>b.avg-a.avg).slice(0,10);
-  if(!avgs.length)return;
-
-  const labels=avgs.map(x=>x.m), data=avgs.map(x=>x.avg);
-  const crit=getCrit(), alt=getAlert();
-  const bgC=data.map(v=>v>crit?'rgba(239,68,68,.7)':v>alt?'rgba(245,158,11,.7)':'rgba(34,197,94,.7)');
-  const bdC=data.map(v=>v>crit?'#ef4444':v>alt?'#f59e0b':'#22c55e');
-
-  AC['modProm']=new Chart(ge_stk('stk-c-mod-prom'),{
-    type:'bar',
-    data:{labels,datasets:[{label:'Días promedio',data,backgroundColor:bgC,borderColor:bdC,borderWidth:2,borderRadius:4}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} días promedio (${avgs[c2.dataIndex].n} uds.)`}}},
-      scales:{x:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true},y:{ticks:{color:lbl,font:{size:11}},grid:{display:false}}}}
-  });
-
-  // footer stats
-  ST('cs-modmax-name',avgs[0]?.m||'—');
-  ST('cs-modmax-dias',avgs[0]?`${avgs[0].avg} días · ${avgs[0].n} uds.`:'');
-  const avg10=avgs.length?Math.round(avgs.reduce((s,x)=>s+x.avg,0)/avgs.length):0;
-  ST('cs-modprom-avg',avg10);
-  // total distinct models
-  const totalMods=new Set(stkFiltered.filter(r=>r.modelo).map(r=>r.modelo)).size;
-  ST('cs-mod-total',totalMods);
-}
-
-function stkRenderModRankings(){
-  // Top 10 modelos por unidad más antigua (worst case per model)
-  const worstByModel={};
-  stkFiltered.forEach(r=>{
-    if(!r.modelo||r.dias===null)return;
-    if(!worstByModel[r.modelo]||r.dias>worstByModel[r.modelo].dias) worstByModel[r.modelo]=r;
-  });
-  const sorted=Object.values(worstByModel).sort((a,b)=>b.dias-a.dias).slice(0,10);
-  const crit=getCrit(), alt=getAlert();
-  const container=ge_stk('stk-mod-max-list');
-  if(!container)return;
-
-  container.innerHTML=sorted.length?sorted.map((r,i)=>{
-    const bc={'Volkswagen':'mb-vw','Ford':'mb-ford','Chevrolet':'mb-chev','Audi':'mb-audi'}[r.marcaNorm]||'mb-otra';
-    const pillCls=r.dias>crit?'rbad':r.dias>alt?'rmed':'rok';
-    const rankCls=i===0?'t1':r.ageClass==='crit'?'t2':'';
-    const vin=r.vin?`<span style="font-size:10px;color:var(--text-dim);font-family:'Inter',sans-serif"> · ${r.vin}</span>`:'';
-    return`<div style="display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--border)">
-      <div class="rp-rank ${rankCls}" style="flex-shrink:0">${i+1}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-          ${r.modelo} <span class="mbadge ${bc}" style="font-size:9px">${r.marcaNorm}</span>${vin}
-        </div>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:2px">Peor unidad del modelo</div>
-      </div>
-      <span class="rpill ${pillCls}" style="white-space:nowrap">${r.dias}d${r.dias>crit?' ⚠':''}</span>
-    </div>`;
-  }).join(''):`<div style="padding:20px;text-align:center;font-size:12px;color:var(--text-dim)">Sin datos de fecha</div>`;
-}
-
-
-
-/* ══════════════════════════════════════════════════
-   EXPORT
-══════════════════════════════════════════════════ */
-function stkExport(){
-  if(!stkDisplayed.length){alert('Sin datos para exportar.');return;}
-  const h=Object.keys(stkDisplayed[0]._raw);
-  const csv=[h.join(';'),...stkDisplayed.map(r=>h.map(k=>`"${(r._raw[k]||'').replace(/"/g,'""')}"`).join(';'))].join('\n');
-  const a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
-  a.download=`stock_predio_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-}
-
-/* ══════════════════════════════════════════════════
-   KPI TOGGLE
-══════════════════════════════════════════════════ */
-function stkTK(id,show){const el=ge_stk(id);if(el)el.toggleAttribute('hidden-kpi',!show);}
-function stkSetAllK(on){document.querySelectorAll('#stk-kpi-menu input[type=checkbox]').forEach(cb=>{cb.checked=on;cb.dispatchEvent(new Event('change'));});}
-function stkToggleKpiMenu(e){e.stopPropagation();ge_stk('stk-kpi-menu').classList.toggle('open');}
-document.addEventListener('click',()=>ge_stk('stk-kpi-menu')?.classList.remove('open'));
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -3022,6 +2386,642 @@ function entrarDashboard(){
   setTimeout(()=>s.style.display='none',500);
 }
 
+
+// ══════════ STOCK PREDIO ══════════
+/* ══════════════════════════════════════════════════
+   COLUMN CANDIDATES
+══════════════════════════════════════════════════ */
+const STK_COL_CANDS={
+  marca:    ['Marca','marca','MARCA','Fabricante','fabricante'],
+  modelo:   ['Modelo','modelo','MODELO','Descripcion','Descripción','Descripcion del Vehiculo','Tipo'],
+  color:    ['Color','color','COLOR'],
+  fecha:    ['Fecha Arribo'],
+  vin:      ['Interno','N° Interno','Nro Interno','interno','INTERNO',
+             'VIN','Chasis','chasis','N° Chasis','Nro Chasis','Nro. Chasis','Motor','Nro Motor'],
+  estado:   ['Estado','estado','ESTADO','Status','status'],
+  ubicacion:['Ubicacion','Ubicación','ubicacion','Dique','Sector','Posicion','Posición'],
+};
+
+
+// ── STK: local alias and init via Sheets ──
+function ge_stk(id){return document.getElementById(id);}
+
+function stkProcess(rawData){
+  if(!rawData||!rawData.length){
+    gsSetStatus('stk','err','Sin datos'); return;
+  }
+  // Clean rows (strip BOM, trailing empty cols)
+  const cleaned=rawData.map(row=>{
+    const out={};
+    for(const k in row){
+      const key=k.replace(/^\uFEFF/,'').trim();
+      if(!key)continue;
+      out[key]=(row[k]??'').toString().trim();
+    }
+    return out;
+  });
+  const headers=Object.keys(cleaned[0]||{});
+  stkCols={};
+  for(const [field,cands] of Object.entries(STK_COL_CANDS)){
+    const hit=cands.find(c=>headers.some(h=>h.toLowerCase()===c.toLowerCase()));
+    stkCols[field]=hit?headers.find(h=>h.toLowerCase()===hit.toLowerCase()):null;
+  }
+  stkAll=cleaned.map(r=>{
+    const out={_raw:r};
+    for(const [f,col] of Object.entries(stkCols)) out[f]=col?(r[col]||''):'';
+    out.marcaNorm=stkNormBrand(out.marca);
+    out.dias=stkParseDias(out.fecha);
+    out.ageClass=stkAgeClass(out.dias);
+    return out;
+  });
+  stkFiltered=[...stkAll];
+  // Show dashboard
+  const empty=document.getElementById('stk-empty');
+  const dash=document.getElementById('stk-dash');
+  const fbar=document.getElementById('stk-fbar');
+  if(empty) empty.style.display='none';
+  if(dash)  dash.style.display='block';
+  if(fbar)  fbar.style.display='flex';
+  stkBuildBrandChips();
+  stkRenderAll();
+}
+
+/* ══════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════ */
+let stkAll=[], stkFiltered=[], stkDisplayed=[];
+let stkCols={}, stkActiveBrand='all', stkCurrentPage=1;
+const STK_PP=30;
+
+
+function getCap(){return +ge_stk('p-cap').value||1000;}
+function getCrit(){return +ge_stk('p-crit').value||60;}
+function getAlert(){return +ge_stk('p-alert').value||30;}
+
+/* ══════════════════════════════════════════════════
+   THEME
+══════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════
+   FILE INPUT
+══════════════════════════════════════════════════ */
+
+function stkProcessRow(raw){
+  const r={_raw:raw};
+  for(const [f,col] of Object.entries(stkCols)) r[f]=col?(raw[col]||''):'';
+  r.marcaNorm=stkNormBrand(r.marca);
+  r.dias=stkParseDias(r.fecha);
+  r.ageClass=stkAgeClass(r.dias);
+  return r;
+}
+
+function stkAgeClass(dias){
+  if(dias===null) return 'nd';
+  if(dias>getCrit()) return 'crit';
+  if(dias>getAlert()) return 'warn';
+  return 'ok';
+}
+
+function stkNormBrand(raw){
+  const s=(raw||'').toUpperCase().replace(/[\s.]/g,'');
+  if(s.includes('VOLKSWAGEN')||s.includes('VW')) return 'Volkswagen';
+  if(s.includes('FORD')) return 'Ford';
+  if(s.includes('CHEVROLET')||s.includes('GM')||s.includes('GENERALMOTOR')) return 'Chevrolet';
+  if(s.includes('AUDI')) return 'Audi';
+  return raw?raw.trim():'Otra';
+}
+
+function stkParseDias(str){
+  if(!str)return null;
+  const s=str.trim();
+  let m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(m){return stkDiff(new Date(+m[3],+m[2]-1,+m[1]));}
+  m=s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if(m){return stkDiff(new Date(+m[1],+m[2]-1,+m[3]));}
+  const d=new Date(s);
+  if(!isNaN(d))return stkDiff(d);
+  return null;
+}
+function stkDiff(d){
+  const t=new Date();t.setHours(0,0,0,0);d.setHours(0,0,0,0);
+  const v=Math.floor((t-d)/86400000);
+  return v>=0?v:null;
+}
+
+/* ══════════════════════════════════════════════════
+   RECALC (on param change)
+══════════════════════════════════════════════════ */
+function stkRecalc(){
+  stkAll.forEach(r=>{r.ageClass=stkAgeClass(r.dias);});
+  stkFiltered=stkActiveBrand==='all'?[...stkAll]:stkAll.filter(r=>r.marcaNorm===stkActiveBrand);
+  stkRenderAll();
+}
+
+/* ══════════════════════════════════════════════════
+   BRAND CHIPS
+══════════════════════════════════════════════════ */
+function stkBuildBrandChips(){
+  const brands=[...new Set(stkAll.map(r=>r.marcaNorm))].sort();
+  const c=ge_stk('stk-brand-chips');c.innerHTML='';
+  const add=(brand,lbl)=>{
+    const b=document.createElement('button');
+    b.className='bchip'+(brand===stkActiveBrand?' active':'');
+    b.dataset.brand=brand; b.textContent=lbl;
+    b.onclick=()=>stkSetBrand(brand);
+    c.appendChild(b);
+  };
+  add('all',`Todas (${stkAll.length})`);
+  brands.forEach(br=>add(br,`${br} (${stkAll.filter(r=>r.marcaNorm===br).length})`));
+}
+
+function stkSetBrand(brand){
+  stkActiveBrand=brand;
+  document.querySelectorAll('.bchip').forEach(b=>b.classList.toggle('active',b.dataset.brand===brand));
+  stkFiltered=brand==='all'?[...stkAll]:stkAll.filter(r=>r.marcaNorm===brand);
+  stkCurrentPage=1; stkRenderAll();
+}
+
+/* ══════════════════════════════════════════════════
+   FILTERS
+══════════════════════════════════════════════════ */
+function stkApplyFilters(){
+  stkFiltered=stkActiveBrand==='all'?[...stkAll]:stkAll.filter(r=>r.marcaNorm===stkActiveBrand);
+  const age=ge_stk('f-age').value;
+  if(age) stkFiltered=stkFiltered.filter(r=>r.ageClass===age);
+  stkCurrentPage=1; stkRenderAll();
+}
+
+function stkClear(){
+  ge_stk('f-age').value=''; ge_stk('f-sort').value='dias-d'; ge_stk('stk-search').value='';
+  stkActiveBrand='all';
+  document.querySelectorAll('.bchip').forEach(b=>b.classList.toggle('active',b.dataset.brand==='all'));
+  stkFiltered=[...stkAll]; stkCurrentPage=1; stkRenderAll();
+}
+
+/* ══════════════════════════════════════════════════
+   RENDER ALL
+══════════════════════════════════════════════════ */
+function stkRenderAll(){
+  stkRenderKPIs();
+  stkRenderAlerts();
+  stkRenderCharts();
+  stkRenderRightCol();
+  stkRenderModRankings();
+  stkRT();
+}
+
+/* ══════════════════════════════════════════════════
+   SPARKLINE HELPER
+══════════════════════════════════════════════════ */
+function stkDrawSpark(id,vals,color){
+  const p=ge_stk(id); if(!p||!vals.length)return;
+  const max=Math.max(...vals,1),w=200,h=36,pad=4;
+  let d;
+  if(vals.length===1){const y=h-pad-(vals[0]/max)*(h-pad*2);d=`M0,${y}L${w},${y}`;}
+  else{d=vals.map((v,i)=>{const x=i*(w/(vals.length-1));const y=h-pad-(v/max)*(h-pad*2);return`${i?'L':'M'}${x},${y}`;}).join(' ');}
+  p.setAttribute('d',d); p.setAttribute('stroke',color);
+}
+
+/* ══════════════════════════════════════════════════
+   KPIs
+══════════════════════════════════════════════════ */
+const BRAND_C={Volkswagen:'#1e3a8a',Ford:'#3b82f6',Chevrolet:'#f59e0b',Audi:'#ef4444',Otra:'#94a3b8'};
+
+function stkRenderKPIs(){
+  const rows=stkFiltered, total=rows.length;
+  const cap=getCap(), crit=getCrit(), alert2=getAlert();
+  const ocup=total/cap*100;
+  const rowsF=rows.filter(r=>r.dias!==null);
+  const prom=rowsF.length?Math.round(rowsF.reduce((s,r)=>s+r.dias,0)/rowsF.length):null;
+  const maxDias=rowsF.length?Math.max(...rowsF.map(r=>r.dias)):null;
+  const nCrit=rows.filter(r=>r.ageClass==='crit').length;
+  const nWarn=rows.filter(r=>r.ageClass==='warn').length;
+  const nOk=rows.filter(r=>r.ageClass==='ok').length;
+  const nND=rows.filter(r=>r.ageClass==='nd').length;
+
+  const mCnt={}; rows.forEach(r=>mCnt[r.marcaNorm]=(mCnt[r.marcaNorm]||0)+1);
+  const topM=Object.entries(mCnt).sort((a,b)=>b[1]-a[1])[0];
+  const modCnt={}; rows.forEach(r=>{if(r.modelo)modCnt[r.modelo]=(modCnt[r.modelo]||0)+1;});
+  const topMod=Object.entries(modCnt).sort((a,b)=>b[1]-a[1])[0];
+
+  // TOTAL
+  ST('stk-k-total',total.toLocaleString('es-AR'));
+  ST('stk-k-total-s',`de ${cap.toLocaleString('es-AR')} de capacidad`);
+  stkDrawSpark('sp-total',[nOk,nWarn,nCrit,nND>0?nND:0],'var(--accent)');
+  ST('sp-total-t',`${nOk} OK · ${nWarn} alerta · ${nCrit} crítico`);
+
+  // OCUPACIÓN
+  ST('stk-k-ocup',`${ocup.toFixed(1)}%`);
+  ST('stk-k-ocup-s',`${total} de ${cap} lugares`);
+  const fill=ge_stk('stk-ocup-fill'), badge=ge_stk('stk-b-ocup'), kic=ge_stk('kic-ocup'), kc=ge_stk('stk-ck-ocup');
+  const [oColor,oCls,oTxt]=ocup>90?['var(--red)','bred','Ocupación crítica']:ocup>70?['var(--orange)','born','Ocupación elevada']:['var(--green)','bgrn','Normal'];
+  if(fill){fill.style.width=Math.min(ocup,100)+'%';fill.style.background=oColor;}
+  if(badge){badge.className='kbadge '+oCls;badge.textContent=oTxt;}
+  if(kic)kic.style.setProperty('--kc',oColor);
+  if(kc)kc.style.setProperty('--kc',oColor);
+  stkDrawSpark('sp-ocup',[ocup,100-ocup],'var(--green)');
+  ST('sp-ocup-t',`${(cap-total).toLocaleString('es-AR')} lugares disponibles`);
+
+  // PERMANENCIA PROMEDIO
+  ST('stk-k-prom',prom!==null?prom:'—');
+  if(prom!==null){
+    const pb=ge_stk('stk-b-prom');
+    const [pc,pt]=prom>crit?['bred',`Alto (>${crit}d)`]:prom>alert2?['born',`Alerta (>${alert2}d)`]:['bgrn','Normal'];
+    if(pb){pb.className='kbadge '+pc;pb.textContent=pt;}
+    const spark=rowsF.sort((a,b)=>a.dias-b.dias).map(r=>r.dias);
+    stkDrawSpark('sp-prom',spark.slice(-30),'var(--orange)');
+    ST('sp-prom-t',prom>crit?`⚠ Promedio supera ${crit}d`:prom>alert2?`Promedio supera ${alert2}d`:'Dentro del objetivo');
+  }
+
+  // CRÍTICAS
+  ST('stk-k-crit',nCrit);
+  ST('stk-k-crit-s',`Más de ${crit} días sin entrega`);
+  const bcrit=ge_stk('stk-b-crit'), ext=ge_stk('stk-crit-extra');
+  if(bcrit){
+    bcrit.className='kbadge '+(nCrit>0?'bred':'bgrn');
+    bcrit.textContent=nCrit>0?`${total?((nCrit/total)*100).toFixed(1):0}% del stock`:'Sin críticos';
+  }
+  if(ext) ext.textContent=nWarn>0?`· ${nWarn} en alerta`:'';
+  stkDrawSpark('sp-crit',[nOk,nWarn,nCrit],'var(--red)');
+  ST('sp-crit-t',`${nWarn} en alerta (${alert2}–${crit}d)`);
+
+  // MÁXIMA
+  ST('stk-k-max',maxDias!==null?maxDias:'—');
+  if(maxDias!==null){
+    const mx=rowsF.find(r=>r.dias===maxDias);
+    ST('stk-k-max-s',mx&&mx.modelo?`${mx.marcaNorm} · ${mx.modelo}`:'Unidad más antigua');
+  }
+
+  // MARCA DOMINANTE
+  if(topM){
+    ST('stk-k-marca',topM[0]);
+    ST('stk-k-marca-s',`${topM[1]} uds. · ${total?((topM[1]/total)*100).toFixed(1):0}% del stock`);
+    const bc=BRAND_C[topM[0]]||'var(--accent)';
+    ge_stk('stk-ck-marca')?.style.setProperty('--kc',bc);
+    ge_stk('kic-marca')?.style.setProperty('--kc',bc);
+  }
+
+  // MODELO
+  if(topMod){
+    ST('stk-k-modelo',topMod[0]);
+    ST('stk-k-modelo-s',`${topMod[1]} unidades`);
+  }
+
+  // SIN FECHA
+  ST('stk-k-sinfecha',nND);
+  const bsf=ge_stk('stk-b-sinfecha');
+  if(bsf){
+    bsf.className='kbadge '+(nND===0?'bgrn':'born');
+    bsf.textContent=nND===0?'Datos completos':`${total?Math.round(nND/total*100):0}% del stock`;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   ALERTS
+══════════════════════════════════════════════════ */
+function stkRenderAlerts(){
+  const rows=stkFiltered, total=rows.length;
+  const crit=getCrit(), alert2=getAlert(), cap=getCap();
+  const nCrit=rows.filter(r=>r.ageClass==='crit').length;
+  const nWarn=rows.filter(r=>r.ageClass==='warn').length;
+  const nND=rows.filter(r=>r.ageClass==='nd').length;
+  const ocup=total/cap*100;
+
+  const alerts=[];
+  if(nCrit>0) alerts.push({ico:'🔴',ac:'var(--red)',title:`${nCrit} unidad${nCrit>1?'es':''} crítica${nCrit>1?'s':''}`,sub:`Más de ${crit} días en predio. Requieren atención inmediata.`});
+  if(nWarn>0) alerts.push({ico:'🟡',ac:'var(--orange)',title:`${nWarn} unidad${nWarn>1?'es':''} en alerta`,sub:`Entre ${alert2} y ${crit} días. Monitorear de cerca.`});
+  if(ocup>80) alerts.push({ico:'📊',ac:'var(--orange)',title:`Ocupación elevada · ${ocup.toFixed(1)}%`,sub:`El predio supera el 80% de capacidad máxima (${cap} lugares).`});
+  if(nND>0) alerts.push({ico:'📅',ac:'var(--blue)',title:`${nND} registro${nND>1?'s':''} sin fecha`,sub:`Sin fecha de ingreso. Completar en el sistema.`});
+  if(!alerts.length) alerts.push({ico:'✅',ac:'var(--green)',title:'Todo en orden',sub:'No se detectaron alertas en el stock actual del predio.'});
+
+  ge_stk('stk-alerts').innerHTML=alerts.map(a=>`
+    <div class="acard" style="--ac:${a.ac}">
+      <div class="aiw" style="--ac:${a.ac}">${a.ico}</div>
+      <div><div class="atitle">${a.title}</div><div class="asub">${a.sub}</div></div>
+    </div>`).join('');
+}
+
+/* ══════════════════════════════════════════════════
+   CHARTS
+══════════════════════════════════════════════════ */
+;}
+function DC(id){if(AC[id]){AC[id].destroy();delete AC[id];}}
+function stkRenderCharts(){stkChartMarca();stkChartAging();stkChartModelos();stkChartMarcaDias();stkChartModProm();}
+function stkRedrawCharts(){if(stkAll.length){stkRenderCharts();stkRenderModRankings();}}
+
+function stkChartMarca(){
+  DC('marca'); const {grid,lbl}=gc();
+  const MAIN=['Volkswagen','Ford','Chevrolet','Audi'];
+  const otras=stkFiltered.filter(r=>!MAIN.includes(r.marcaNorm));
+  const labels=[...MAIN.filter(b=>stkFiltered.some(r=>r.marcaNorm===b))];
+  if(otras.length)labels.push('Otra');
+  const data=labels.map(b=>b==='Otra'?otras.length:stkFiltered.filter(r=>r.marcaNorm===b).length);
+  const colors=labels.map(b=>BRAND_C[b]||'#94a3b8');
+  const tot=stkFiltered.length;
+  AC['marca']=new Chart(ge_stk('stk-c-marca'),{
+    type:'doughnut',
+    data:{labels,datasets:[{data,backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,hoverOffset:8}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{position:'bottom',labels:{color:lbl,font:{size:11},padding:14,boxWidth:11}},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw} uds. (${tot?(ctx.raw/tot*100).toFixed(1):0}%)`}}}}
+  });
+  ge_stk('stk-cs-marca').innerHTML=labels.map((b,i)=>`
+    <div class="cstat"><div class="cstat-lbl">${b}</div>
+    <div class="cstat-val" style="color:${colors[i]}">${data[i]}</div>
+    <div class="cstat-sub">${tot?(data[i]/tot*100).toFixed(1):0}%</div></div>`).join('');
+}
+
+function stkChartAging(){
+  DC('aging'); const {grid,lbl}=gc();
+  const g1=stkFiltered.filter(r=>r.dias!==null&&r.dias<=15).length;
+  const g2=stkFiltered.filter(r=>r.dias!==null&&r.dias>=16&&r.dias<=30).length;
+  const g3=stkFiltered.filter(r=>r.dias!==null&&r.dias>=31&&r.dias<=60).length;
+  const g4=stkFiltered.filter(r=>r.dias!==null&&r.dias>60).length;
+  const groups=['0 – 15d','16 – 30d','31 – 60d','+ 60d'];
+  const colors=['#22c55e','#84cc16','#f59e0b','#ef4444'];
+  AC['aging']=new Chart(ge_stk('stk-c-aging'),{
+    type:'bar',
+    data:{labels:groups,datasets:[{label:'Unidades',data:[g1,g2,g3,g4],backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} unidades`}}},
+      scales:{x:{ticks:{color:lbl},grid:{color:grid}},y:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true}}}
+  });
+  ST('cs-g1',g1); ST('cs-g2',g2); ST('cs-g3',g3); ST('cs-g4',g4);
+}
+
+function stkChartModelos(){
+  DC('modelos'); const {grid,lbl}=gc();
+  const cnt={};
+  stkFiltered.forEach(r=>{if(r.modelo)cnt[r.modelo]=(cnt[r.modelo]||0)+1;});
+  const sorted=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if(!sorted.length)return;
+  const labels=sorted.map(x=>x[0]), data=sorted.map(x=>x[1]);
+  const bgC=labels.map(l=>{const r=stkFiltered.find(x=>x.modelo===l);return(BRAND_C[r?.marcaNorm]||'#3b82f6')+'cc';});
+  const bdC=labels.map(l=>{const r=stkFiltered.find(x=>x.modelo===l);return BRAND_C[r?.marcaNorm]||'#3b82f6';});
+  AC['modelos']=new Chart(ge_stk('stk-c-modelos'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Unidades',data,backgroundColor:bgC,borderColor:bdC,borderWidth:2,borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} unidades`}}},
+      scales:{x:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true},y:{ticks:{color:lbl,font:{size:11}},grid:{display:false}}}}
+  });
+}
+
+function stkChartMarcaDias(){
+  DC('marcaDias'); const {grid,lbl}=gc();
+  const MAIN=['Volkswagen','Ford','Chevrolet','Audi'];
+  const brs=MAIN.filter(b=>stkFiltered.some(r=>r.marcaNorm===b));
+  const data=brs.map(b=>{const rr=stkFiltered.filter(r=>r.marcaNorm===b&&r.dias!==null);return rr.length?Math.round(rr.reduce((s,r)=>s+r.dias,0)/rr.length):0;});
+  const colors=brs.map(b=>BRAND_C[b]||'#3b82f6');
+  AC['marcaDias']=new Chart(ge_stk('stk-c-marcadias'),{
+    type:'bar',
+    data:{labels:brs,datasets:[{label:'Días promedio',data,backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} días promedio`}}},
+      scales:{x:{ticks:{color:lbl},grid:{color:grid}},y:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true}}}
+  });
+  const crit=getCrit(), alt=getAlert();
+  ge_stk('stk-cs-marcadias').innerHTML=brs.map((b,i)=>{
+    const cls=data[i]>crit?'red':data[i]>alt?'orn':'grn';
+    return`<div class="cstat"><div class="cstat-lbl">${b}</div><div class="cstat-val ${cls}">${data[i]}d</div></div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════
+   RIGHT COLUMN
+══════════════════════════════════════════════════ */
+function stkRenderRightCol(){
+  // Top 10 oldest
+  const top5=stkFiltered.filter(r=>r.dias!==null).sort((a,b)=>b.dias-a.dias).slice(0,10);
+  ge_stk('stk-top5').innerHTML=top5.length?top5.map((r,i)=>{
+    const bc={'Volkswagen':'mb-vw','Ford':'mb-ford','Chevrolet':'mb-chev','Audi':'mb-audi'}[r.marcaNorm]||'mb-otra';
+    const rankCls=i===0?'t1':r.ageClass==='crit'?'t2':'';
+    return`<div class="rp-item">
+      <div class="rp-rank ${rankCls}">${i+1}</div>
+      <div class="rp-item-info">
+        <div class="rp-item-main">${r.vin||r.modelo||'Sin interno'} <span class="mbadge ${bc}" style="font-size:9px">${r.marcaNorm}</span></div>
+        <div class="rp-item-sub">${r.modelo||'—'}${r.color?' · '+r.color:''}</div>
+      </div>
+      <div class="rp-item-val">${r.dias}d</div>
+    </div>`;
+  }).join(''):`<div style="padding:20px;font-size:12px;color:var(--text-dim);text-align:center">Sin datos de fecha</div>`;
+
+  // Critical brands panel
+  const MAIN_B=['Volkswagen','Ford','Chevrolet','Audi'];
+  const critBrands=MAIN_B.map(b=>({
+    brand:b,
+    crit:stkFiltered.filter(r=>r.marcaNorm===b&&r.ageClass==='crit').length,
+    warn:stkFiltered.filter(r=>r.marcaNorm===b&&r.ageClass==='warn').length,
+    total:stkFiltered.filter(r=>r.marcaNorm===b).length,
+  })).filter(b=>b.total>0).sort((a,b)=>b.crit-a.crit);
+  const totalCrit=stkFiltered.filter(r=>r.ageClass==='crit').length;
+  const critPanel=ge_stk('stk-crit-brands-panel');
+  if(critPanel){critPanel.style.display=totalCrit>0?'block':'none';}
+  if(totalCrit>0){
+    const maxCrit=Math.max(...critBrands.map(b=>b.crit),1);
+    ge_stk('stk-crit-brands').innerHTML=critBrands.map(b=>{
+      if(!b.crit&&!b.warn) return'';
+      const pctBar=Math.round((b.crit/maxCrit)*100);
+      const c=BRAND_C[b.brand]||'#94a3b8';
+      return`<div class="rp-brand-row">
+        <div class="rp-brand-top">
+          <span style="font-size:12px;font-weight:700;color:${c}">${b.brand}</span>
+          <span style="font-size:13px;font-weight:800;color:var(--red)">${b.crit} críticas</span>
+        </div>
+        <div class="dbw"><div class="dbf" style="width:${pctBar}%;background:var(--red)"></div></div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px">${b.warn} en alerta · ${b.total} totales</div>
+      </div>`;
+    }).join('');
+  }
+
+
+  const MAIN=['Volkswagen','Ford','Chevrolet','Audi'];
+  const total=stkFiltered.length||1;
+  const otras=stkFiltered.filter(r=>!MAIN.includes(r.marcaNorm)).length;
+  const brs=[...MAIN.filter(b=>stkFiltered.some(r=>r.marcaNorm===b))];
+  if(otras>0)brs.push('Otra');
+  ge_stk('stk-brand-sum').innerHTML=brs.map(b=>{
+    const n=b==='Otra'?otras:stkFiltered.filter(r=>r.marcaNorm===b).length;
+    const pct=Math.round(n/total*100);
+    const c=BRAND_C[b]||'#94a3b8';
+    // avg days for brand
+    const rr=stkFiltered.filter(r=>r.marcaNorm===b&&r.dias!==null);
+    const avg=rr.length?Math.round(rr.reduce((s,r)=>s+r.dias,0)/rr.length):null;
+    return`<div class="rp-brand-row">
+      <div class="rp-brand-top">
+        <span class="rp-brand-name" style="color:${c}">${b}</span>
+        <span class="rp-brand-cnt">${n}</span>
+      </div>
+      <div class="dbw"><div class="dbf" style="width:${pct}%;background:${c}"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:2px">
+        <span>${pct}% del stock</span>
+        ${avg!==null?`<span>Prom: ${avg}d</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Top colors
+  if(stkCols.color){
+    const colorCnt={};
+    stkFiltered.forEach(r=>{if(r.color)colorCnt[r.color]=(colorCnt[r.color]||0)+1;});
+    const topC=Object.entries(colorCnt).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    if(topC.length){
+      ge_stk('stk-color-panel').style.display='block';
+      ge_stk('stk-color-sum').innerHTML=topC.map(([color,n])=>{
+        const pct=Math.round(n/total*100);
+        return`<div class="rp-brand-row">
+          <div class="rp-brand-top"><span style="font-size:12px;font-weight:600">${color}</span><span class="rp-brand-cnt">${n}</span></div>
+          <div class="dbw"><div class="dbf" style="width:${pct}%;background:var(--accent)"></div></div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:2px">${pct}%</div>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   TABLE
+══════════════════════════════════════════════════ */
+function stkRT(){
+  const search=ge_stk('stk-search').value.toLowerCase().trim();
+  const sortV=ge_stk('f-sort').value;
+  let rows=[...stkFiltered];
+  if(search) rows=rows.filter(r=>Object.values(r._raw).some(v=>v.toString().toLowerCase().includes(search)));
+  const sf={
+    'dias-d':(a,b)=>(b.dias??-1)-(a.dias??-1),
+    'dias-a':(a,b)=>(a.dias??999999)-(b.dias??999999),
+    'marca': (a,b)=>a.marcaNorm.localeCompare(b.marcaNorm),
+    'modelo':(a,b)=>(a.modelo||'').localeCompare(b.modelo||''),
+  };
+  rows.sort(sf[sortV]||sf['dias-d']);
+  stkDisplayed=rows;
+  stkCurrentPage=1; stkRenderTable();
+}
+
+function stkRenderTable(){
+  const total=stkDisplayed.length;
+  const pages=Math.max(1,Math.ceil(total/STK_PP));
+  if(stkCurrentPage>pages)stkCurrentPage=pages;
+  ge_stk('stk-pag-info').textContent=`Mostrando ${total===0?0:(stkCurrentPage-1)*STK_PP+1}–${Math.min(stkCurrentPage*STK_PP,total)} de ${total}`;
+  ge_stk('stk-btn-prev').disabled=stkCurrentPage<=1;
+  ge_stk('stk-btn-next').disabled=stkCurrentPage>=pages;
+  ST('stk-tbl-cnt',`(${total} unidades)`);
+
+  const slice=stkDisplayed.slice((stkCurrentPage-1)*STK_PP,stkCurrentPage*STK_PP);
+
+  const visCols=[];
+  if(stkCols.vin)      visCols.push({k:'vin',      l:'N° Interno'});
+  visCols.push(         {k:'marcaNorm',             l:'Marca'});
+  if(stkCols.modelo)   visCols.push({k:'modelo',    l:'Modelo'});
+  if(stkCols.color)    visCols.push({k:'color',     l:'Color'});
+  if(stkCols.estado)   visCols.push({k:'estado',    l:'Estado'});
+  if(stkCols.ubicacion)visCols.push({k:'ubicacion', l:'Ubicación'});
+  visCols.push(         {k:'fecha',                 l:'Fecha Ingreso'});
+  visCols.push(         {k:'dias',                  l:'Días en Predio'});
+
+  ge_stk('stk-thead').innerHTML=visCols.map(c=>`<th>${c.l}<span class="sa"></span></th>`).join('');
+
+  const crit=getCrit(), alt=getAlert();
+  ge_stk('stk-tbody').innerHTML=slice.map(r=>{
+    const bc={'Volkswagen':'mb-vw','Ford':'mb-ford','Chevrolet':'mb-chev','Audi':'mb-audi'}[r.marcaNorm]||'mb-otra';
+    const cells=visCols.map(c=>{
+      if(c.k==='marcaNorm') return`<td><span class="mbadge ${bc}">${r.marcaNorm}</span></td>`;
+      if(c.k==='dias'){
+        if(r.dias===null) return`<td style="color:var(--text-dim)">—</td>`;
+        const cls=r.dias>crit?'rbad':r.dias>alt?'rmed':'rok';
+        return`<td><span class="rpill ${cls}">${r.dias}d${r.dias>crit?' ⚠':''}</span></td>`;
+      }
+      const v=r[c.k]||'—';
+      return`<td${v==='—'?' style="color:var(--text-dim)"':''}>${v}</td>`;
+    }).join('');
+    const rowBg=r.ageClass==='crit'?'background:rgba(239,68,68,.03)':'';
+    return`<tr style="${rowBg}">${cells}</tr>`;
+  }).join('')||`<tr><td colspan="${visCols.length}" style="text-align:center;padding:30px;color:var(--text-dim)">Sin resultados</td></tr>`;
+}
+
+function stkChartModProm(){
+  DC('modProm'); const {grid,lbl}=gc();
+  // avg days per model (only models with fecha)
+  const cnt={}, sum={};
+  stkFiltered.forEach(r=>{if(r.modelo&&r.dias!==null){cnt[r.modelo]=(cnt[r.modelo]||0)+1;sum[r.modelo]=(sum[r.modelo]||0)+r.dias;}});
+  const avgs=Object.entries(cnt).map(([m,n])=>({m,avg:Math.round(sum[m]/n),n})).filter(x=>x.n>=1).sort((a,b)=>b.avg-a.avg).slice(0,10);
+  if(!avgs.length)return;
+
+  const labels=avgs.map(x=>x.m), data=avgs.map(x=>x.avg);
+  const crit=getCrit(), alt=getAlert();
+  const bgC=data.map(v=>v>crit?'rgba(239,68,68,.7)':v>alt?'rgba(245,158,11,.7)':'rgba(34,197,94,.7)');
+  const bdC=data.map(v=>v>crit?'#ef4444':v>alt?'#f59e0b':'#22c55e');
+
+  AC['modProm']=new Chart(ge_stk('stk-c-mod-prom'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Días promedio',data,backgroundColor:bgC,borderColor:bdC,borderWidth:2,borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} días promedio (${avgs[c2.dataIndex].n} uds.)`}}},
+      scales:{x:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true},y:{ticks:{color:lbl,font:{size:11}},grid:{display:false}}}}
+  });
+
+  // footer stats
+  ST('cs-modmax-name',avgs[0]?.m||'—');
+  ST('cs-modmax-dias',avgs[0]?`${avgs[0].avg} días · ${avgs[0].n} uds.`:'');
+  const avg10=avgs.length?Math.round(avgs.reduce((s,x)=>s+x.avg,0)/avgs.length):0;
+  ST('cs-modprom-avg',avg10);
+  // total distinct models
+  const totalMods=new Set(stkFiltered.filter(r=>r.modelo).map(r=>r.modelo)).size;
+  ST('cs-mod-total',totalMods);
+}
+
+function stkRenderModRankings(){
+  // Top 10 modelos por unidad más antigua (worst case per model)
+  const worstByModel={};
+  stkFiltered.forEach(r=>{
+    if(!r.modelo||r.dias===null)return;
+    if(!worstByModel[r.modelo]||r.dias>worstByModel[r.modelo].dias) worstByModel[r.modelo]=r;
+  });
+  const sorted=Object.values(worstByModel).sort((a,b)=>b.dias-a.dias).slice(0,10);
+  const crit=getCrit(), alt=getAlert();
+  const container=ge_stk('stk-mod-max-list');
+  if(!container)return;
+
+  container.innerHTML=sorted.length?sorted.map((r,i)=>{
+    const bc={'Volkswagen':'mb-vw','Ford':'mb-ford','Chevrolet':'mb-chev','Audi':'mb-audi'}[r.marcaNorm]||'mb-otra';
+    const pillCls=r.dias>crit?'rbad':r.dias>alt?'rmed':'rok';
+    const rankCls=i===0?'t1':r.ageClass==='crit'?'t2':'';
+    const vin=r.vin?`<span style="font-size:10px;color:var(--text-dim);font-family:'Inter',sans-serif"> · ${r.vin}</span>`:'';
+    return`<div style="display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--border)">
+      <div class="rp-rank ${rankCls}" style="flex-shrink:0">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+          ${r.modelo} <span class="mbadge ${bc}" style="font-size:9px">${r.marcaNorm}</span>${vin}
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px">Peor unidad del modelo</div>
+      </div>
+      <span class="rpill ${pillCls}" style="white-space:nowrap">${r.dias}d${r.dias>crit?' ⚠':''}</span>
+    </div>`;
+  }).join(''):`<div style="padding:20px;text-align:center;font-size:12px;color:var(--text-dim)">Sin datos de fecha</div>`;
+}
+
+
+
+/* ══════════════════════════════════════════════════
+   EXPORT
+══════════════════════════════════════════════════ */
+function stkExport(){
+  if(!stkDisplayed.length){alert('Sin datos para exportar.');return;}
+  const h=Object.keys(stkDisplayed[0]._raw);
+  const csv=[h.join(';'),...stkDisplayed.map(r=>h.map(k=>`"${(r._raw[k]||'').replace(/"/g,'""')}"`).join(';'))].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download=`stock_predio_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+/* ══════════════════════════════════════════════════
+   KPI TOGGLE
+══════════════════════════════════════════════════ */
+function stkTK(id,show){const el=ge_stk(id);if(el)el.toggleAttribute('hidden-kpi',!show);}
+function stkSetAllK(on){document.querySelectorAll('#stk-kpi-menu input[type=checkbox]').forEach(cb=>{cb.checked=on;cb.dispatchEvent(new Event('change'));});}
+function stkToggleKpiMenu(e){e.stopPropagation();ge_stk('stk-kpi-menu').classList.toggle('open');}
+document.addEventListener('click',()=>ge_stk('stk-kpi-menu')?.classList.remove('open'));
 </script>
 </body>
 </html>
