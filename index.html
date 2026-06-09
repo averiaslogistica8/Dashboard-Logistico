@@ -2432,7 +2432,6 @@ function stkProcess(rawData){
     const out={_raw:r};
     for(const [f,col] of Object.entries(stkCols)) out[f]=col?(r[col]||''):'';
     out.marcaNorm=stkNormBrand(out.marca);
-    out.modelo=stkNormModel(out.modelo);
     out.dias=stkParseDias(out.fecha);
     out.ageClass=stkAgeClass(out.dias);
     return out;
@@ -2473,7 +2472,6 @@ function stkProcessRow(raw){
   const r={_raw:raw};
   for(const [f,col] of Object.entries(stkCols)) r[f]=col?(raw[col]||''):'';
   r.marcaNorm=stkNormBrand(r.marca);
-  r.modelo=stkNormModel(r.modelo);
   r.dias=stkParseDias(r.fecha);
   r.ageClass=stkAgeClass(r.dias);
   return r;
@@ -2495,16 +2493,6 @@ function stkNormBrand(raw){
   return raw?raw.trim():'Otra';
 }
 
-function stkNormModel(raw){
-  if(!raw)return '';
-  // Multi-word model prefixes (e.g. "NUEVA TERRITORY", "GRAND CHEROKEE")
-  const MULTI=['NUEVA','NEW','GRAND','SUPER','NUEVO'];
-  const words=raw.trim().toUpperCase().split(/\s+/);
-  if(!words.length)return raw;
-  const keep=MULTI.includes(words[0])?2:1;
-  const base=words.slice(0,keep).join(' ');
-  return base.charAt(0).toUpperCase()+base.slice(1).toLowerCase();
-}
 
 function stkParseDias(str){
   if(!str)return null;
