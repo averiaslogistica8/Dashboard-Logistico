@@ -2401,7 +2401,7 @@ const STK_COL_CANDS={
   vin:      ['Interno','N° Interno','Nro Interno','interno','INTERNO',
              'VIN','Chasis','chasis','N° Chasis','Nro Chasis','Nro. Chasis','Motor','Nro Motor'],
   estado:   ['Estado','estado','ESTADO','Status','status'],
-  ubicacion:['Ubicacion','Ubicación','ubicacion','Dique','Sector','Posicion','Posición'],
+  ubicacion:['Nro dique','Nro Dique','NRO DIQUE','nro dique','Nro. Dique','Ubicacion','Ubicación','ubicacion','Dique','Sector','Posicion','Posición'],
 };
 
 
@@ -2497,14 +2497,13 @@ function stkNormBrand(raw){
 
 function stkNormModel(raw){
   if(!raw)return '';
-  const TRIMS=['COMFORTLINE','HIGH','TSI','MSI','MPI','GLI','GTS','XLS','XLT','ACTIVE','PLUS',
-               'CONNECT','TRENDLINE','HIGHLINE','ADVENTURA','LIMITED','TITANIUM','RAPTOR',
-               'LARAMIE','SXT','SPORT','ELEGANCE','TREND','CONFIDENCE','CONFORT','PREMIUM',
-               'LUXURY','MOTION','FASHION','BLACK','PURO','RIDE','FULL','MSI6','MPI6',
-               '4X4','4X2','MT','AT','TDI','TFSI','QUATTRO','AMBITION','ATTRACTION'];
+  // Multi-word model prefixes (e.g. "NUEVA TERRITORY", "GRAND CHEROKEE")
+  const MULTI=['NUEVA','NEW','GRAND','SUPER','NUEVO'];
   const words=raw.trim().toUpperCase().split(/\s+/);
-  while(words.length>1&&TRIMS.includes(words[words.length-1])){words.pop();}
-  return words.map(w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()).join(' ');
+  if(!words.length)return raw;
+  const keep=MULTI.includes(words[0])?2:1;
+  const base=words.slice(0,keep).join(' ');
+  return base.charAt(0).toUpperCase()+base.slice(1).toLowerCase();
 }
 
 function stkParseDias(str){
