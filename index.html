@@ -452,7 +452,7 @@ tbody tr:hover td{background:var(--surface2);}
           <div class="kmsep"></div>
           <label class="kmitem"><input type="checkbox" id="avk-grado" checked onchange="avrTK('avr-ck-grado',this.checked)">Grado Frecuente</label>
           <label class="kmitem"><input type="checkbox" id="avk-tipo" checked onchange="avrTK('avr-ck-tipo',this.checked)">Problema Frecuente</label>
-          <label class="kmitem"><input type="checkbox" id="avk-cierre" checked onchange="avrTK('avr-ck-cierre',this.checked)">Cierre Principal</label>
+          <label class="kmitem"><input type="checkbox" id="avk-inst-freq" checked onchange="avrTK('avr-ck-inst-freq',this.checked)">Instancia Frecuente</label>
           <label class="kmitem"><input type="checkbox" id="avk-resp" checked onchange="avrTK('avr-ck-resp',this.checked)">Marca Más Afectada</label>
           <div class="kmsep"></div>
           <div style="display:flex;gap:6px;padding:6px 14px">
@@ -658,7 +658,7 @@ tbody tr:hover td{background:var(--surface2);}
             <div class="kgrid4">
               <div class="kcard" id="avr-ck-grado" style="--kc:var(--blue)"><div class="kcard-top"><div class="kic" style="--kc:var(--blue)">📊</div><div class="kinfo"><div class="klbl">Grado Más Frecuente</div><div class="kval md" id="avr-k-grado">—</div><div class="ksub" id="avr-k-grado-s"></div></div></div></div>
               <div class="kcard" id="avr-ck-tipo" style="--kc:var(--purple)"><div class="kcard-top"><div class="kic" style="--kc:var(--purple)">🔍</div><div class="kinfo"><div class="klbl">Problema Más Frecuente</div><div class="kval sm" id="avr-k-tipo">—</div><div class="ksub" id="avr-k-tipo-s"></div></div></div></div>
-              <div class="kcard" id="avr-ck-cierre" style="--kc:var(--green)"><div class="kcard-top"><div class="kic" style="--kc:var(--green)">✅</div><div class="kinfo"><div class="klbl">Cierre Principal</div><div class="kval sm" id="avr-k-cierre">—</div><div class="ksub" id="avr-k-cierre-s"></div></div></div></div>
+              <div class="kcard" id="avr-ck-inst-freq" style="--kc:var(--purple)"><div class="kcard-top"><div class="kic" style="--kc:var(--purple)">📍</div><div class="kinfo"><div class="klbl">Instancia Frecuente</div><div class="kval sm" id="avr-k-inst-freq">—</div><div class="ksub" id="avr-k-inst-freq-s"></div></div></div></div>
               <div class="kcard" id="avr-ck-resp" style="--kc:var(--red)"><div class="kcard-top"><div class="kic" style="--kc:var(--red)">🚗</div><div class="kinfo"><div class="klbl">Marca Más Afectada</div><div class="kval leader" id="avr-k-resp">—</div><div class="ksub" id="avr-k-resp-s"></div></div></div></div>
             </div>
 
@@ -667,17 +667,21 @@ tbody tr:hover td{background:var(--surface2);}
             <div class="agrid" id="avr-alerts"></div>
 
             <!-- Charts -->
+            <div class="stitle"><span class="sdot" style="background:var(--purple)"></span>Instancia de Carga <em>Dónde se detectan más averías</em></div>
+            <div class="crow c2">
+              <div class="cc"><div class="ctitle">Por Instancia · Totales</div><div class="ch260"><canvas id="avr-c-inst"></canvas></div></div>
+              <div class="cc"><div class="ctitle">Evolución mensual por Instancia</div><div class="ch260"><canvas id="avr-c-inst-hist"></canvas></div></div>
+            </div>
             <div class="stitle"><span class="sdot" style="background:var(--blue)"></span>Distribución por Grado y Problema</div>
             <div class="crow c3">
               <div class="cc"><div class="ctitle">Averías <span style="color:var(--text-dim)">(AVE)</span></div><div class="ch260"><canvas id="avr-c-aveG"></canvas></div></div>
               <div class="cc"><div class="ctitle">Faltantes <span style="color:var(--text-dim)">(FALT)</span></div><div class="ch260"><canvas id="avr-c-faltG"></canvas></div></div>
               <div class="cc"><div class="ctitle">Top 10 Problemas</div><div class="ch300"><canvas id="avr-c-tipo"></canvas></div></div>
             </div>
-            <div class="stitle"><span class="sdot" style="background:var(--orange)"></span>Demora, Tipo de Cierre e Instancia de Carga</div>
-            <div class="crow c3">
+            <div class="stitle"><span class="sdot" style="background:var(--orange)"></span>Demora y Tipo de Cierre</div>
+            <div class="crow c2">
               <div class="cc"><div class="ctitle">Demora Promedio por Marca <span style="color:var(--text-dim)">(días)</span></div><div class="ch260"><canvas id="avr-c-dem"></canvas></div></div>
               <div class="cc"><div class="ctitle">Distribución por Tipo de Cierre</div><div class="ch260"><canvas id="avr-c-cierre"></canvas></div></div>
-              <div class="cc"><div class="ctitle">Por Instancia de Carga</div><div class="ch260"><canvas id="avr-c-inst"></canvas></div></div>
             </div>
             <div class="stitle"><span class="sdot" style="background:var(--text-dim)"></span>Detalle por Marca</div>
             <div class="cc" style="margin-bottom:14px"><div class="twrap"><table id="avr-t-marca"></table></div></div>
@@ -1369,6 +1373,8 @@ function avrRecalc(){
   const dTop=Object.entries(dC).sort((a,b)=>b[1]-a[1])[0]||['—',0];
   const cC={};data.forEach(r=>{const c=avrGV(r,'Tipo de Cierre','Tipo Cierre');if(c)cC[c]=(cC[c]||0)+1;});
   const cTop=Object.entries(cC).sort((a,b)=>b[1]-a[1])[0]||['—',0];
+  const iC={};data.forEach(r=>{const i=avrGV(r,'Instancia de Carga','Instancia');if(i)iC[i]=(iC[i]||0)+1;});
+  const iTop=Object.entries(iC).sort((a,b)=>b[1]-a[1])[0]||['—',0];
   const rDM={};data.forEach(r=>{const rp=avrGV(r,'Responsable Carga','Responsable'),d=avrGD(r);if(rp){if(!rDM[rp])rDM[rp]=[];rDM[rp].push(d);}});
   const rRows=Object.entries(rDM).map(([r,a])=>({resp:r,total:a.length,avg:a.reduce((x,y)=>x+y,0)/a.length,max:Math.max(...a),sob:a.filter(v=>v>u).length})).sort((a,b)=>b.total-a.total);
   const mMap={};data.forEach(r=>{const m=avrGV(r,'Marca'),d=avrGD(r);if(m){if(!mMap[m])mMap[m]=[];mMap[m].push(d);}});
@@ -1409,7 +1415,7 @@ function avrRecalc(){
   const cs=document.getElementById('avr-ck-sobre');cs.style.setProperty('--kc',ps>40?'var(--red)':ps>20?'var(--orange)':'var(--green)');
   ST('avr-k-grado',gTop[0]);ST('avr-k-grado-s',gTop[1]+' averías ('+avrPC(gTop[1],tot)+')');
   ST('avr-k-tipo',dTop[0]);ST('avr-k-tipo-s',dTop[1]+' casos ('+avrPC(dTop[1],tot)+')');
-  ST('avr-k-cierre',cTop[0]);ST('avr-k-cierre-s',cTop[1]+' casos ('+avrPC(cTop[1],tot)+')');
+  ST('avr-k-inst-freq',iTop[0]);ST('avr-k-inst-freq-s',iTop[1]+' detecciones ('+avrPC(iTop[1],tot)+')');
   // KPI: Marca Más Afectada (mayor cantidad de averías)
   if(mK.length){const mTopIdx=mA.map((_,i)=>mMap[mK[i]].length).indexOf(Math.max(...mK.map((_,i)=>mMap[mK[i]].length)));ST('avr-k-resp',mK[mTopIdx]);ST('avr-k-resp-s',mMap[mK[mTopIdx]].length+' averías · prom. '+mA[mTopIdx].toFixed(1)+'d');}
   else{ST('avr-k-resp','—');ST('avr-k-resp-s','Sin datos');}
@@ -1450,6 +1456,38 @@ function avrRecalc(){
   }
   const iS=Object.entries(chIM).sort((a,b)=>b[1]-a[1]);
   avrBar('avr-c-inst',iS.map(x=>x[0]),iS.map(x=>x[1]),{h:true,cls:['#3b82f6'],lbl:true,clickKey:'inst',opts:{plugins:{legend:{display:false}},scales:{x:{grid:{color:grid},ticks:{color:lbl}},y:{grid:{display:false},ticks:{font:{size:11},color:lbl}}}}});
+  // ── Histórico mensual por instancia ──
+  const histI={};
+  chartData.forEach(r=>{
+    const f=avrPD(avrGV(r,'Fecha de Carga','Fecha Carga'));
+    const inst=avrGV(r,'Instancia de Carga','Instancia');
+    if(!f||!inst)return;
+    const k=`${f.getFullYear()}-${String(f.getMonth()+1).padStart(2,'0')}`;
+    if(!histI[k]){histI[k]={lbl:f.toLocaleString('es-AR',{month:'short',year:'numeric'}).replace(/^\w/,c=>c.toUpperCase()),data:{}};}
+    histI[k].data[inst]=(histI[k].data[inst]||0)+1;
+  });
+  const histMonths=Object.keys(histI).sort();
+  DC('avr-c-inst-hist');const histEl=document.getElementById('avr-c-inst-hist');
+  if(histEl&&histMonths.length>0){
+    const allInst=[...new Set(Object.values(histI).flatMap(m=>Object.keys(m.data)))];
+    const hColors=['#3b82f6','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#f43f5e'];
+    AC['avr-c-inst-hist']=new Chart(histEl,{type:'bar',data:{
+      labels:histMonths.map(k=>histI[k].lbl),
+      datasets:allInst.map((inst,i)=>({
+        label:inst,
+        data:histMonths.map(k=>histI[k].data[inst]||0),
+        backgroundColor:hColors[i%hColors.length]+'bb',
+        borderColor:hColors[i%hColors.length],
+        borderWidth:1
+      }))
+    },options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10},color:lbl,padding:8}}},
+      scales:{
+        x:{stacked:true,grid:{color:grid},ticks:{color:lbl,font:{size:10}}},
+        y:{stacked:true,beginAtZero:true,grid:{color:grid},ticks:{color:lbl}}
+      }
+    }});
+  }
   const rS=Object.entries(chRM).sort((a,b)=>b[1]-a[1]);
   avrBar('avr-c-resp',rS.map(x=>avrSN(x[0])),rS.map(x=>x[1]),{cls:COLORS,multi:true,lbl:true,clickKey:'resp',vals:rS.map(x=>x[0]),opts:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:grid},ticks:{color:lbl}},x:{grid:{display:false},ticks:{font:{size:11},color:lbl}}}}});
   const mxMA=mA.length?Math.max(...mA):1;
@@ -2395,7 +2433,7 @@ function entrarDashboard(){
 ══════════════════════════════════════════════════ */
 const STK_COL_CANDS={
   marca:    ['Marca','marca','MARCA','Fabricante','fabricante'],
-  modelo:   ['Modelo','modelo','MODELO','Descripcion','Descripción','Descripcion del Vehiculo','Tipo'],
+  modelo:   ['Modelo','modelo','MODELO','Descripcion','Descripción','Descripcion del Vehiculo'],
   color:    ['Color','color','COLOR'],
   fecha:    ['Fecha Arribo'],
   vin:      ['Interno','N° Interno','Nro Interno','interno','INTERNO',
@@ -2604,7 +2642,8 @@ function stkRenderKPIs(){
 
   const mCnt={}; rows.forEach(r=>mCnt[r.marcaNorm]=(mCnt[r.marcaNorm]||0)+1);
   const topM=Object.entries(mCnt).sort((a,b)=>b[1]-a[1])[0];
-  const modCnt={}; rows.forEach(r=>{if(r.modelo)modCnt[r.modelo]=(modCnt[r.modelo]||0)+1;});
+  const BNAMES=['volkswagen','ford','chevrolet','audi','vw'];
+  const modCnt={}; rows.forEach(r=>{const m=(r.modelo||'').trim();if(m&&!BNAMES.includes(m.toLowerCase()))modCnt[m]=(modCnt[m]||0)+1;});
   const topMod=Object.entries(modCnt).sort((a,b)=>b[1]-a[1])[0];
 
   // TOTAL
