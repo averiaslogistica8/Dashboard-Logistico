@@ -539,14 +539,14 @@ tbody tr:hover td{background:var(--surface2);}
           <div class="kmlbl">Indicadores estratégicos</div>
           <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-total',this.checked)"> Total en Predio</label>
           <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-ocup',this.checked)"> Ocupación</label>
-          <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-prom',this.checked)"> Permanencia Promedio</label>
+          <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-prom',this.checked)"> Rotación del Predio</label>
           <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-crit',this.checked)"> Unidades Críticas</label>
           <div class="kmsep"></div>
           <div class="kmlbl">Indicadores operativos</div>
           <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-max',this.checked)"> Permanencia Máxima</label>
           <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-marca',this.checked)"> Marca Dominante</label>
           <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-modelo',this.checked)"> Modelo Frecuente</label>
-          <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-sinfecha',this.checked)"> Sin Fecha Ingreso</label>
+          <label class="kmitem"><input type="checkbox" checked onchange="stkTK('stk-ck-zona',this.checked)"> Densidad por Zona</label>
           <div class="kmsep"></div>
           <div style="display:flex;gap:6px;padding:6px 14px">
             <button onclick="stkSetAllK(true)" class="kcfg-btn" style="flex:1;font-size:10px;padding:3px 8px">Todos</button>
@@ -673,15 +673,11 @@ tbody tr:hover td{background:var(--surface2);}
               <div class="cc"><div class="ctitle">Faltantes <span style="color:var(--text-dim)">(FALT)</span></div><div class="ch260"><canvas id="avr-c-faltG"></canvas></div></div>
               <div class="cc"><div class="ctitle">Top 10 Problemas</div><div class="ch300"><canvas id="avr-c-tipo"></canvas></div></div>
             </div>
-            <div class="stitle"><span class="sdot" style="background:var(--orange)"></span>Demora y Tipo de Cierre</div>
-            <div class="crow c2">
+            <div class="stitle"><span class="sdot" style="background:var(--orange)"></span>Demora, Tipo de Cierre e Instancia de Carga</div>
+            <div class="crow c3">
               <div class="cc"><div class="ctitle">Demora Promedio por Marca <span style="color:var(--text-dim)">(días)</span></div><div class="ch260"><canvas id="avr-c-dem"></canvas></div></div>
               <div class="cc"><div class="ctitle">Distribución por Tipo de Cierre</div><div class="ch260"><canvas id="avr-c-cierre"></canvas></div></div>
-            </div>
-            <div class="stitle"><span class="sdot" style="background:var(--purple)"></span>Por Instancia y Responsable</div>
-            <div class="crow c2">
               <div class="cc"><div class="ctitle">Por Instancia de Carga</div><div class="ch260"><canvas id="avr-c-inst"></canvas></div></div>
-              <div class="cc"><div class="ctitle">Por Responsable</div><div class="ch260"><canvas id="avr-c-resp"></canvas></div></div>
             </div>
             <div class="stitle"><span class="sdot" style="background:var(--text-dim)"></span>Detalle por Marca</div>
             <div class="cc" style="margin-bottom:14px"><div class="twrap"><table id="avr-t-marca"></table></div></div>
@@ -995,7 +991,7 @@ tbody tr:hover td{background:var(--surface2);}
               <div class="kcard-top">
                 <div class="kic" style="--kc:var(--orange)">⏱</div>
                 <div class="kinfo">
-                  <div class="klbl">Permanencia Promedio</div>
+                  <div class="klbl">Rotación del Predio</div>
                   <div style="display:flex;align-items:baseline;gap:4px">
                     <div class="kval lg" id="stk-k-prom">—</div>
                     <span class="kunit" style="color:var(--orange)">días</span>
@@ -1059,14 +1055,13 @@ tbody tr:hover td{background:var(--surface2);}
                 </div>
               </div>
             </div>
-            <div class="kcard" id="stk-ck-sinfecha" style="--kc:var(--orange)">
+            <div class="kcard" id="stk-ck-zona" style="--kc:var(--accent)">
               <div class="kcard-top">
-                <div class="kic" style="--kc:var(--orange)">📅</div>
+                <div class="kic" style="--kc:var(--accent)">📍</div>
                 <div class="kinfo">
-                  <div class="klbl">Sin Fecha de Ingreso</div>
-                  <div class="kval md" id="stk-k-sinfecha">—</div>
-                  <div class="ksub">Registros sin fecha cargada</div>
-                  <div class="kmeta"><div id="stk-b-sinfecha" class="kbadge born">—</div></div>
+                  <div class="klbl">Densidad por Zona</div>
+                  <div class="kval md" id="stk-k-zona">—</div>
+                  <div class="ksub" id="stk-k-zona-s">Dique con más autos</div>
                 </div>
               </div>
             </div>
@@ -2437,6 +2432,7 @@ function stkProcess(rawData){
     const out={_raw:r};
     for(const [f,col] of Object.entries(stkCols)) out[f]=col?(r[col]||''):'';
     out.marcaNorm=stkNormBrand(out.marca);
+    out.modelo=stkNormModel(out.modelo);
     out.dias=stkParseDias(out.fecha);
     out.ageClass=stkAgeClass(out.dias);
     return out;
@@ -2477,6 +2473,7 @@ function stkProcessRow(raw){
   const r={_raw:raw};
   for(const [f,col] of Object.entries(stkCols)) r[f]=col?(raw[col]||''):'';
   r.marcaNorm=stkNormBrand(r.marca);
+  r.modelo=stkNormModel(r.modelo);
   r.dias=stkParseDias(r.fecha);
   r.ageClass=stkAgeClass(r.dias);
   return r;
@@ -2496,6 +2493,18 @@ function stkNormBrand(raw){
   if(s.includes('CHEVROLET')||s.includes('GM')||s.includes('GENERALMOTOR')) return 'Chevrolet';
   if(s.includes('AUDI')) return 'Audi';
   return raw?raw.trim():'Otra';
+}
+
+function stkNormModel(raw){
+  if(!raw)return '';
+  const TRIMS=['COMFORTLINE','HIGH','TSI','MSI','MPI','GLI','GTS','XLS','XLT','ACTIVE','PLUS',
+               'CONNECT','TRENDLINE','HIGHLINE','ADVENTURA','LIMITED','TITANIUM','RAPTOR',
+               'LARAMIE','SXT','SPORT','ELEGANCE','TREND','CONFIDENCE','CONFORT','PREMIUM',
+               'LUXURY','MOTION','FASHION','BLACK','PURO','RIDE','FULL','MSI6','MPI6',
+               '4X4','4X2','MT','AT','TDI','TFSI','QUATTRO','AMBITION','ATTRACTION'];
+  const words=raw.trim().toUpperCase().split(/\s+/);
+  while(words.length>1&&TRIMS.includes(words[words.length-1])){words.pop();}
+  return words.map(w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()).join(' ');
 }
 
 function stkParseDias(str){
@@ -2674,12 +2683,17 @@ function stkRenderKPIs(){
     ST('stk-k-modelo-s',`${topMod[1]} unidades`);
   }
 
-  // SIN FECHA
-  ST('stk-k-sinfecha',nND);
-  const bsf=ge_stk('stk-b-sinfecha');
-  if(bsf){
-    bsf.className='kbadge '+(nND===0?'bgrn':'born');
-    bsf.textContent=nND===0?'Datos completos':`${total?Math.round(nND/total*100):0}% del stock`;
+  // DENSIDAD POR ZONA
+  const zonaCnt={};
+  rows.forEach(r=>{const z=(r.ubicacion||'').trim();if(z)zonaCnt[z]=(zonaCnt[z]||0)+1;});
+  const topZona=Object.entries(zonaCnt).sort((a,b)=>b[1]-a[1])[0];
+  const zonaEl=ge_stk('stk-k-zona'), zonaSEl=ge_stk('stk-k-zona-s');
+  if(topZona){
+    if(zonaEl) zonaEl.textContent=topZona[0];
+    if(zonaSEl) zonaSEl.textContent=`${topZona[1]} unidades · dique más cargado`;
+  } else {
+    if(zonaEl) zonaEl.textContent='—';
+    if(zonaSEl) zonaSEl.textContent='Sin datos de ubicación';
   }
 }
 
