@@ -100,11 +100,17 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .kgrid5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:14px;}
 @media(max-width:1200px){.kgrid4,.kgrid5{grid-template-columns:repeat(2,1fr);}}
 
-.kcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;box-shadow:var(--shadow);container-type:inline-size;display:flex;flex-direction:column;}
+.kcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;box-shadow:var(--shadow);container-type:inline-size;}
 .kcard[hidden-kpi]{display:none!important;}
 
 /* top row: icon + data */
-.kcard-top{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;flex-shrink:0;}
+.kcard-top{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;}
+
+/* ── Cards con sparkline: layout de 3 filas fijas para alineación perfecta ── */
+.kgrid-spark .kcard{display:grid;grid-template-rows:1fr 42px 28px;grid-template-columns:1fr;}
+.kgrid-spark .kcard-top{margin-bottom:10px;align-self:start;}
+.kgrid-spark .kcard-spark{height:42px;margin:0;align-self:center;}
+.kgrid-spark .kcard-trend{height:28px;display:flex;align-items:center;gap:4px;padding-top:0;border-top:none;border-top:1px solid var(--border);padding-top:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 .kic{width:48px;height:48px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;background:color-mix(in srgb,var(--kc,var(--accent)) 12%,transparent);}
 .kinfo{flex:1;min-width:0;}
 .klbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--text-dim);margin-bottom:5px;}
@@ -131,7 +137,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .kpfill{height:100%;border-radius:4px;transition:width .4s;}
 
 /* Sparkline area */
-.kcard-spark{height:42px;margin-bottom:10px;margin-top:auto;}
+.kcard-spark{height:42px;margin-bottom:10px;}
 .spark-svg{width:100%;height:42px;overflow:visible;}
 .spark-path{fill:none;stroke-width:1.8px;stroke-linecap:round;stroke-linejoin:round;}
 .spark-area{fill-opacity:.08;}
@@ -629,7 +635,7 @@ tbody tr:hover td{background:var(--surface2);}
           <div class="mcol">
             <!-- KPIs Estratégicos -->
             <div class="stitle"><span class="sdot"></span>KPIs Estratégicos <em>Visión general</em></div>
-            <div class="kgrid4">
+            <div class="kgrid4 kgrid-spark">
               <div class="kcard" id="avr-ck-total" style="--kc:var(--accent)">
                 <div class="kcard-top"><div class="kic" style="--kc:var(--accent)">🔧</div><div class="kinfo"><div class="klbl">Total Averías</div><div class="kval lg" id="avr-k-total">—</div><div class="ksub" id="avr-k-total-s">registros</div></div></div>
                 <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-avr-total" class="spark-path" style="stroke:var(--accent)"/></svg></div>
@@ -745,7 +751,7 @@ tbody tr:hover td{background:var(--surface2);}
           <div class="mcol">
             <!-- KPIs Estratégicos -->
             <div class="stitle"><span class="sdot"></span>KPIs Estratégicos <em>Visión general</em></div>
-            <div class="kgrid4">
+            <div class="kgrid4 kgrid-spark">
               <div class="kcard" id="ali-ck-total" style="--kc:var(--accent)">
                 <div class="kcard-top"><div class="kic" style="--kc:var(--accent)">🚗</div><div class="kinfo"><div class="klbl">Total Alistajes</div><div class="kval lg" id="ali-k-total">—</div><div class="ksub" id="ali-k-total-s">Autos</div></div></div>
                 <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-ali-total" class="spark-path" style="stroke:var(--accent)"/></svg></div>
