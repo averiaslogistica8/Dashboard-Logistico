@@ -1924,11 +1924,11 @@ function aliClosePanel(){document.getElementById('ali-dpanel').classList.remove(
       </div>
     </div>
     <div class="fdiv"></div>
-    <div class="fgroup"><div class="flbl">Mes</div><div id="mov-month-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div></div>
+    <div class="fgroup"><div class="flbl">Mes rápido</div><select id="mov-smes" onchange="movSetMes()"><option value="">— Todos —</option></select></div>
     <div class="fdiv"></div>
     <div class="fgroup"><div class="flbl">Motivo</div><select id="mov-sel-motivo" onchange="movApplyFilters()"><option value="">Todos</option></select></div>
-    <div class="fgroup"><div class="flbl">Estado</div><select id="mov-sel-estado" onchange="movApplyFilters()"><option value="">Todos</option></select></div>
     <div class="fgroup"><div class="flbl">Marca</div><select id="mov-sel-marca" onchange="movApplyFilters()"><option value="">Todas</option></select></div>
+    <select id="mov-sel-estado" style="display:none"><option value="">Todos</option></select>
     <div class="fdiv"></div>
     <div class="fgroup"><div class="flbl">Desde</div><input type="date" id="mov-dfrom" onchange="movApplyFilters()"></div>
     <div class="fgroup"><div class="flbl">Hasta</div><input type="date" id="mov-dto" onchange="movApplyFilters()"></div>
@@ -1956,6 +1956,7 @@ function aliClosePanel(){document.getElementById('ali-dpanel').classList.remove(
             <div class="kcard" style="--kc:var(--accent)"><div class="kcard-top"><div class="kic" style="--kc:var(--accent)">🆕</div><div class="kinfo"><div class="klbl">0km</div><div class="kval lg" id="mov-k-0km">—</div></div></div></div>
             <div class="kcard" style="--kc:var(--orange)"><div class="kcard-top"><div class="kic" style="--kc:var(--orange)">🔁</div><div class="kinfo"><div class="klbl">Usados</div><div class="kval lg" id="mov-k-usados">—</div></div></div></div>
             <div class="kcard" style="--kc:var(--blue)"><div class="kcard-top"><div class="kic" style="--kc:var(--blue)">🔀</div><div class="kinfo"><div class="klbl">Traslados</div><div class="kval lg" id="mov-k-traslados">—</div></div></div></div>
+            <div class="kcard" style="--kc:var(--purple)"><div class="kcard-top"><div class="kic" style="--kc:var(--purple)">📊</div><div class="kinfo"><div class="klbl">Promedio / unidad</div><div class="kval lg" id="mov-k-promedio">—</div></div></div></div>
 
           </div>
 
@@ -1979,6 +1980,14 @@ function aliClosePanel(){document.getElementById('ali-dpanel').classList.remove(
                 </span>
               </div>
               <div class="ch300"><canvas id="mov-chart-motivo"></canvas></div>
+            </div>
+          </div>
+
+          <!-- Gráfico ubicaciones -->
+          <div class="crow c2" style="margin-bottom:14px">
+            <div class="cc">
+              <div class="ctitle">Movimientos por destino (top 10)</div>
+              <div class="ch300"><canvas id="mov-chart-ubdest"></canvas></div>
             </div>
           </div>
 
@@ -2112,7 +2121,7 @@ function movProcess(data){
   document.getElementById('mov-empty').style.display='none';
   document.getElementById('mov-dash').style.display='block';
   document.getElementById('mov-fbar').style.display='flex';
-  movPopulateMonthChips();
+  movPopulateMonthSelect();
   movApplyFilters();
 }
 
@@ -2162,26 +2171,35 @@ function movClearFilters(){
   movFilterTipo='todos';movSelDate=null;movSelMotivo=null;
   document.getElementById('mov-date-chip').style.display='none';
   document.getElementById('mov-motivo-chip').style.display='none';
-  document.querySelectorAll('#mov-month-chips .mov-chip').forEach(c=>c.classList.remove('active'));
-  const allMC=document.querySelector('#mov-month-chips .mov-chip[data-month=""]');if(allMC)allMC.classList.add('active');
+  const smes=document.getElementById('mov-smes');if(smes)smes.value='';
   const dates=movSynRows.map(r=>movParseDate(r[window._movCols.fechaPedido])).filter(Boolean).sort((a,b)=>a-b);
   if(dates.length){document.getElementById('mov-dfrom').value=movToDate(dates[0]);document.getElementById('mov-dto').value=movToDate(dates[dates.length-1]);}
   movApplyFilters();
 }
 
-function movPopulateMonthChips(){
+function movPopulateMonthSelect(){
   const MESES_CORTOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const c=window._movCols;if(!c)return;
   const months=[...new Set(movSynRows.map(r=>{const d=movParseDate(r[c.fechaPedido]);return d?movToDate(d).slice(0,7):null;}).filter(Boolean))].sort();
-  const wrap=document.getElementById('mov-month-chips');if(!wrap)return;
-  wrap.innerHTML='<button class="mov-chip active" data-month="" onclick="movSetMonth(\'\',this)">Todos</button>'+
-    months.map(k=>{const[y,m]=k.split('-');return`<button class="mov-chip" data-month="${k}" onclick="movSetMonth('${k}',this)">${MESES_CORTOS[parseInt(m,10)-1]} ${y.slice(2)}</button>`;}).join('');
+  const sel=document.getElementById('mov-smes');if(!sel)return;
+  sel.innerHTML='<option value="">— Todos —</option>'+months.map(k=>{const[y,m]=k.split('-');return`<option value="${k}">${MESES_CORTOS[parseInt(m,10)-1]} ${y}</option>`;}).join('');
+  // Auto-select last month
+  if(months.length){sel.value=months[months.length-1];movSetMes();}
 }
-function movSetMonth(k,el){
-  document.querySelectorAll('#mov-month-chips .mov-chip').forEach(c=>c.classList.remove('active'));
-  el.classList.add('active');
-  if(!k){movSelDate=null;document.getElementById('mov-date-chip').style.display='none';}
-  else{movSelDate=k;movApplyDateFilter();return;}
+function movSetMes(){
+  const v=document.getElementById('mov-smes').value;
+  if(!v){
+    movSelDate=null;
+    document.getElementById('mov-date-chip').style.display='none';
+    const dates=movSynRows.map(r=>movParseDate(r[window._movCols.fechaPedido])).filter(Boolean).sort((a,b)=>a-b);
+    if(dates.length){document.getElementById('mov-dfrom').value=movToDate(dates[0]);document.getElementById('mov-dto').value=movToDate(dates[dates.length-1]);}
+    movApplyFilters();return;
+  }
+  const[y,m]=v.split('-').map(Number);
+  document.getElementById('mov-dfrom').value=`${y}-${String(m).padStart(2,'0')}-01`;
+  const lastDay=new Date(y,m,0);
+  document.getElementById('mov-dto').value=`${y}-${String(m).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
+  movSelDate=v;
   movApplyFilters();
 }
 
@@ -2197,16 +2215,16 @@ function movApplyDateFilter(){
   const MESES_CORTOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const[y,m]=movSelDate.split('-');
   ST('mov-date-chip-val',`📅 ${MESES_CORTOS[parseInt(m,10)-1]} ${y}`);
+  // Sync select
+  const smes=document.getElementById('mov-smes');if(smes)smes.value=movSelDate;
   const rows=movGetFiltered();
-  const chartRows=movGetFiltered({exDate:true});
-  movUpdateKPIs(rows);movUpdateCharts(chartRows);
+  movUpdateKPIs(rows);movUpdateCharts(rows);
   movGrouped=movRegroup(rows);movFiltered=[...movGrouped];movSortTable(movSortKey,true);movUpdateRankings();
 }
 function movClearDateSelection(){
   movSelDate=null;
   document.getElementById('mov-date-chip').style.display='none';
-  document.querySelectorAll('#mov-month-chips .mov-chip').forEach(c=>c.classList.remove('active'));
-  const allMC=document.querySelector('#mov-month-chips .mov-chip[data-month=""]');if(allMC)allMC.classList.add('active');
+  const smes=document.getElementById('mov-smes');if(smes)smes.value='';
   movApplyFilters();
 }
 
@@ -2214,8 +2232,7 @@ function movApplyMotivoFilter(){
   document.getElementById('mov-motivo-chip').style.display='inline-flex';
   ST('mov-motivo-chip-val',movSelMotivo);
   const rows=movGetFiltered();
-  const chartRows=movGetFiltered({exMotivo:true});
-  movUpdateKPIs(rows);movUpdateCharts(chartRows);
+  movUpdateKPIs(rows);movUpdateCharts(rows);
   movGrouped=movRegroup(rows);movFiltered=[...movGrouped];movSortTable(movSortKey,true);movUpdateRankings();
 }
 function movClearMotivoSelection(){movSelMotivo=null;document.getElementById('mov-motivo-chip').style.display='none';movApplyFilters();}
@@ -2247,32 +2264,48 @@ function movUpdateKPIs(rows){
   ST('mov-k-0km',act.filter(r=>r[c.interno]&&!r._sinArribo).length.toLocaleString('es-AR'));
   ST('mov-k-usados',act.filter(r=>!r[c.interno]||r._sinArribo).length.toLocaleString('es-AR'));
   ST('mov-k-traslados',act.filter(r=>(r[c.motivo]||'').toUpperCase()==='TRASLADO').length.toLocaleString('es-AR'));
+  const uniq=new Set(act.map(r=>r[c.interno]||r[c.dominio])).size;
+  ST('mov-k-promedio',uniq>0?(act.length/uniq).toFixed(1):'—');
 }
 
 // ── MOV CHARTS ──
 function movUpdateCharts(rows){
   const c=window._movCols,{grid,lbl}=gc();
-  // Barras por mes
   const MESES_CORTOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  // ── BARRA MESES: siempre todos los meses, respeta filtro de motivo pero NO de fecha ──
+  const barRows=movGetFiltered({exDate:true});
   const byMonth={};
-  rows.forEach(r=>{const d=movParseDate(r[c.fechaPedido]);if(!d)return;const k=movToDate(d).slice(0,7);byMonth[k]=(byMonth[k]||0)+1;});
+  barRows.forEach(r=>{const d=movParseDate(r[c.fechaPedido]);if(!d)return;const k=movToDate(d).slice(0,7);byMonth[k]=(byMonth[k]||0)+1;});
   const dKeys=Object.keys(byMonth).sort();
   const dLabels=dKeys.map(k=>{const[y,m]=k.split('-');return`${MESES_CORTOS[parseInt(m,10)-1]} ${y.slice(2)}`;});
   const dVals=dKeys.map(k=>byMonth[k]);
   DC('mov-chart-fecha');const ce=document.getElementById('mov-chart-fecha');
   if(ce){
     const bClr=dKeys.map(k=>k===movSelDate?'rgba(139,92,246,.9)':'rgba(139,92,246,.45)');
-    AC['mov-chart-fecha']=new Chart(ce,{type:'bar',data:{labels:dLabels,datasets:[{data:dVals,backgroundColor:bClr,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:its=>dLabels[its[0].dataIndex],label:c=>`${c.raw} movimientos`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:0}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const k=dKeys[els[0].index];if(movSelDate===k){movClearDateSelection();}else{movSelDate=k;document.querySelectorAll('#mov-month-chips .mov-chip').forEach(c=>c.classList.remove('active'));const mc=document.querySelector(`#mov-month-chips .mov-chip[data-month="${k}"]`);if(mc)mc.classList.add('active');movApplyDateFilter();}},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
+    AC['mov-chart-fecha']=new Chart(ce,{type:'bar',data:{labels:dLabels,datasets:[{data:dVals,backgroundColor:bClr,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:its=>dLabels[its[0].dataIndex],label:ctx=>`${ctx.raw} movimientos`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:0}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const k=dKeys[els[0].index];if(movSelDate===k){movClearDateSelection();}else{movSelDate=k;movApplyDateFilter();}},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
   }
-  // Doughnut por motivo
+
+  // ── DOUGHNUT MOTIVO: siempre todos los motivos, respeta filtro de fecha pero NO de motivo ──
+  const doughnutRows=movGetFiltered({exMotivo:true});
   const byMotivo={};
-  rows.forEach(r=>{const m=r[c.motivo]||'Sin motivo';byMotivo[m]=(byMotivo[m]||0)+1;});
+  doughnutRows.forEach(r=>{const m=r[c.motivo]||'Sin motivo';byMotivo[m]=(byMotivo[m]||0)+1;});
   const mLabels=Object.keys(byMotivo).sort((a,b)=>byMotivo[b]-byMotivo[a]),mVals=mLabels.map(k=>byMotivo[k]);
   const pal=['#8b5cf6','#2563eb','#22c55e','#f59e0b','#ef4444','#06b6d4','#f97316','#84cc16','#a78bfa','#60a5fa'];
   const sClr=mLabels.map((l,i)=>{const b=pal[i%pal.length];return movSelMotivo?(l===movSelMotivo?b:b+'33'):b;});
   DC('mov-chart-motivo');const cm=document.getElementById('mov-chart-motivo');
   if(cm){
     AC['mov-chart-motivo']=new Chart(cm,{type:'doughnut',data:{labels:mLabels,datasets:[{data:mVals,backgroundColor:sClr,borderColor:mLabels.map((l,i)=>movSelMotivo&&l===movSelMotivo?pal[i%pal.length]:'transparent'),borderWidth:mLabels.map(l=>movSelMotivo&&l===movSelMotivo?3:2),hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'right',labels:{color:lbl,font:{size:10},boxWidth:10,padding:6}}},onClick(evt,els){if(!els.length)return;const mot=mLabels[els[0].index];if(movSelMotivo===mot)movClearMotivoSelection();else{movSelMotivo=mot;movApplyMotivoFilter();}},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
+  }
+
+  // ── BARRAS DESTINO: respeta TODOS los filtros activos ──
+  const byDest={};
+  rows.forEach(r=>{const d=(r[c.ubDestino]||'').trim();if(!d)return;byDest[d]=(byDest[d]||0)+1;});
+  const destEntries=Object.entries(byDest).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const destLabels=destEntries.map(e=>e[0]),destVals=destEntries.map(e=>e[1]);
+  DC('mov-chart-ubdest');const cd=document.getElementById('mov-chart-ubdest');
+  if(cd&&destLabels.length){
+    AC['mov-chart-ubdest']=new Chart(cd,{type:'bar',data:{labels:destLabels,datasets:[{data:destVals,backgroundColor:'rgba(59,130,246,.55)',borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} movimientos`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl}},y:{grid:{color:grid},ticks:{color:lbl,font:{size:11}}}}}});
   }
 }
 function movRedrawCharts(){if(movAllRows.length&&movLastChartRows.length)movUpdateCharts(movLastChartRows);}
