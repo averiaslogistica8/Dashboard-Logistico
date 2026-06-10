@@ -1751,6 +1751,10 @@ function aliUpdateKPIs(){
   const runCumpl=aliDaySum.map((d,i)=>{const sl=aliDaySum.slice(0,i+1);return Math.round(sl.filter(x=>x.total>=capD).length/sl.length*100);});
   setSpark('sp-ali-dias',runCumpl,'#3b82f6');const trD=momTrend(cumplimientoPct,prevDiasM);const elD=document.getElementById('sp-ali-dias-t');if(elD){elD.textContent=trD.txt;elD.className=trD.cls;}
   // Tiempo sparkline: compare vs previous month
+  // Sparkline tiempo: promedio diario de días de alistaje
+  const dTpMap={};aliFiltered.forEach(r=>{if(!r._fin)return;const k=aliYMD(r._fin);const t=aliDB(r._arri,r._fin);if(t!==null&&t>=0){if(!dTpMap[k])dTpMap[k]=[];dTpMap[k].push(t);}});
+  const dTpVals=aliDaySum.map(d=>{const a=dTpMap[d.dia];return a&&a.length?a.reduce((x,y)=>x+y,0)/a.length:null;}).filter(v=>v!==null);
+  if(dTpVals.length>=2)setSpark('sp-ali-tiempo',dTpVals,'#f59e0b');
   const tiempoTr=tp!==null?momTrend(tp,prevTpM):{txt:'Sin datos',cls:'trend-nt'};const elT=document.getElementById('sp-ali-tiempo-t');if(elT){elT.textContent=tiempoTr.txt;elT.className=tiempoTr.cls;}
   ST('ali-k-total',tot.toLocaleString('es-AR'));ST('ali-k-total-s',`${hd} días hábiles · ${aliDaySum.length} con actividad`);
   ST('ali-k-rend',(rend*100).toFixed(1)+'%');document.getElementById('ali-k-rend-m').innerHTML=aliKM(rend,.85,'>=',v=>(v*100).toFixed(0)+'%');
@@ -1773,7 +1777,7 @@ function aliUpdateKPIs(){
   ST('ali-k-cv',balanceDiff.toFixed(1)+'%');
   document.getElementById('ali-k-cv-m').innerHTML=`<span class="kbadge ${balBadge}">${balIco} ${balanceDiff<20?'Bien distribuido':balanceDiff<40?'Desbalance moderado':'Desbalance crítico'}</span>`;
   const detEl=document.getElementById('ali-k-cv-detail');
-  if(detEl)detEl.innerHTML=maxOpObj&&minOpObj?`Más cargado: <b>${maxPct.toFixed(0)}%</b> <span style="color:var(--text-mid)">(${maxOpObj.operario.split(' ')[0]})</span><br>Menos cargado: <b>${minPct.toFixed(0)}%</b> <span style="color:var(--text-mid)">(${minOpObj.operario.split(' ')[0]})</span>`:'Sin datos de operarios';
+  if(detEl)detEl.innerHTML=maxOpObj&&minOpObj?`Más cargado: <b>${maxPct.toFixed(0)}%</b><br>Menos cargado: <b>${minPct.toFixed(0)}%</b>`:'Sin datos de operarios';
   if(lider){ST('ali-k-lider',lider.operario.split(' ').slice(0,2).join(' '));ST('ali-k-lider-s',`${lider.total} alistajes · ${(lider.rend*100).toFixed(0)}% rend.`);}
   ST('ali-k-avgop',avgOp.toFixed(2));document.getElementById('ali-k-avgop-m').innerHTML=aliKM(avgOp,p.cap,'>=',v=>v.toFixed(0));
   ST('ali-k-capd',capD);ST('ali-k-capd-s',`${p.ops} op × ${p.cap} u/día`);
@@ -1980,7 +1984,7 @@ function aliClosePanel(){document.getElementById('ali-dpanel').classList.remove(
             <div class="kcard" style="--kc:var(--accent)"><div class="kcard-top"><div class="kic" style="--kc:var(--accent)">🆕</div><div class="kinfo"><div class="klbl">0km</div><div class="kval lg" id="mov-k-0km">—</div></div></div></div>
             <div class="kcard" style="--kc:var(--orange)"><div class="kcard-top"><div class="kic" style="--kc:var(--orange)">🔁</div><div class="kinfo"><div class="klbl">Usados</div><div class="kval lg" id="mov-k-usados">—</div></div></div></div>
             <div class="kcard" style="--kc:var(--blue)"><div class="kcard-top"><div class="kic" style="--kc:var(--blue)">🔀</div><div class="kinfo"><div class="klbl">Traslados</div><div class="kval lg" id="mov-k-traslados">—</div></div></div></div>
-            <div class="kcard" style="--kc:var(--purple)"><div class="kcard-top"><div class="kic" style="--kc:var(--purple)">📊</div><div class="kinfo"><div class="klbl">Promedio / unidad</div><div class="kval lg" id="mov-k-promedio">—</div></div></div></div>
+            <div class="kcard" style="--kc:var(--purple)"><div class="kcard-top"><div class="kic" style="--kc:var(--purple)">📊</div><div class="kinfo"><div class="klbl">Prom. mov./unidad</div><div class="kval lg" id="mov-k-promedio">—</div></div></div></div>
 
           </div>
 
@@ -2799,7 +2803,7 @@ function stkRenderKPIs(){
   const topZona=Object.entries(zonaCnt).sort((a,b)=>b[1]-a[1])[0];
   const zonaEl=ge_stk('stk-k-zona'), zonaSEl=ge_stk('stk-k-zona-s');
   if(topZona){
-    if(zonaEl) zonaEl.textContent=topZona[0];
+    if(zonaEl) zonaEl.textContent=/^dique\b/i.test(topZona[0].trim())?topZona[0]:`Dique ${topZona[0]}`;
     if(zonaSEl) zonaSEl.textContent=`${topZona[1]} unidades · dique más cargado`;
   } else {
     if(zonaEl) zonaEl.textContent='—';
