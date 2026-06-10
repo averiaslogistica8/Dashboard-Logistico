@@ -507,8 +507,7 @@ tbody tr:hover td{background:var(--surface2);}
           <label class="kmitem"><input type="checkbox" id="mvk-0km" checked onchange="movTK('mov-ck-0km',this.checked)">0km</label>
           <label class="kmitem"><input type="checkbox" id="mvk-usados" checked onchange="movTK('mov-ck-usados',this.checked)">Usados</label>
           <label class="kmitem"><input type="checkbox" id="mvk-traslados" checked onchange="movTK('mov-ck-traslados',this.checked)">Traslados</label>
-          <label class="kmitem"><input type="checkbox" id="mvk-confirmados" checked onchange="movTK('mov-ck-confirmados',this.checked)">Confirmados</label>
-          <label class="kmitem"><input type="checkbox" id="mvk-anulados" checked onchange="movTK('mov-ck-anulados',this.checked)">Anulados</label>
+
           <div class="kmsep"></div>
           <div style="display:flex;gap:6px;padding:6px 14px">
             <button onclick="movSetAllK(true)" class="kcfg-btn" style="flex:1;font-size:10px;padding:3px 8px">Todos</button>
@@ -1695,7 +1694,7 @@ function avrToggleKpiMenu(e){e.stopPropagation();document.getElementById('avr-kp
 document.addEventListener('click',e=>{const m=document.getElementById('avr-kpi-menu');if(m&&!m.parentElement.contains(e.target))m.classList.remove('open');});
 // ── Movimientos KPI config ──
 function movTK(id,v){const e=document.getElementById(id);if(e){if(v)e.removeAttribute('hidden-kpi');else e.setAttribute('hidden-kpi','');}}
-function movSetAllK(v){['total','unidades','0km','usados','traslados','confirmados','anulados'].forEach(id=>{const cb=document.getElementById('mvk-'+id);if(cb)cb.checked=v;movTK('mov-ck-'+id,v);});}
+function movSetAllK(v){['total','unidades','0km','usados','traslados'].forEach(id=>{const cb=document.getElementById('mvk-'+id);if(cb)cb.checked=v;movTK('mov-ck-'+id,v);});}
 function movToggleKpiMenu(e){e.stopPropagation();document.getElementById('mov-kpi-menu').classList.toggle('open');}
 document.addEventListener('click',e=>{const m=document.getElementById('mov-kpi-menu');if(m&&!m.parentElement.contains(e.target))m.classList.remove('open');});
 function aliComputeSums(rows){
@@ -1925,6 +1924,8 @@ function aliClosePanel(){document.getElementById('ali-dpanel').classList.remove(
       </div>
     </div>
     <div class="fdiv"></div>
+    <div class="fgroup"><div class="flbl">Mes</div><div id="mov-month-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div></div>
+    <div class="fdiv"></div>
     <div class="fgroup"><div class="flbl">Motivo</div><select id="mov-sel-motivo" onchange="movApplyFilters()"><option value="">Todos</option></select></div>
     <div class="fgroup"><div class="flbl">Estado</div><select id="mov-sel-estado" onchange="movApplyFilters()"><option value="">Todos</option></select></div>
     <div class="fgroup"><div class="flbl">Marca</div><select id="mov-sel-marca" onchange="movApplyFilters()"><option value="">Todas</option></select></div>
@@ -1955,8 +1956,7 @@ function aliClosePanel(){document.getElementById('ali-dpanel').classList.remove(
             <div class="kcard" style="--kc:var(--accent)"><div class="kcard-top"><div class="kic" style="--kc:var(--accent)">🆕</div><div class="kinfo"><div class="klbl">0km</div><div class="kval lg" id="mov-k-0km">—</div></div></div></div>
             <div class="kcard" style="--kc:var(--orange)"><div class="kcard-top"><div class="kic" style="--kc:var(--orange)">🔁</div><div class="kinfo"><div class="klbl">Usados</div><div class="kval lg" id="mov-k-usados">—</div></div></div></div>
             <div class="kcard" style="--kc:var(--blue)"><div class="kcard-top"><div class="kic" style="--kc:var(--blue)">🔀</div><div class="kinfo"><div class="klbl">Traslados</div><div class="kval lg" id="mov-k-traslados">—</div></div></div></div>
-            <div class="kcard" style="--kc:var(--green)"><div class="kcard-top"><div class="kic" style="--kc:var(--green)">✅</div><div class="kinfo"><div class="klbl">Confirmados</div><div class="kval lg" id="mov-k-confirmados">—</div></div></div></div>
-            <div class="kcard" style="--kc:var(--red)"><div class="kcard-top"><div class="kic" style="--kc:var(--red)">❌</div><div class="kinfo"><div class="klbl">Anulados</div><div class="kval lg" id="mov-k-anulados">—</div></div></div></div>
+
           </div>
 
           <!-- Gráficos -->
@@ -2112,6 +2112,7 @@ function movProcess(data){
   document.getElementById('mov-empty').style.display='none';
   document.getElementById('mov-dash').style.display='block';
   document.getElementById('mov-fbar').style.display='flex';
+  movPopulateMonthChips();
   movApplyFilters();
 }
 
@@ -2135,7 +2136,7 @@ function movGetFiltered({exDate=false,exMotivo=false}={}){
     const d=movParseDate(r[c.fechaPedido]);
     if(from&&d&&d<from)return false;
     if(to&&d&&d>to)return false;
-    if(!exDate&&movSelDate&&movToDate(d)!==movSelDate)return false;
+    if(!exDate&&movSelDate&&movToDate(d).slice(0,7)!==movSelDate)return false;
     if(!exMotivo&&movSelMotivo&&(r[c.motivo]||'Sin motivo')!==movSelMotivo)return false;
     return true;
   });
@@ -2161,8 +2162,26 @@ function movClearFilters(){
   movFilterTipo='todos';movSelDate=null;movSelMotivo=null;
   document.getElementById('mov-date-chip').style.display='none';
   document.getElementById('mov-motivo-chip').style.display='none';
+  document.querySelectorAll('#mov-month-chips .mov-chip').forEach(c=>c.classList.remove('active'));
+  const allMC=document.querySelector('#mov-month-chips .mov-chip[data-month=""]');if(allMC)allMC.classList.add('active');
   const dates=movSynRows.map(r=>movParseDate(r[window._movCols.fechaPedido])).filter(Boolean).sort((a,b)=>a-b);
   if(dates.length){document.getElementById('mov-dfrom').value=movToDate(dates[0]);document.getElementById('mov-dto').value=movToDate(dates[dates.length-1]);}
+  movApplyFilters();
+}
+
+function movPopulateMonthChips(){
+  const MESES_CORTOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const c=window._movCols;if(!c)return;
+  const months=[...new Set(movSynRows.map(r=>{const d=movParseDate(r[c.fechaPedido]);return d?movToDate(d).slice(0,7):null;}).filter(Boolean))].sort();
+  const wrap=document.getElementById('mov-month-chips');if(!wrap)return;
+  wrap.innerHTML='<button class="mov-chip active" data-month="" onclick="movSetMonth(\'\',this)">Todos</button>'+
+    months.map(k=>{const[y,m]=k.split('-');return`<button class="mov-chip" data-month="${k}" onclick="movSetMonth('${k}',this)">${MESES_CORTOS[parseInt(m,10)-1]} ${y.slice(2)}</button>`;}).join('');
+}
+function movSetMonth(k,el){
+  document.querySelectorAll('#mov-month-chips .mov-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  if(!k){movSelDate=null;document.getElementById('mov-date-chip').style.display='none';}
+  else{movSelDate=k;movApplyDateFilter();return;}
   movApplyFilters();
 }
 
@@ -2175,14 +2194,21 @@ function movSetTipo(tipo,el){
 
 function movApplyDateFilter(){
   document.getElementById('mov-date-chip').style.display='inline-flex';
-  const[y,m,d]=movSelDate.split('-');
-  ST('mov-date-chip-val',`📅 ${d}/${m}/${y}`);
+  const MESES_CORTOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const[y,m]=movSelDate.split('-');
+  ST('mov-date-chip-val',`📅 ${MESES_CORTOS[parseInt(m,10)-1]} ${y}`);
   const rows=movGetFiltered();
   const chartRows=movGetFiltered({exDate:true});
   movUpdateKPIs(rows);movUpdateCharts(chartRows);
   movGrouped=movRegroup(rows);movFiltered=[...movGrouped];movSortTable(movSortKey,true);movUpdateRankings();
 }
-function movClearDateSelection(){movSelDate=null;document.getElementById('mov-date-chip').style.display='none';movApplyFilters();}
+function movClearDateSelection(){
+  movSelDate=null;
+  document.getElementById('mov-date-chip').style.display='none';
+  document.querySelectorAll('#mov-month-chips .mov-chip').forEach(c=>c.classList.remove('active'));
+  const allMC=document.querySelector('#mov-month-chips .mov-chip[data-month=""]');if(allMC)allMC.classList.add('active');
+  movApplyFilters();
+}
 
 function movApplyMotivoFilter(){
   document.getElementById('mov-motivo-chip').style.display='inline-flex';
@@ -2221,21 +2247,22 @@ function movUpdateKPIs(rows){
   ST('mov-k-0km',act.filter(r=>r[c.interno]&&!r._sinArribo).length.toLocaleString('es-AR'));
   ST('mov-k-usados',act.filter(r=>!r[c.interno]||r._sinArribo).length.toLocaleString('es-AR'));
   ST('mov-k-traslados',act.filter(r=>(r[c.motivo]||'').toUpperCase()==='TRASLADO').length.toLocaleString('es-AR'));
-  ST('mov-k-confirmados',rows.filter(r=>r[c.estado]==='Confirmado').length.toLocaleString('es-AR'));
-  ST('mov-k-anulados',rows.filter(r=>r[c.estado]==='Anulado').length.toLocaleString('es-AR'));
 }
 
 // ── MOV CHARTS ──
 function movUpdateCharts(rows){
   const c=window._movCols,{grid,lbl}=gc();
-  // Barras por fecha
-  const byDate={};
-  rows.forEach(r=>{const d=movParseDate(r[c.fechaPedido]);if(!d)return;const k=movToDate(d);byDate[k]=(byDate[k]||0)+1;});
-  const dLabels=Object.keys(byDate).sort(),dVals=dLabels.map(k=>byDate[k]);
+  // Barras por mes
+  const MESES_CORTOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const byMonth={};
+  rows.forEach(r=>{const d=movParseDate(r[c.fechaPedido]);if(!d)return;const k=movToDate(d).slice(0,7);byMonth[k]=(byMonth[k]||0)+1;});
+  const dKeys=Object.keys(byMonth).sort();
+  const dLabels=dKeys.map(k=>{const[y,m]=k.split('-');return`${MESES_CORTOS[parseInt(m,10)-1]} ${y.slice(2)}`;});
+  const dVals=dKeys.map(k=>byMonth[k]);
   DC('mov-chart-fecha');const ce=document.getElementById('mov-chart-fecha');
   if(ce){
-    const bClr=dLabels.map(l=>l===movSelDate?'rgba(139,92,246,.9)':'rgba(139,92,246,.45)');
-    AC['mov-chart-fecha']=new Chart(ce,{type:'bar',data:{labels:dLabels,datasets:[{data:dVals,backgroundColor:bClr,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:10,maxRotation:35}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const f=dLabels[els[0].index];if(movSelDate===f)movClearDateSelection();else{movSelDate=f;movApplyDateFilter();}},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
+    const bClr=dKeys.map(k=>k===movSelDate?'rgba(139,92,246,.9)':'rgba(139,92,246,.45)');
+    AC['mov-chart-fecha']=new Chart(ce,{type:'bar',data:{labels:dLabels,datasets:[{data:dVals,backgroundColor:bClr,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:its=>dLabels[its[0].dataIndex],label:c=>`${c.raw} movimientos`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:0}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const k=dKeys[els[0].index];if(movSelDate===k){movClearDateSelection();}else{movSelDate=k;document.querySelectorAll('#mov-month-chips .mov-chip').forEach(c=>c.classList.remove('active'));const mc=document.querySelector(`#mov-month-chips .mov-chip[data-month="${k}"]`);if(mc)mc.classList.add('active');movApplyDateFilter();}},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
   }
   // Doughnut por motivo
   const byMotivo={};
