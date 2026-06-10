@@ -100,11 +100,11 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .kgrid5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:14px;}
 @media(max-width:1200px){.kgrid4,.kgrid5{grid-template-columns:repeat(2,1fr);}}
 
-.kcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;box-shadow:var(--shadow);container-type:inline-size;}
+.kcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;box-shadow:var(--shadow);container-type:inline-size;display:flex;flex-direction:column;}
 .kcard[hidden-kpi]{display:none!important;}
 
 /* top row: icon + data */
-.kcard-top{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;}
+.kcard-top{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;flex-shrink:0;}
 .kic{width:48px;height:48px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;background:color-mix(in srgb,var(--kc,var(--accent)) 12%,transparent);}
 .kinfo{flex:1;min-width:0;}
 .klbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--text-dim);margin-bottom:5px;}
@@ -131,7 +131,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .kpfill{height:100%;border-radius:4px;transition:width .4s;}
 
 /* Sparkline area */
-.kcard-spark{height:42px;margin-bottom:10px;}
+.kcard-spark{height:42px;margin-bottom:10px;margin-top:auto;}
 .spark-svg{width:100%;height:42px;overflow:visible;}
 .spark-path{fill:none;stroke-width:1.8px;stroke-linecap:round;stroke-linejoin:round;}
 .spark-area{fill-opacity:.08;}
@@ -971,8 +971,8 @@ tbody tr:hover td{background:var(--surface2);}
                   <div class="ksub" id="stk-k-total-s">unidades registradas</div>
                 </div>
               </div>
-              <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-total" class="spark-path" style="stroke:var(--accent)"/></svg></div>
-              <div class="kcard-trend"><span id="sp-total-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> distribución de antigüedad</span></div>
+              <div class="kcard-spark" style="display:none"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-total" class="spark-path" style="stroke:var(--accent)"/></svg></div>
+              <div class="kcard-trend" style="display:none"><span id="sp-total-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> distribución de antigüedad</span></div>
             </div>
 
             <div class="kcard" id="stk-ck-ocup" style="--kc:var(--green)">
@@ -986,8 +986,8 @@ tbody tr:hover td{background:var(--surface2);}
                   <div class="kpbar"><div class="kpfill" id="stk-ocup-fill" style="width:0%;background:var(--green)"></div></div>
                 </div>
               </div>
-              <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-ocup" class="spark-path" style="stroke:var(--green)"/></svg></div>
-              <div class="kcard-trend"><span id="sp-ocup-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> lugares disponibles</span></div>
+              <div class="kcard-spark" style="display:none"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-ocup" class="spark-path" style="stroke:var(--green)"/></svg></div>
+              <div class="kcard-trend" style="display:none"><span id="sp-ocup-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> lugares disponibles</span></div>
             </div>
 
             <div class="kcard" id="stk-ck-prom" style="--kc:var(--orange)">
@@ -1003,8 +1003,8 @@ tbody tr:hover td{background:var(--surface2);}
                   <div class="kmeta"><div id="stk-b-prom" class="kbadge born">—</div></div>
                 </div>
               </div>
-              <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-prom" class="spark-path" style="stroke:var(--orange)"/></svg></div>
-              <div class="kcard-trend"><span id="sp-prom-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> días en predio</span></div>
+              <div class="kcard-spark" style="display:none"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-prom" class="spark-path" style="stroke:var(--orange)"/></svg></div>
+              <div class="kcard-trend" style="display:none"><span id="sp-prom-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> días en predio</span></div>
             </div>
 
             <div class="kcard" id="stk-ck-crit" style="--kc:var(--red)">
@@ -1017,8 +1017,8 @@ tbody tr:hover td{background:var(--surface2);}
                   <div class="kmeta"><div id="stk-b-crit" class="kbadge bred">—</div><span style="font-size:10px;color:var(--text-dim)" id="stk-crit-extra"></span></div>
                 </div>
               </div>
-              <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-crit" class="spark-path" style="stroke:var(--red)"/></svg></div>
-              <div class="kcard-trend"><span id="sp-crit-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> en alerta</span></div>
+              <div class="kcard-spark" style="display:none"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-crit" class="spark-path" style="stroke:var(--red)"/></svg></div>
+              <div class="kcard-trend" style="display:none"><span id="sp-crit-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> en alerta</span></div>
             </div>
           </div>
 
