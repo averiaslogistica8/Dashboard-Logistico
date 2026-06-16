@@ -301,6 +301,11 @@ tbody tr:hover td{background:var(--surface2);}
 .mb-pendiente{background:rgba(139,92,246,.12);color:var(--purple);}
 .mb-sintetico{background:rgba(139,92,246,.08);color:var(--purple);border:1px dashed var(--purple);}
 .mb-transito{background:rgba(6,182,212,.12);color:#06b6d4;}
+.mb-arribado{background:rgba(6,182,212,.12);color:#06b6d4;}
+.mb-certarr{background:rgba(37,99,235,.12);color:var(--accent);}
+.mb-facturado{background:rgba(139,92,246,.12);color:var(--purple);}
+.mb-patentado{background:rgba(245,158,11,.12);color:var(--orange);}
+.mb-disponible{background:rgba(34,197,94,.12);color:var(--green);}
 .mov-date-chip,.mov-motivo-chip{display:none;align-items:center;gap:5px;border-radius:12px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:500;}
 .mov-date-chip{background:rgba(37,99,235,.1);color:var(--accent);border:1px solid rgba(37,99,235,.35);}
 .mov-motivo-chip{background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.35);}
@@ -1153,6 +1158,19 @@ tbody tr:hover td{background:var(--surface2);}
             </div>
           </div>
 
+          <!-- ── ESTADO OPERATIVO ── -->
+          <div class="stitle"><span class="sdot" style="background:var(--purple)"></span>Estado Operativo del Stock</div>
+          <div class="crow c21">
+            <div class="cc">
+              <div class="ctitle">Detalle por Estado</div>
+              <div id="stk-estado-list"></div>
+            </div>
+            <div class="cc">
+              <div class="ctitle">Distribución por Estado</div>
+              <div class="ch260"><canvas id="stk-c-estado"></canvas></div>
+            </div>
+          </div>
+
           <!-- ── CHARTS ROW 2 ── -->
           <div class="stitle"><span class="sdot" style="background:var(--green)"></span>Modelos y Permanencia por Marca</div>
           <div class="crow c2">
@@ -1210,6 +1228,12 @@ tbody tr:hover td{background:var(--surface2);}
           <div class="rpanel">
             <div class="rp-hdr">⏱ Top 10 · Mayor Antigüedad</div>
             <div id="stk-top5"></div>
+          </div>
+
+          <!-- Top Facturados/Patentados sin entregar -->
+          <div class="rpanel" id="stk-fp-panel" style="display:none">
+            <div class="rp-hdr">🔒 Top 10 · Fact./Patent. Sin Entregar</div>
+            <div id="stk-fp-top"></div>
           </div>
 
           <!-- Top marcas por críticas -->
@@ -2662,6 +2686,17 @@ function stkProcessRow(raw){
   return r;
 }
 
+const STK_EST_CONF={
+  'ARRIBADO':                 {cls:'mb-arribado',  color:'#06b6d4', label:'Arribado'},
+  'CON CERTIFICADO ARRIBADO': {cls:'mb-certarr',   color:'#3b82f6', label:'Con Certificado'},
+  'FACTURADO':                {cls:'mb-facturado', color:'#8b5cf6', label:'Facturado'},
+  'PATENTADO':                {cls:'mb-patentado', color:'#f59e0b', label:'Patentado'},
+  'DISPONIBLE':               {cls:'mb-disponible',color:'#22c55e', label:'Disponible'},
+};
+function stkEstInfo(estado){
+  const u=(estado||'').toUpperCase().trim();
+  return STK_EST_CONF[u]||{cls:'',color:'#94a3b8',label:estado||'—'};
+}
 function stkAgeClass(dias){
   if(dias===null) return 'nd';
   if(dias>getCrit()) return 'crit';
@@ -2905,8 +2940,12 @@ function stkRenderAlerts(){
   const nWarn=rows.filter(r=>r.ageClass==='warn').length;
   const nND=rows.filter(r=>r.ageClass==='nd').length;
   const ocup=total/cap*100;
+  const fpEstados=['FACTURADO','PATENTADO'];
+  const fpRowsAl=rows.filter(r=>fpEstados.includes((r.estado||'').toUpperCase().trim()));
+  const nFPcritAl=fpRowsAl.filter(r=>r.ageClass==='crit').length;
 
   const alerts=[];
+  if(nFPcritAl>0) alerts.push({ico:'🚨',ac:'var(--red)',title:`${nFPcritAl} Facturado${nFPcritAl>1?'s':''}/Patentado${nFPcritAl>1?'s':''} crítico${nFPcritAl>1?'s':''}`,sub:`Operación comercial cerrada y más de ${crit} días sin entregar. Prioridad máxima.`});
   if(nCrit>0) alerts.push({ico:'🔴',ac:'var(--red)',title:`${nCrit} unidad${nCrit>1?'es':''} crítica${nCrit>1?'s':''}`,sub:`Más de ${crit} días en predio. Requieren atención inmediata.`});
   if(nWarn>0) alerts.push({ico:'🟡',ac:'var(--orange)',title:`${nWarn} unidad${nWarn>1?'es':''} en alerta`,sub:`Entre ${alert2} y ${crit} días. Monitorear de cerca.`});
   if(ocup>80) alerts.push({ico:'📊',ac:'var(--orange)',title:`Ocupación elevada · ${ocup.toFixed(1)}%`,sub:`El predio supera el 80% de capacidad máxima (${cap} lugares).`});
@@ -2924,7 +2963,7 @@ function stkRenderAlerts(){
    CHARTS
 ══════════════════════════════════════════════════ */
 function DC(id){if(AC[id]){AC[id].destroy();delete AC[id];}}
-function stkRenderCharts(){stkChartMarca();stkChartAging();stkChartModelos();stkChartMarcaDias();stkChartModProm();}
+function stkRenderCharts(){stkChartMarca();stkChartAging();stkChartModelos();stkChartMarcaDias();stkChartModProm();stkChartEstado();stkRenderEstadoList();}
 function stkRedrawCharts(){if(stkAll.length){stkRenderCharts();stkRenderModRankings();}}
 
 function stkChartMarca(){
@@ -2965,6 +3004,53 @@ function stkChartAging(){
       scales:{x:{ticks:{color:lbl},grid:{color:grid}},y:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true}}}
   });
   ST('cs-g1',g1); ST('cs-g2',g2); ST('cs-g3',g3); ST('cs-g4',g4);
+}
+
+function stkChartEstado(){
+  DC('estado'); const {lbl}=gc();
+  const order=['ARRIBADO','CON CERTIFICADO ARRIBADO','FACTURADO','PATENTADO','DISPONIBLE'];
+  const cnt={};
+  stkFiltered.forEach(r=>{const u=(r.estado||'').toUpperCase().trim();if(u)cnt[u]=(cnt[u]||0)+1;});
+  const known=order.filter(k=>cnt[k]);
+  const other=Object.keys(cnt).filter(k=>!order.includes(k));
+  const keys=[...known,...other];
+  const canvas=ge_stk('stk-c-estado');
+  if(!canvas)return;
+  if(!keys.length)return;
+  const labels=keys.map(k=>stkEstInfo(k).label);
+  const data=keys.map(k=>cnt[k]);
+  const colors=keys.map(k=>stkEstInfo(k).color);
+  const tot=stkFiltered.length;
+  AC['estado']=new Chart(canvas,{
+    type:'doughnut',
+    data:{labels,datasets:[{data,backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,hoverOffset:8}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{position:'bottom',labels:{color:lbl,font:{size:11},padding:14,boxWidth:11}},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw} uds. (${tot?(ctx.raw/tot*100).toFixed(1):0}%)`}}}}
+  });
+}
+
+function stkRenderEstadoList(){
+  const el=ge_stk('stk-estado-list'); if(!el)return;
+  const rows=stkFiltered, total=rows.length||1;
+  const order=['ARRIBADO','CON CERTIFICADO ARRIBADO','FACTURADO','PATENTADO','DISPONIBLE'];
+  const cnt={};
+  rows.forEach(r=>{const u=(r.estado||'').toUpperCase().trim();if(u)cnt[u]=(cnt[u]||0)+1;});
+  const known=order.filter(k=>cnt[k]);
+  const other=Object.keys(cnt).filter(k=>!order.includes(k));
+  const keys=[...known,...other];
+  el.innerHTML=keys.length?keys.map(k=>{
+    const info=stkEstInfo(k);
+    const n=cnt[k], pct=Math.round(n/total*100);
+    return`<div class="rp-brand-row">
+      <div class="rp-brand-top">
+        <span class="rp-brand-name" style="color:${info.color}">${info.label}</span>
+        <span class="rp-brand-cnt">${n}</span>
+      </div>
+      <div class="dbw"><div class="dbf" style="width:${pct}%;background:${info.color}"></div></div>
+      <div style="font-size:10px;color:var(--text-dim);margin-top:2px">${pct}% del stock</div>
+    </div>`;
+  }).join(''):'<div style="padding:14px;text-align:center;color:var(--text-dim);font-size:12px">Sin datos de estado</div>';
 }
 
 function stkChartModelos(){
@@ -3024,6 +3110,28 @@ function stkRenderRightCol(){
     </div>`;
   }).join(''):`<div style="padding:20px;font-size:12px;color:var(--text-dim);text-align:center">Sin datos de fecha</div>`;
 
+  // Top 10 Facturados/Patentados sin entregar
+  const fpEstados=['FACTURADO','PATENTADO'];
+  const fpTop=stkFiltered.filter(r=>fpEstados.includes((r.estado||'').toUpperCase().trim())&&r.dias!==null)
+    .sort((a,b)=>b.dias-a.dias).slice(0,10);
+  const fpPanel=ge_stk('stk-fp-panel');
+  if(fpPanel) fpPanel.style.display=fpTop.length?'block':'none';
+  if(fpTop.length){
+    ge_stk('stk-fp-top').innerHTML=fpTop.map((r,i)=>{
+      const bc={'Volkswagen':'mb-vw','Ford':'mb-ford','Chevrolet':'mb-chev','Audi':'mb-audi'}[r.marcaNorm]||'mb-otra';
+      const info=stkEstInfo(r.estado);
+      const rankCls=i===0?'t1':r.ageClass==='crit'?'t2':'';
+      return`<div class="rp-item">
+        <div class="rp-rank ${rankCls}">${i+1}</div>
+        <div class="rp-item-info">
+          <div class="rp-item-main">${r.vin||r.modelo||'Sin interno'} <span class="mbadge ${bc}" style="font-size:9px">${r.marcaNorm}</span></div>
+          <div class="rp-item-sub"><span class="mbadge ${info.cls}" style="font-size:9px">${info.label}</span>${r.modelo?' · '+r.modelo:''}</div>
+        </div>
+        <div class="rp-item-val">${r.dias}d</div>
+      </div>`;
+    }).join('');
+  }
+
   // Critical brands panel
   const MAIN_B=['Volkswagen','Ford','Chevrolet','Audi'];
   const critBrands=MAIN_B.map(b=>({
@@ -3065,6 +3173,10 @@ function stkRenderRightCol(){
     // avg days for brand
     const rr=stkFiltered.filter(r=>r.marcaNorm===b&&r.dias!==null);
     const avg=rr.length?Math.round(rr.reduce((s,r)=>s+r.dias,0)/rr.length):null;
+    // facturados/patentados for brand
+    const fpEst=['FACTURADO','PATENTADO'];
+    const brandRows=b==='Otra'?stkFiltered.filter(r=>!MAIN.includes(r.marcaNorm)):stkFiltered.filter(r=>r.marcaNorm===b);
+    const nFPb=brandRows.filter(r=>fpEst.includes((r.estado||'').toUpperCase().trim())).length;
     return`<div class="rp-brand-row">
       <div class="rp-brand-top">
         <span class="rp-brand-name" style="color:${c}">${b}</span>
@@ -3075,6 +3187,7 @@ function stkRenderRightCol(){
         <span>${pct}% del stock</span>
         ${avg!==null?`<span>Prom: ${avg}d</span>`:''}
       </div>
+      ${nFPb>0?`<div style="font-size:10px;color:var(--purple);margin-top:2px">🔒 ${nFPb} Fact./Patent. sin entregar</div>`:''}
     </div>`;
   }).join('');
 
@@ -3148,6 +3261,11 @@ function stkRenderTable(){
         if(r.dias===null) return`<td style="color:var(--text-dim)">—</td>`;
         const cls=r.dias>crit?'rbad':r.dias>alt?'rmed':'rok';
         return`<td><span class="rpill ${cls}">${r.dias}d${r.dias>crit?' ⚠':''}</span></td>`;
+      }
+      if(c.k==='estado'){
+        if(!r.estado) return`<td style="color:var(--text-dim)">—</td>`;
+        const info=stkEstInfo(r.estado);
+        return`<td><span class="mbadge ${info.cls}">${r.estado}</span></td>`;
       }
       const v=r[c.k]||'—';
       return`<td${v==='—'?' style="color:var(--text-dim)"':''}>${v}</td>`;
