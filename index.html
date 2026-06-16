@@ -129,6 +129,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .bgrn{background:rgba(34,197,94,.12);color:var(--green);}
 .born{background:rgba(245,158,11,.12);color:var(--orange);}
 .bblu{background:rgba(37,99,235,.12);color:var(--accent);}
+.bpur{background:rgba(139,92,246,.12);color:var(--purple);}
 .bvw{background:rgba(30,58,138,.12);color:var(--vw);}
 .bford{background:rgba(59,130,246,.12);color:var(--ford);}
 .bchev{background:rgba(245,158,11,.12);color:var(--chev);}
@@ -1026,6 +1027,58 @@ tbody tr:hover td{background:var(--surface2);}
               <div class="kcard-spark" style="display:none"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-crit" class="spark-path" style="stroke:var(--red)"/></svg></div>
               <div class="kcard-trend" style="display:none"><span id="sp-crit-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> en alerta</span></div>
             </div>
+          </div>
+
+          <!-- ── KPIs COMERCIALES ── -->
+          <div class="stitle"><span class="sdot" style="background:var(--purple)"></span>KPIs Comerciales <em>Entregas pendientes</em></div>
+          <div class="kgrid4">
+
+            <div class="kcard" id="stk-ck-fact" style="--kc:var(--blue)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--blue)">🧾</div>
+                <div class="kinfo">
+                  <div class="klbl">Facturados</div>
+                  <div class="kval lg" id="stk-k-fact">—</div>
+                  <div class="ksub" id="stk-k-fact-s"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="kcard" id="stk-ck-pat" style="--kc:var(--purple)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--purple)">📜</div>
+                <div class="kinfo">
+                  <div class="klbl">Patentados</div>
+                  <div class="kval lg" id="stk-k-pat">—</div>
+                  <div class="ksub" id="stk-k-pat-s"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="kcard" id="stk-ck-fp" style="--kc:var(--orange)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--orange)">🔒</div>
+                <div class="kinfo">
+                  <div class="klbl">Fact. + Patent. Sin Entregar</div>
+                  <div class="kval lg" id="stk-k-fp">—</div>
+                  <div class="ksub" id="stk-k-fp-s"></div>
+                  <div class="kmeta"><div id="stk-b-fp" class="kbadge born">—</div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="kcard" id="stk-ck-fpcrit" style="--kc:var(--red)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--red)">🚨</div>
+                <div class="kinfo">
+                  <div class="klbl">Fact./Patent. Crítico</div>
+                  <div class="kval lg" id="stk-k-fpcrit">—</div>
+                  <div class="ksub" id="stk-k-fpcrit-s"></div>
+                  <div class="kmeta"><div id="stk-b-fpcrit" class="kbadge bred">—</div></div>
+                </div>
+              </div>
+            </div>
+
           </div>
 
           <!-- ── KPIs OPERATIVOS ── -->
@@ -2787,6 +2840,31 @@ function stkRenderKPIs(){
     const mx=rowsF.find(r=>r.dias===maxDias);
     ST('stk-k-max-s',mx&&mx.modelo?`${mx.marcaNorm} · ${mx.modelo}`:'Unidad más antigua');
   }
+
+  // FACTURADOS / PATENTADOS / SIN ENTREGAR
+  const estUp=s=>(s||'').toUpperCase().trim();
+  const nFact=rows.filter(r=>estUp(r.estado)==='FACTURADO').length;
+  const nPat =rows.filter(r=>estUp(r.estado)==='PATENTADO').length;
+  const fpRows=rows.filter(r=>['FACTURADO','PATENTADO'].includes(estUp(r.estado)));
+  const nFP=fpRows.length;
+  const nFPcrit=fpRows.filter(r=>r.ageClass==='crit').length;
+  const pct=n=>total?((n/total)*100).toFixed(1):0;
+
+  ST('stk-k-fact',nFact);
+  ST('stk-k-fact-s',`${pct(nFact)}% del stock`);
+
+  ST('stk-k-pat',nPat);
+  ST('stk-k-pat-s',`${pct(nPat)}% del stock`);
+
+  ST('stk-k-fp',nFP);
+  ST('stk-k-fp-s',`${pct(nFP)}% del stock sin entregar`);
+  const bfp=ge_stk('stk-b-fp');
+  if(bfp){bfp.className='kbadge '+(nFP>0?'born':'bgrn');bfp.textContent=nFP>0?'En seguimiento':'Sin pendientes';}
+
+  ST('stk-k-fpcrit',nFPcrit);
+  ST('stk-k-fpcrit-s',`Más de ${crit} días sin entregar`);
+  const bfpc=ge_stk('stk-b-fpcrit');
+  if(bfpc){bfpc.className='kbadge '+(nFPcrit>0?'bred':'bgrn');bfpc.textContent=nFPcrit>0?`${pct(nFPcrit)}% del stock`:'Sin críticos';}
 
   // MARCA DOMINANTE
   if(topM){
