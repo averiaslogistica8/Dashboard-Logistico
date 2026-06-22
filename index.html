@@ -230,6 +230,13 @@ tbody tr:hover td{background:var(--surface2);}
 .pbtn:hover{border-color:var(--accent);}
 .pbtn:disabled{opacity:.35;cursor:default;}
 
+/* ══ DIQUE HEATMAP ══ */
+.hm-cell{border-radius:10px;padding:12px 8px 10px;text-align:center;cursor:default;transition:transform .15s,box-shadow .15s;position:relative;}
+.hm-cell:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.hm-dique{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;opacity:.75;}
+.hm-count{font-size:26px;font-weight:800;line-height:1;letter-spacing:-.03em;}
+.hm-sub{font-size:9px;font-weight:600;margin-top:4px;opacity:.8;}
+
 /* ══ RIGHT PANEL (Alistaje sidebar-like right col) ══ */
 .dlayout{display:flex;gap:16px;align-items:flex-start;}
 .mcol{flex:1;min-width:0;}
@@ -761,7 +768,7 @@ tbody tr:hover td{background:var(--surface2);}
               <div class="kcard" id="ali-ck-total" style="--kc:var(--accent)">
                 <div class="kcard-top"><div class="kic" style="--kc:var(--accent)">🚗</div><div class="kinfo"><div class="klbl">Total Alistajes</div><div class="kval lg" id="ali-k-total">—</div><div class="ksub" id="ali-k-total-s">Autos</div></div></div>
                 <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-ali-total" class="spark-path" style="stroke:var(--accent)"/></svg></div>
-                <div class="kcard-trend"><span id="sp-ali-total-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> vs período anterior</span></div>
+                <div class="kcard-trend"><span id="sp-ali-total-t" class="trend-nt">—</span><span id="sp-ali-total-diff" style="font-size:11px;font-weight:600;margin-left:4px"></span><span style="color:var(--text-dim)"> vs período anterior</span></div>
               </div>
               <div class="kcard" id="ali-ck-rend" style="--kc:var(--green)">
                 <div class="kcard-top"><div class="kic" style="--kc:var(--green)">🎯</div><div class="kinfo"><div class="klbl">Rendimiento</div><div class="kval lg" id="ali-k-rend">—</div><div class="ksub">Total alistajes / Capacidad instalada</div><div class="kmeta"><div id="ali-k-rend-m"></div></div><div class="kpbar"><div class="kpfill" id="ali-rend-fill"></div></div></div></div>
@@ -1158,6 +1165,22 @@ tbody tr:hover td{background:var(--surface2);}
             </div>
           </div>
 
+          <!-- ── HEATMAP DIQUES ── -->
+          <div class="stitle"><span class="sdot" style="background:var(--orange)"></span>Mapa de Calor · Ocupación por Diques</div>
+          <div class="cc" style="margin-bottom:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+              <div class="ctitle" style="margin:0">Densidad por dique <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-dim)">· intensidad según proporción de unidades críticas</span></div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-dim)"><div style="width:10px;height:10px;border-radius:3px;background:#22c55e;flex-shrink:0"></div>Sin críticos</div>
+                <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-dim)"><div style="width:10px;height:10px;border-radius:3px;background:#f59e0b;flex-shrink:0"></div>Con alertas</div>
+                <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-dim)"><div style="width:10px;height:10px;border-radius:3px;background:#ef4444;flex-shrink:0"></div>Con críticos</div>
+                <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-dim)"><div style="width:10px;height:10px;border-radius:3px;background:#94a3b8;flex-shrink:0"></div>Sin fecha</div>
+              </div>
+            </div>
+            <div id="stk-heatmap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px"></div>
+            <div id="stk-heatmap-empty" style="display:none;text-align:center;padding:28px;font-size:12px;color:var(--text-dim)">Sin datos de ubicación / dique detectados</div>
+          </div>
+
           <!-- ── ESTADO OPERATIVO ── -->
           <div class="stitle"><span class="sdot" style="background:var(--purple)"></span>Estado Operativo del Stock</div>
           <div class="crow c21">
@@ -1355,6 +1378,13 @@ function momTrendInv(cur,prev){
   const pct=((cur-prev)/Math.abs(prev))*100;
   if(Math.abs(pct)<0.5)return{txt:'Sin variación',cls:'trend-nt'};
   return{txt:(pct>0?'▲ +':'▼ ')+pct.toFixed(1)+'%',cls:pct>0?'trend-dn':'trend-up'};
+}
+// Diferencia absoluta en puntos porcentuales — muestra cur-prev como "▲ +3%" en vez del % relativo
+function momTrendAbsPp(cur,prev){
+  if(prev===null||prev===undefined)return{txt:'Sin datos ant.',cls:'trend-nt'};
+  const diff=cur-prev;
+  if(Math.abs(diff)<0.5)return{txt:'Sin variación',cls:'trend-nt'};
+  return{txt:(diff>0?'▲ +':'▼ ')+diff.toFixed(1)+'%',cls:diff>0?'trend-up':'trend-dn'};
 }
 
 // ══════════ AVERÍAS ══════════
@@ -1830,9 +1860,11 @@ function aliUpdateKPIs(){
     if(prevData.length){prevTotM=prevData.length;const prevHD=aliWD(prevStart,prevEnd);const prevCap=prevHD*aliCD();prevRendM=prevCap>0?prevData.length/prevCap:0;const prevTs=prevData.map(r=>aliDB(r._arri,r._fin)).filter(t=>t!==null&&t>=0);prevTpM=prevTs.length?prevTs.reduce((a,b)=>a+b,0)/prevTs.length:null;const prevDM={};prevData.forEach(r=>{if(r._fin){const k2=aliYMD(r._fin);prevDM[k2]=(prevDM[k2]||0)+1;}});const prevDCount=Object.keys(prevDM).length;const prevCumplCount=Object.values(prevDM).filter(v=>v>=capD).length;prevDiasM=prevDCount>0?prevCumplCount/prevDCount*100:null;}
   }}
   [['total',tot,prevTotM],['rend',rend,prevRendM]].forEach(([k,cur,prev])=>{const tr=momTrend(cur,prev);const el=document.getElementById('sp-ali-'+k+'-t');if(el){el.textContent=tr.txt;el.className=tr.cls;}});
+  // Diferencia absoluta de unidades en Total Alistajes
+  {const diffEl=document.getElementById('sp-ali-total-diff');if(diffEl){if(prevTotM!==null&&prevTotM!==undefined){const d=tot-prevTotM;const sign=d>=0?'+':'';diffEl.textContent=`· ${sign}${d} u`;diffEl.style.color=d>=0?'var(--green)':'var(--red)';}else{diffEl.textContent='';}}}
   // Dias KPI sparkline: running total of days with ≥ cap
   const runCumpl=aliDaySum.map((d,i)=>{const sl=aliDaySum.slice(0,i+1);return Math.round(sl.filter(x=>x.total>=capD).length/sl.length*100);});
-  setSpark('sp-ali-dias',runCumpl,'#3b82f6');const trD=momTrend(cumplimientoPct,prevDiasM);const elD=document.getElementById('sp-ali-dias-t');if(elD){elD.textContent=trD.txt;elD.className=trD.cls;}
+  setSpark('sp-ali-dias',runCumpl,'#3b82f6');const trD=momTrendAbsPp(cumplimientoPct,prevDiasM);const elD=document.getElementById('sp-ali-dias-t');if(elD){elD.textContent=trD.txt;elD.className=trD.cls;}
   // Tiempo sparkline: compare vs previous month
   // Sparkline tiempo: promedio diario de días de alistaje
   const dTpMap={};aliFiltered.forEach(r=>{if(!r._fin)return;const k=aliYMD(r._fin);const t=aliDB(r._arri,r._fin);if(t!==null&&t>=0){if(!dTpMap[k])dTpMap[k]=[];dTpMap[k].push(t);}});
@@ -2790,6 +2822,7 @@ function stkRenderAll(){
   stkRenderCharts();
   stkRenderRightCol();
   stkRenderModRankings();
+  stkRenderHeatmap();
   stkRT();
 }
 
@@ -2960,11 +2993,84 @@ function stkRenderAlerts(){
 }
 
 /* ══════════════════════════════════════════════════
+   HEATMAP DIQUES
+══════════════════════════════════════════════════ */
+function stkExtractDique(ub){
+  if(!ub)return null;
+  const s=ub.trim().toUpperCase();
+  // "DIQUE 3", "DIQUE-3", "DIQUE.3", "DIQUE3"
+  let m=s.match(/DIQUE[\s.\-]*(\d+[A-Z]?|[A-Z](?!\w))/);
+  if(m)return m[1];
+  // "D.3", "D-3", "D 3"
+  m=s.match(/^D[\s.\-]+(\d+[A-Z]?)/);
+  if(m)return m[1];
+  // "D3" al inicio
+  m=s.match(/^D(\d+)/);
+  if(m)return m[1];
+  // Primer token (máx 6 chars)
+  const first=s.split(/[\s,\/]+/)[0];
+  return(first&&first.length<=6)?first:null;
+}
+function stkRenderHeatmap(){
+  const el=ge_stk('stk-heatmap');const emptyEl=ge_stk('stk-heatmap-empty');
+  if(!el)return;
+  const crit=getCrit(),alert2=getAlert();
+  // Agrupar por dique
+  const dm={};
+  stkFiltered.forEach(r=>{
+    const d=stkExtractDique(r.ubicacion);
+    if(!d)return;
+    if(!dm[d])dm[d]={total:0,crit:0,warn:0,ok:0,nd:0,dias:[]};
+    dm[d].total++;
+    if(r.ageClass==='crit')dm[d].crit++;
+    else if(r.ageClass==='warn')dm[d].warn++;
+    else if(r.ageClass==='ok')dm[d].ok++;
+    else dm[d].nd++;
+    if(r.dias!==null)dm[d].dias.push(r.dias);
+  });
+  const entries=Object.entries(dm).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true}));
+  if(!entries.length){
+    el.innerHTML='';
+    if(emptyEl)emptyEl.style.display='block';
+    return;
+  }
+  if(emptyEl)emptyEl.style.display='none';
+  const maxCount=Math.max(...entries.map(([,v])=>v.total),1);
+  el.innerHTML=entries.map(([dique,v])=>{
+    const critPct=v.total>0?v.crit/v.total:0;
+    const warnPct=v.total>0?v.warn/v.total:0;
+    const avgDias=v.dias.length?Math.round(v.dias.reduce((a,b)=>a+b,0)/v.dias.length):null;
+    // Color según proporción de críticos/alertas
+    let bg,textC,borderC;
+    if(v.crit>0&&critPct>=0.4){
+      const a=(0.18+critPct*0.35).toFixed(2);
+      bg=`rgba(239,68,68,${a})`;textC='#ef4444';borderC='rgba(239,68,68,0.35)';
+    }else if(v.crit>0||warnPct>=0.25){
+      const a=(0.15+(v.crit>0?critPct:warnPct)*0.35).toFixed(2);
+      bg=`rgba(245,158,11,${a})`;textC='#f59e0b';borderC='rgba(245,158,11,0.35)';
+    }else if(v.nd===v.total){
+      bg='rgba(148,163,184,0.15)';textC='#94a3b8';borderC='rgba(148,163,184,0.3)';
+    }else{
+      const okRatio=v.ok/v.total;
+      const a=(0.12+okRatio*0.18).toFixed(2);
+      bg=`rgba(34,197,94,${a})`;textC='#22c55e';borderC='rgba(34,197,94,0.3)';
+    }
+    const subTxt=v.crit>0?`${v.crit} crít.`:v.warn>0?`${v.warn} alert.`:avgDias!==null?`~${avgDias}d prom`:'OK';
+    const title=`Dique ${dique}: ${v.total} uds · ${v.crit} críticos · ${v.warn} alertas${avgDias!==null?' · prom '+avgDias+'d':''}`;
+    return`<div class="hm-cell" style="background:${bg};border:1px solid ${borderC}" title="${title}">
+      <div class="hm-dique" style="color:${textC}">Diq. ${dique}</div>
+      <div class="hm-count" style="color:${textC}">${v.total}</div>
+      <div class="hm-sub" style="color:${textC}">${subTxt}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════
    CHARTS
 ══════════════════════════════════════════════════ */
 function DC(id){if(AC[id]){AC[id].destroy();delete AC[id];}}
 function stkRenderCharts(){stkChartMarca();stkChartAging();stkChartModelos();stkChartMarcaDias();stkChartModProm();stkChartEstado();stkRenderEstadoList();}
-function stkRedrawCharts(){if(stkAll.length){stkRenderCharts();stkRenderModRankings();}}
+function stkRedrawCharts(){if(stkAll.length){stkRenderCharts();stkRenderModRankings();stkRenderHeatmap();}}
 
 function stkChartMarca(){
   DC('marca'); const {grid,lbl}=gc();
