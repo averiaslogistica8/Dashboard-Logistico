@@ -647,13 +647,8 @@ tbody tr:hover td{background:var(--surface2);}
         <div class="dlayout">
           <div class="mcol">
             <!-- KPIs Estratégicos -->
-            <div class="stitle"><span class="sdot"></span>KPIs Estratégicos <em>Visión general</em></div>
+            <div class="stitle"><span class="sdot"></span>KPIs de Urgencia <em>Foco en lo que bloquea</em></div>
             <div class="kgrid4 kgrid-spark">
-              <div class="kcard" id="avr-ck-total" style="--kc:var(--accent)">
-                <div class="kcard-top"><div class="kic" style="--kc:var(--accent)">🔧</div><div class="kinfo"><div class="klbl">Total Averías</div><div class="kval lg" id="avr-k-total">—</div><div class="ksub" id="avr-k-total-s">registros</div></div></div>
-                <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-avr-total" class="spark-path" style="stroke:var(--accent)"/></svg></div>
-                <div class="kcard-trend"><span class="trend-nt" id="sp-avr-total-t">—</span><span style="color:var(--text-dim)"> vs período anterior</span></div>
-              </div>
               <div class="kcard" id="avr-ck-sobre" style="--kc:var(--red)">
                 <div class="kcard-top"><div class="kic" style="--kc:var(--red)">⚠️</div><div class="kinfo"><div class="klbl">% Demora Alta</div><div class="kval lg" id="avr-k-sobre">—</div><div class="ksub" id="avr-k-sobre-s"></div><div class="kmeta"><div id="avr-b-sobre" class="kbadge bred">—</div><span style="font-size:10px;color:var(--text-dim)">Meta &lt;20%</span></div></div></div>
                 <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-avr-sobre" class="spark-path" style="stroke:var(--red)"/></svg></div>
@@ -663,6 +658,11 @@ tbody tr:hover td{background:var(--surface2);}
                 <div class="kcard-top"><div class="kic" style="--kc:var(--orange)">⏱</div><div class="kinfo"><div class="klbl">Demora Promedio</div><div style="display:flex;align-items:baseline;gap:4px"><div class="kval lg" id="avr-k-avg">—</div><div class="kunit" style="color:var(--orange)">días</div></div><div class="ksub">Promedio general</div></div></div>
                 <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-avr-avg" class="spark-path" style="stroke:var(--orange)"/></svg></div>
                 <div class="kcard-trend"><span id="sp-avr-avg-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> vs período anterior</span></div>
+              </div>
+              <div class="kcard" id="avr-ck-total" style="--kc:var(--accent)">
+                <div class="kcard-top"><div class="kic" style="--kc:var(--accent)">🔧</div><div class="kinfo"><div class="klbl">Total Averías</div><div class="kval lg" id="avr-k-total">—</div><div class="ksub" id="avr-k-total-s">registros</div></div></div>
+                <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-avr-total" class="spark-path" style="stroke:var(--accent)"/></svg></div>
+                <div class="kcard-trend"><span class="trend-nt" id="sp-avr-total-t">—</span><span style="color:var(--text-dim)"> vs período anterior</span></div>
               </div>
               <div class="kcard" id="avr-ck-max" style="--kc:var(--red)">
                 <div class="kcard-top"><div class="kic" style="--kc:var(--red)">📈</div><div class="kinfo"><div class="klbl">Demora Máxima</div><div style="display:flex;align-items:baseline;gap:4px"><div class="kval lg" id="avr-k-max">—</div><div class="kunit" style="color:var(--red)">días</div></div><div class="ksub">Caso extremo</div></div></div>
@@ -762,16 +762,30 @@ tbody tr:hover td{background:var(--surface2);}
       <div id="ali-dash" style="display:none">
         <div class="dlayout">
           <div class="mcol">
-            <!-- KPIs Estratégicos -->
-            <div class="stitle"><span class="sdot"></span>KPIs Estratégicos <em>Visión general</em></div>
+            <!-- Backlog — PRIMERO: define si se puede cumplir el día -->
+            <div class="stitle"><span class="sdot" style="background:var(--red)"></span>Backlog Operativo <em>Acción inmediata</em></div>
+            <div class="bkl" id="ali-bkl-card">
+              <div class="bkl-icon">🚗</div>
+              <div><div class="bkl-lbl">Autos pendientes de alistaje</div><div class="bkl-val" id="ali-bkl-val">—</div><div class="bkl-sub" id="ali-bkl-sub">Sin fecha de finalización</div></div>
+              <div class="bkl-sep"></div>
+              <div><div class="bkl-eq">Equivale a</div><div class="bkl-dias" id="ali-bkl-dias">—</div><div style="font-size:11px;color:var(--text-dim);margin-top:2px">días de trabajo</div><div style="margin-top:8px"><span id="ali-bkl-badge" class="kbadge born">—</span></div></div>
+            </div>
+
+            <!-- KPIs — Cumplimiento primero, luego volumen y eficiencia -->
+            <div class="stitle"><span class="sdot"></span>KPIs del Período <em>Cumplimiento · Volumen · Eficiencia</em></div>
             <div class="kgrid4 kgrid-spark">
+              <div class="kcard" id="ali-ck-dias" style="--kc:var(--blue)">
+                <div class="kcard-top"><div class="kic" style="--kc:var(--blue)">🎯</div><div class="kinfo"><div class="klbl">Cumplimiento Obj. Diario</div><div class="kval lg" id="ali-k-dias">—</div><div class="ksub" id="ali-k-dias-s"></div><div class="kmeta"><div id="ali-k-dias-m"></div></div></div></div>
+                <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-ali-dias" class="spark-path" style="stroke:var(--blue)"/></svg></div>
+                <div class="kcard-trend"><span id="sp-ali-dias-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> vs período anterior</span></div>
+              </div>
               <div class="kcard" id="ali-ck-total" style="--kc:var(--accent)">
                 <div class="kcard-top"><div class="kic" style="--kc:var(--accent)">🚗</div><div class="kinfo"><div class="klbl">Total Alistajes</div><div class="kval lg" id="ali-k-total">—</div><div class="ksub" id="ali-k-total-s">Autos</div></div></div>
                 <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-ali-total" class="spark-path" style="stroke:var(--accent)"/></svg></div>
                 <div class="kcard-trend"><span id="sp-ali-total-t" class="trend-nt">—</span><span id="sp-ali-total-diff" style="font-size:11px;font-weight:600;margin-left:4px"></span><span style="color:var(--text-dim)"> vs período anterior</span></div>
               </div>
               <div class="kcard" id="ali-ck-rend" style="--kc:var(--green)">
-                <div class="kcard-top"><div class="kic" style="--kc:var(--green)">🎯</div><div class="kinfo"><div class="klbl">Rendimiento</div><div class="kval lg" id="ali-k-rend">—</div><div class="ksub">Total alistajes / Capacidad instalada</div><div class="kmeta"><div id="ali-k-rend-m"></div></div><div class="kpbar"><div class="kpfill" id="ali-rend-fill"></div></div></div></div>
+                <div class="kcard-top"><div class="kic" style="--kc:var(--green)">📊</div><div class="kinfo"><div class="klbl">Rendimiento</div><div class="kval lg" id="ali-k-rend">—</div><div class="ksub">Total alistajes / Capacidad instalada</div><div class="kmeta"><div id="ali-k-rend-m"></div></div><div class="kpbar"><div class="kpfill" id="ali-rend-fill"></div></div></div></div>
                 <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-ali-rend" class="spark-path" style="stroke:var(--green)"/></svg></div>
                 <div class="kcard-trend"><span id="sp-ali-rend-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> vs período anterior</span></div>
               </div>
@@ -779,11 +793,6 @@ tbody tr:hover td{background:var(--surface2);}
                 <div class="kcard-top"><div class="kic" style="--kc:var(--orange)">⏱</div><div class="kinfo"><div class="klbl">Tiempo Promedio Alistaje</div><div style="display:flex;align-items:baseline;gap:4px"><div class="kval lg" id="ali-k-tiempo">—</div><span class="kunit" style="color:var(--orange)" id="ali-k-t-u">días</span></div><div class="ksub">Promedio general</div><div class="kmeta"><div id="ali-k-tiempo-m"></div></div></div></div>
                 <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-ali-tiempo" class="spark-path" style="stroke:var(--orange)"/></svg></div>
                 <div class="kcard-trend"><span id="sp-ali-tiempo-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> vs período anterior</span></div>
-              </div>
-              <div class="kcard" id="ali-ck-dias" style="--kc:var(--blue)">
-                <div class="kcard-top"><div class="kic" style="--kc:var(--blue)">🎯</div><div class="kinfo"><div class="klbl">Cumplimiento Obj. Diario</div><div class="kval lg" id="ali-k-dias">—</div><div class="ksub" id="ali-k-dias-s"></div><div class="kmeta"><div id="ali-k-dias-m"></div></div></div></div>
-                <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-ali-dias" class="spark-path" style="stroke:var(--blue)"/></svg></div>
-                <div class="kcard-trend"><span id="sp-ali-dias-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> vs período anterior</span></div>
               </div>
             </div>
 
@@ -834,15 +843,6 @@ tbody tr:hover td{background:var(--surface2);}
             <div class="cc" style="margin-bottom:14px">
               <div class="ctitle">Rendimiento individual por semana <span>% vs capacidad diaria · últimas 10 semanas</span></div>
               <div id="ali-op-heatmap" style="margin-top:4px"></div>
-            </div>
-
-            <!-- Backlog -->
-            <div class="stitle"><span class="sdot" style="background:var(--red)"></span>Backlog Operativo <em>Pendientes</em></div>
-            <div class="bkl" id="ali-bkl-card">
-              <div class="bkl-icon">🚗</div>
-              <div><div class="bkl-lbl">Autos pendientes de alistaje</div><div class="bkl-val" id="ali-bkl-val">—</div><div class="bkl-sub" id="ali-bkl-sub">Sin fecha de finalización</div></div>
-              <div class="bkl-sep"></div>
-              <div><div class="bkl-eq">Equivale a</div><div class="bkl-dias" id="ali-bkl-dias">—</div><div style="font-size:11px;color:var(--text-dim);margin-top:2px">días de trabajo</div><div style="margin-top:8px"><span id="ali-bkl-badge" class="kbadge born">—</span></div></div>
             </div>
 
             <!-- Charts: Operario + Marca -->
@@ -984,9 +984,75 @@ tbody tr:hover td{background:var(--surface2);}
       <div class="dlayout">
         <div class="mcol">
 
-          <!-- ── KPIs ESTRATÉGICOS ── -->
-          <div class="stitle"><span class="sdot"></span>KPIs Estratégicos <em>Visión general del predio</em></div>
+          <!-- ── KPIs COMERCIALES (urgencia máxima) ── -->
+          <div class="stitle"><span class="sdot" style="background:var(--red)"></span>Urgencia Comercial <em>Compromisos abiertos</em></div>
           <div class="kgrid4">
+
+            <div class="kcard" id="stk-ck-fp" style="--kc:var(--orange)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--orange)">🔒</div>
+                <div class="kinfo">
+                  <div class="klbl">Fact. + Patent. Sin Entregar</div>
+                  <div class="kval lg" id="stk-k-fp">—</div>
+                  <div class="ksub" id="stk-k-fp-s"></div>
+                  <div class="kmeta"><div id="stk-b-fp" class="kbadge born">—</div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="kcard" id="stk-ck-fpcrit" style="--kc:var(--red)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--red)">🚨</div>
+                <div class="kinfo">
+                  <div class="klbl">Fact./Patent. Crítico</div>
+                  <div class="kval lg" id="stk-k-fpcrit">—</div>
+                  <div class="ksub" id="stk-k-fpcrit-s"></div>
+                  <div class="kmeta"><div id="stk-b-fpcrit" class="kbadge bred">—</div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="kcard" id="stk-ck-fact" style="--kc:var(--blue)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--blue)">🧾</div>
+                <div class="kinfo">
+                  <div class="klbl">Facturados</div>
+                  <div class="kval lg" id="stk-k-fact">—</div>
+                  <div class="ksub" id="stk-k-fact-s"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="kcard" id="stk-ck-pat" style="--kc:var(--purple)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--purple)">📜</div>
+                <div class="kinfo">
+                  <div class="klbl">Patentados</div>
+                  <div class="kval lg" id="stk-k-pat">—</div>
+                  <div class="ksub" id="stk-k-pat-s"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ── KPIs ESTRATÉGICOS ── -->
+          <div class="stitle"><span class="sdot"></span>Estado del Stock <em>Visión general del predio</em></div>
+          <div class="kgrid4">
+
+            <div class="kcard" id="stk-ck-crit" style="--kc:var(--red)">
+              <div class="kcard-top">
+                <div class="kic" style="--kc:var(--red)">⚠️</div>
+                <div class="kinfo">
+                  <div class="klbl">Unidades Críticas</div>
+                  <div class="kval lg" id="stk-k-crit">—</div>
+                  <div class="ksub" id="stk-k-crit-s"></div>
+                  <div class="kmeta"><div id="stk-b-crit" class="kbadge bred">—</div><span style="font-size:10px;color:var(--text-dim)" id="stk-crit-extra"></span></div>
+                </div>
+              </div>
+              <div class="kcard-spark" style="display:none"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-crit" class="spark-path" style="stroke:var(--red)"/></svg></div>
+              <div class="kcard-trend" style="display:none"><span id="sp-crit-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> en alerta</span></div>
+            </div>
 
             <div class="kcard" id="stk-ck-total" style="--kc:var(--accent)">
               <div class="kcard-top">
@@ -1031,71 +1097,6 @@ tbody tr:hover td{background:var(--surface2);}
               </div>
               <div class="kcard-spark" style="display:none"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-prom" class="spark-path" style="stroke:var(--orange)"/></svg></div>
               <div class="kcard-trend" style="display:none"><span id="sp-prom-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> días en predio</span></div>
-            </div>
-
-            <div class="kcard" id="stk-ck-crit" style="--kc:var(--red)">
-              <div class="kcard-top">
-                <div class="kic" style="--kc:var(--red)">⚠️</div>
-                <div class="kinfo">
-                  <div class="klbl">Unidades Críticas</div>
-                  <div class="kval lg" id="stk-k-crit">—</div>
-                  <div class="ksub" id="stk-k-crit-s"></div>
-                  <div class="kmeta"><div id="stk-b-crit" class="kbadge bred">—</div><span style="font-size:10px;color:var(--text-dim)" id="stk-crit-extra"></span></div>
-                </div>
-              </div>
-              <div class="kcard-spark" style="display:none"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-crit" class="spark-path" style="stroke:var(--red)"/></svg></div>
-              <div class="kcard-trend" style="display:none"><span id="sp-crit-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> en alerta</span></div>
-            </div>
-          </div>
-
-          <!-- ── KPIs COMERCIALES ── -->
-          <div class="stitle"><span class="sdot" style="background:var(--purple)"></span>KPIs Comerciales <em>Entregas pendientes</em></div>
-          <div class="kgrid4">
-
-            <div class="kcard" id="stk-ck-fact" style="--kc:var(--blue)">
-              <div class="kcard-top">
-                <div class="kic" style="--kc:var(--blue)">🧾</div>
-                <div class="kinfo">
-                  <div class="klbl">Facturados</div>
-                  <div class="kval lg" id="stk-k-fact">—</div>
-                  <div class="ksub" id="stk-k-fact-s"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="kcard" id="stk-ck-pat" style="--kc:var(--purple)">
-              <div class="kcard-top">
-                <div class="kic" style="--kc:var(--purple)">📜</div>
-                <div class="kinfo">
-                  <div class="klbl">Patentados</div>
-                  <div class="kval lg" id="stk-k-pat">—</div>
-                  <div class="ksub" id="stk-k-pat-s"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="kcard" id="stk-ck-fp" style="--kc:var(--orange)">
-              <div class="kcard-top">
-                <div class="kic" style="--kc:var(--orange)">🔒</div>
-                <div class="kinfo">
-                  <div class="klbl">Fact. + Patent. Sin Entregar</div>
-                  <div class="kval lg" id="stk-k-fp">—</div>
-                  <div class="ksub" id="stk-k-fp-s"></div>
-                  <div class="kmeta"><div id="stk-b-fp" class="kbadge born">—</div></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="kcard" id="stk-ck-fpcrit" style="--kc:var(--red)">
-              <div class="kcard-top">
-                <div class="kic" style="--kc:var(--red)">🚨</div>
-                <div class="kinfo">
-                  <div class="klbl">Fact./Patent. Crítico</div>
-                  <div class="kval lg" id="stk-k-fpcrit">—</div>
-                  <div class="ksub" id="stk-k-fpcrit-s"></div>
-                  <div class="kmeta"><div id="stk-b-fpcrit" class="kbadge bred">—</div></div>
-                </div>
-              </div>
             </div>
 
           </div>
