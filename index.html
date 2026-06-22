@@ -193,16 +193,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .tdelta{font-size:11px;color:var(--text-dim);margin-top:6px;display:flex;align-items:center;gap:3px;}
 .tarr{font-size:11px;margin-right:2px;}
 
-/* Backlog */
-.bkl{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;display:flex;align-items:center;gap:24px;margin-bottom:14px;box-shadow:var(--shadow);}
-.bkl-icon{font-size:40px;opacity:.7;}
-.bkl-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--text-dim);margin-bottom:4px;}
-.bkl-val{font-size:48px;font-weight:800;color:var(--red);line-height:1;letter-spacing:-.03em;}
-.bkl-sub{font-size:12px;color:var(--text-mid);margin-top:3px;}
-.bkl-sep{width:1px;height:56px;background:var(--border);}
-.bkl-eq{font-size:11px;color:var(--text-dim);margin-bottom:5px;}
-.bkl-dias{font-size:24px;font-weight:800;color:var(--orange);letter-spacing:-.02em;}
-
 /* ══ TABLES ══ */
 .twrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;font-size:13px;}
@@ -762,15 +752,6 @@ tbody tr:hover td{background:var(--surface2);}
       <div id="ali-dash" style="display:none">
         <div class="dlayout">
           <div class="mcol">
-            <!-- Backlog — PRIMERO: define si se puede cumplir el día -->
-            <div class="stitle"><span class="sdot" style="background:var(--red)"></span>Backlog Operativo <em>Acción inmediata</em></div>
-            <div class="bkl" id="ali-bkl-card">
-              <div class="bkl-icon">🚗</div>
-              <div><div class="bkl-lbl">Autos pendientes de alistaje</div><div class="bkl-val" id="ali-bkl-val">—</div><div class="bkl-sub" id="ali-bkl-sub">Sin fecha de finalización</div></div>
-              <div class="bkl-sep"></div>
-              <div><div class="bkl-eq">Equivale a</div><div class="bkl-dias" id="ali-bkl-dias">—</div><div style="font-size:11px;color:var(--text-dim);margin-top:2px">días de trabajo</div><div style="margin-top:8px"><span id="ali-bkl-badge" class="kbadge born">—</span></div></div>
-            </div>
-
             <!-- KPIs — Cumplimiento primero, luego volumen y eficiencia -->
             <div class="stitle"><span class="sdot"></span>KPIs del Período <em>Cumplimiento · Volumen · Eficiencia</em></div>
             <div class="kgrid4 kgrid-spark">
@@ -1867,7 +1848,6 @@ function aliUpdateKPIs(){
   const maxOpObj=aliOpSum.length?aliOpSum.reduce((a,b)=>b.total>a.total?b:a):null;
   const minOpObj=aliOpSum.length?aliOpSum.reduce((a,b)=>b.total<a.total?b:a):null;
   const lider=aliOpSum.length?aliOpSum.reduce((a,b)=>b.total>a.total?b:a):null;
-  const backlog=aliAll.filter(r=>!r._fin).length;
   // Sparklines
   const pcts=aliDaySum.map(d=>+(d.total/capD*100).toFixed(1));
   const dlyTots=aliDaySum.map(d=>d.total);
@@ -1926,9 +1906,6 @@ function aliUpdateKPIs(){
   al.push({c:cumplimientoPct>=80?'var(--green)':cumplimientoPct>=60?'var(--orange)':'var(--red)',i:'🎯',t:'Cumplimiento: '+cumplimientoPct.toFixed(0)+'% ('+diasCumplieron+'/'+aliDaySum.length+' días)',s:cumplimientoPct>=80?'Excelente · objetivo superado':cumplimientoPct>=60?'Aceptable · hay margen de mejora':'Bajo cumplimiento – atención requerida'});
   al.push({c:balanceDiff<20?'var(--green)':balanceDiff<40?'var(--orange)':'var(--red)',i:'⚖️',t:'Balance de carga: '+balanceDiff.toFixed(1)+'%',s:balanceDiff<20?'Carga bien distribuida entre operarios':balanceDiff<40?'Distribución media – revisar asignación':'Desbalance importante – redistribuir carga'});
   document.getElementById('ali-alerts').innerHTML=al.map(a=>`<div class="acard" style="--ac:${a.c}"><div class="aiw">${a.i}</div><div><div class="atitle">${a.t}</div><div class="asub">${a.s}</div></div></div>`).join('');
-  const diasEq=capD>0?(backlog/capD):0;
-  ST('ali-bkl-val',backlog.toLocaleString('es-AR'));ST('ali-bkl-sub','Registros sin fecha de finalización en el sistema');
-  ST('ali-bkl-dias',diasEq.toFixed(1));const bb=document.getElementById('ali-bkl-badge');bb.textContent=diasEq>10?'ALTO':diasEq>5?'MEDIO':'BAJO';bb.className='kbadge '+(diasEq>10?'bred':diasEq>5?'born':'bgrn');
   const weekMap={};aliDaySum.forEach(d=>{const k=aliMon(d.dia);if(!weekMap[k])weekMap[k]={total:0,days:0,from:d.dia,to:d.dia};weekMap[k].total+=d.total;weekMap[k].days++;if(d.dia>weekMap[k].to)weekMap[k].to=d.dia;});
   const weeks=Object.entries(weekMap).sort((a,b)=>a[0].localeCompare(b[0])).slice(-4);
   document.getElementById('ali-tend-grid').innerHTML=weeks.map(([,wd],i)=>{
