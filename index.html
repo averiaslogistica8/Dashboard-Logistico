@@ -829,6 +829,13 @@ tbody tr:hover td{background:var(--surface2);}
             <div class="stitle"><span class="sdot" style="background:var(--text-mid)"></span>Tendencia Semanal <em>Rendimiento promedio</em></div>
             <div class="tgrid" id="ali-tend-grid"></div>
 
+            <!-- Heatmap Operario × Semana -->
+            <div class="stitle"><span class="sdot" style="background:var(--blue)"></span>Mapa de Rendimiento · Operario × Semana</div>
+            <div class="cc" style="margin-bottom:14px">
+              <div class="ctitle">Rendimiento individual por semana <span>% vs capacidad diaria · últimas 10 semanas</span></div>
+              <div id="ali-op-heatmap" style="margin-top:4px"></div>
+            </div>
+
             <!-- Backlog -->
             <div class="stitle"><span class="sdot" style="background:var(--red)"></span>Backlog Operativo <em>Pendientes</em></div>
             <div class="bkl" id="ali-bkl-card">
@@ -1223,6 +1230,20 @@ tbody tr:hover td{background:var(--surface2);}
             <div class="cc" style="display:flex;flex-direction:column;gap:0;padding:0">
               <div class="ctitle" style="padding:20px 20px 0">Top 10 Modelos · Unidad Más Antigua</div>
               <div id="stk-mod-max-list" style="overflow-y:auto;max-height:370px;margin-top:12px"></div>
+            </div>
+          </div>
+
+          <!-- ── ANÁLISIS COMERCIAL ── -->
+          <div class="stitle"><span class="sdot" style="background:var(--blue)"></span>Análisis Comercial · Tiempo hasta Entrega</div>
+          <div class="crow c21" style="margin-bottom:14px">
+            <div class="cc">
+              <div class="ctitle">Distribución de Espera · Unidades Facturadas/Patentadas</div>
+              <div class="ch260"><canvas id="stk-c-fpwait"></canvas></div>
+              <div class="cstats" id="stk-cs-fpwait" style="grid-template-columns:repeat(3,1fr)"></div>
+            </div>
+            <div class="cc">
+              <div class="ctitle">Tiempo por Marca <span>días promedio sin entregar</span></div>
+              <div id="stk-fp-brand-detail" style="padding-top:8px"></div>
             </div>
           </div>
 
@@ -1921,6 +1942,7 @@ function aliUpdateKPIs(){
   const dv=document.getElementById('ali-dfrom').value,hv=document.getElementById('ali-dto').value;
   if(dv&&hv)ST('sb-periodo',dv.split('-').reverse().join('/')+' - '+hv.split('-').reverse().join('/'));
   const mSel=document.getElementById('ali-smarca').value;ST('sb-marca',mSel||'Todas');
+  aliRenderOpHeatmap();
 }
 function aliUpdateCharts(){
   const{grid,lbl}=gc(),capD=aliCD();
@@ -2643,6 +2665,8 @@ const STK_COL_CANDS={
              'VIN','Chasis','chasis','N° Chasis','Nro Chasis','Nro. Chasis','Motor','Nro Motor'],
   estado:   ['Estado','estado','ESTADO','Status','status'],
   ubicacion:['Nro dique','Nro Dique','NRO DIQUE','nro dique','Nro. Dique','Ubicacion','Ubicación','ubicacion','Dique','Sector','Posicion','Posición'],
+  fechaFact:['Fecha Facturacion','Fecha Facturación','Fecha Fact','Fecha Fact.','FechaFact','Fecha Venta','Fecha de Facturacion'],
+  fechaPat: ['Fecha Patentado','Fecha Patentamiento','Fecha Patent','FechaPat','Fecha de Patentado'],
 };
 
 
@@ -2823,6 +2847,7 @@ function stkRenderAll(){
   stkRenderRightCol();
   stkRenderModRankings();
   stkRenderHeatmap();
+  stkRenderFactPat();
   stkRT();
 }
 
@@ -3070,7 +3095,7 @@ function stkRenderHeatmap(){
 ══════════════════════════════════════════════════ */
 function DC(id){if(AC[id]){AC[id].destroy();delete AC[id];}}
 function stkRenderCharts(){stkChartMarca();stkChartAging();stkChartModelos();stkChartMarcaDias();stkChartModProm();stkChartEstado();stkRenderEstadoList();}
-function stkRedrawCharts(){if(stkAll.length){stkRenderCharts();stkRenderModRankings();stkRenderHeatmap();}}
+function stkRedrawCharts(){if(stkAll.length){stkRenderCharts();stkRenderModRankings();stkRenderHeatmap();stkRenderFactPat();}}
 
 function stkChartMarca(){
   DC('marca'); const {grid,lbl}=gc();
@@ -3496,6 +3521,140 @@ function stkExport(){
   a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
   a.download=`stock_predio_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
+}
+
+/* ══════════════════════════════════════════════════
+   HEATMAP OPERARIO × SEMANA (Alistaje)
+══════════════════════════════════════════════════ */
+function aliRenderOpHeatmap(){
+  const el=document.getElementById('ali-op-heatmap');
+  if(!el)return;
+  if(!aliFiltered.length){el.innerHTML='<div style="text-align:center;color:var(--text-dim);font-size:12px;padding:20px">Sin datos cargados</div>';return;}
+  const p=aliGP(),capInd=p.cap;
+  // Build weekdays map from active days
+  const wdMap={};
+  aliDaySum.forEach(d=>{const w=aliMon(d.dia);if(!wdMap[w])wdMap[w]=new Set();wdMap[w].add(d.dia);});
+  const weeks=Object.keys(wdMap).sort().slice(-10);
+  if(!weeks.length){el.innerHTML='<div style="text-align:center;color:var(--text-dim);font-size:12px;padding:20px">Sin datos semanales suficientes</div>';return;}
+  const ops=[...new Set(aliFiltered.map(r=>r._op))].filter(Boolean).sort();
+  // Build matrix [op][week]=count
+  const mat={};
+  ops.forEach(op=>{mat[op]={};weeks.forEach(w=>{mat[op][w]=0;});});
+  aliFiltered.forEach(r=>{
+    if(!r._fin||!r._op)return;
+    const w=aliMon(aliYMD(r._fin));
+    if(weeks.includes(w)&&mat[r._op])mat[r._op][w]++;
+  });
+  const thS='font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);padding:5px 3px;text-align:center;border-bottom:1px solid var(--border);';
+  const nmS='font-size:11px;font-weight:600;color:var(--text);padding:6px 10px 6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;border-bottom:1px solid var(--border);';
+  const wkLbls=weeks.map(w=>{const[,m,d]=w.split('-');return`${d}/${m}`;});
+  let html=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:separate;border-spacing:3px">
+    <thead><tr>
+      <th style="${thS}text-align:left;min-width:110px">Operario</th>
+      ${wkLbls.map((l,i)=>`<th style="${thS}" title="Semana del ${weeks[i]}">${l}</th>`).join('')}
+      <th style="${thS}">Total</th>
+    </tr></thead><tbody>`;
+  ops.forEach(op=>{
+    const sn=op.split(' ').filter(x=>x.length>2).slice(0,2).join(' ');
+    let rowTot=0;
+    const cells=weeks.map(w=>{
+      const cnt=mat[op][w];rowTot+=cnt;
+      const wd=wdMap[w]?wdMap[w].size:0,cap=wd*capInd;
+      if(!cnt||!cap)return`<td style="padding:2px"><div style="padding:8px 4px;border-radius:7px;background:var(--surface2);text-align:center;font-size:10px;color:var(--text-dim)">—</div></td>`;
+      const pct=cnt/cap*100;
+      const[bg,tc]=pct>=85?['rgba(34,197,94,.15)','#22c55e']:pct>=65?['rgba(245,158,11,.15)','#f59e0b']:['rgba(239,68,68,.15)','#ef4444'];
+      return`<td style="padding:2px" title="${op} · ${w}: ${cnt} alist. (${pct.toFixed(0)}%)"><div style="padding:8px 4px;border-radius:7px;background:${bg};border:1px solid ${tc}44;text-align:center"><div style="font-size:12px;font-weight:800;color:${tc}">${pct.toFixed(0)}%</div><div style="font-size:9px;font-weight:600;color:${tc};opacity:.8;margin-top:1px">${cnt}u</div></div></td>`;
+    });
+    html+=`<tr><td style="${nmS}" title="${op}">${sn}</td>${cells.join('')}<td style="padding:2px"><div style="padding:8px 4px;border-radius:7px;background:var(--surface2);text-align:center;font-size:13px;font-weight:800;color:var(--text)">${rowTot}</div></td></tr>`;
+  });
+  html+='</tbody></table></div>';
+  html+=`<div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-dim)"><div style="width:10px;height:10px;border-radius:3px;background:#22c55e;flex-shrink:0"></div>≥ 85% · Excelente</div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-dim)"><div style="width:10px;height:10px;border-radius:3px;background:#f59e0b;flex-shrink:0"></div>65–84% · Aceptable</div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-dim)"><div style="width:10px;height:10px;border-radius:3px;background:#ef4444;flex-shrink:0"></div>&lt; 65% · Bajo</div>
+  </div>`;
+  el.innerHTML=html;
+}
+
+/* ══════════════════════════════════════════════════
+   ANÁLISIS FACT/PAT · TIEMPO HASTA ENTREGA (Stock)
+══════════════════════════════════════════════════ */
+function stkRenderFactPat(){
+  const bdEl=ge_stk('stk-fp-brand-detail');
+  const canvas=ge_stk('stk-c-fpwait');
+  const statsEl=ge_stk('stk-cs-fpwait');
+  const estUp=s=>(s||'').toUpperCase().trim();
+  const fpRows=stkFiltered.filter(r=>['FACTURADO','PATENTADO'].includes(estUp(r.estado)));
+  const fpD=fpRows.filter(r=>r.dias!==null);
+  // Use fechaFact/fechaPat if available, otherwise fall back to dias (arribo)
+  const getWait=r=>{
+    const ef=r.fechaFact?stkParseDias(r.fechaFact):null;
+    const ep=r.fechaPat?stkParseDias(r.fechaPat):null;
+    if(ef!==null||ep!==null)return Math.min(...[ef,ep].filter(v=>v!==null));
+    return r.dias;
+  };
+  const waits=fpRows.map(r=>getWait(r)).filter(v=>v!==null&&v>=0);
+  const avgWait=waits.length?Math.round(waits.reduce((a,b)=>a+b,0)/waits.length):null;
+  const maxWait=waits.length?Math.max(...waits):null;
+  const gt15=waits.filter(v=>v>15).length;
+  const gt15pct=waits.length?Math.round(gt15/waits.length*100):0;
+  const crit=getCrit();
+  // Stats bar
+  if(statsEl){
+    statsEl.innerHTML=`
+      <div class="cstat"><div class="cstat-lbl">Pendientes entrega</div><div class="cstat-val" style="color:var(--blue)">${fpRows.length}</div><div class="cstat-sub">fact. + patent.</div></div>
+      <div class="cstat"><div class="cstat-lbl">Promedio espera</div><div class="cstat-val ${avgWait===null?'':avgWait>30?'red':avgWait>15?'orn':'grn'}">${avgWait!==null?avgWait+'d':'—'}</div><div class="cstat-sub">días en predio</div></div>
+      <div class="cstat"><div class="cstat-lbl">&gt; 15 días</div><div class="cstat-val ${gt15>0?'red':'grn'}">${gt15}</div><div class="cstat-sub">${gt15pct}% del total</div></div>`;
+  }
+  // Distribution chart
+  if(canvas){
+    DC('stk-c-fpwait');
+    const{grid,lbl}=gc();
+    if(!fpRows.length){
+      const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle=lbl;ctx.font='12px Inter';ctx.textAlign='center';
+      ctx.fillText('Sin unidades Facturadas/Patentadas',canvas.width/2,canvas.height/2);
+    }else{
+      const ranges=[[0,7,'0–7d'],[8,15,'8–15d'],[16,30,'16–30d'],[31,60,'31–60d'],[61,9999,'+60d']];
+      const colors=['#22c55e','#84cc16','#f59e0b','#f97316','#ef4444'];
+      const dist=ranges.map(([mn,mx])=>waits.filter(v=>v>=mn&&v<=mx).length);
+      AC['stk-c-fpwait']=new Chart(canvas,{
+        type:'bar',
+        data:{labels:ranges.map(r=>r[2]),datasets:[{label:'Unidades',data:dist,backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,borderRadius:6}]},
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>`${c2.raw} unidades`}}},
+          scales:{x:{ticks:{color:lbl},grid:{color:grid}},y:{ticks:{color:lbl,stepSize:1},grid:{color:grid},beginAtZero:true}}}
+      });
+    }
+  }
+  // Brand breakdown
+  if(bdEl){
+    const MAIN=['Volkswagen','Ford','Chevrolet','Audi'];
+    const bData=MAIN.map(b=>{
+      const bR=fpRows.filter(r=>r.marcaNorm===b);
+      const bW=bR.map(r=>getWait(r)).filter(v=>v!==null&&v>=0);
+      const avg=bW.length?Math.round(bW.reduce((a,c)=>a+c,0)/bW.length):null;
+      return{b,count:bR.length,avg,crit2:bR.filter(r=>r.ageClass==='crit').length};
+    }).filter(d=>d.count>0).sort((a,b2)=>(b2.avg||0)-(a.avg||0));
+    const maxC=bData.length?Math.max(...bData.map(d=>d.count),1):1;
+    bdEl.innerHTML=bData.length?bData.map(d=>{
+      const bc=BRAND_C[d.b]||'var(--accent)';
+      const pct=Math.round(d.count/maxC*100);
+      const avgCls=d.avg===null?'':d.avg>crit?'var(--red)':d.avg>15?'var(--orange)':'var(--green)';
+      return`<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:13px;font-weight:700;color:${bc}">${d.b}</span>
+          <span style="font-size:12px;font-weight:700;color:var(--text)">${d.count} uds</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px">
+          <span style="color:var(--text-dim)">Prom. espera</span>
+          <span style="font-weight:700;color:${avgCls||'var(--text-dim)'}">${d.avg!==null?d.avg+'d':'—'}</span>
+        </div>
+        <div class="dbw"><div class="dbf" style="width:${pct}%;background:${bc}"></div></div>
+        ${d.crit2>0?`<div style="margin-top:4px;font-size:10px;color:var(--red)">⚠ ${d.crit2} crítico${d.crit2>1?'s':''} · más de ${crit}d</div>`:''}
+      </div>`;
+    }).join(''):'<div style="padding:14px;text-align:center;font-size:12px;color:var(--text-dim)">Sin unidades Facturadas/Patentadas en el período</div>';
+  }
 }
 
 /* ══════════════════════════════════════════════════
