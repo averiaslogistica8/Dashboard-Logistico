@@ -16,9 +16,10 @@
   --accent:#2563eb;--green:#22c55e;--orange:#f59e0b;--red:#ef4444;--blue:#3b82f6;--purple:#8b5cf6;
   --text:#1e293b;--text-mid:#64748b;--text-dim:#94a3b8;
   --shadow:0 1px 3px rgba(0,0,0,.07),0 2px 8px rgba(0,0,0,.04);--shadow-md:0 4px 16px rgba(0,0,0,.1);
-  --radius:12px;--vw:#1e3a8a;--ford:#3b82f6;--chev:#f59e0b;--audi:#ef4444;
+  --radius:12px;--vw:#1e3a8a;--ford:#3b82f6;--chev:#f59e0b;--audi:#ef4444;--moto:#f97316;
 }
 .dark{--bg:#0f1629;--surface:#1a2438;--surface2:#1f2d45;--border:#2d3f5e;--text:#e2e8f0;--text-mid:#94a3b8;--text-dim:#64748b;--shadow:0 1px 3px rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.2);}
+#nav-moto.active{background:rgba(249,115,22,.18)!important;border-left-color:var(--moto)!important;color:#fff!important;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;min-height:100vh;display:flex;transition:background .2s,color .2s;}
 
@@ -441,6 +442,7 @@ tbody tr:hover td{background:var(--surface2);}
     <button class="nav-item" id="nav-ali" onclick="switchTab('ali')"><span class="ni">🚗</span> Alistaje</button>
     <button class="nav-item" id="nav-mov" onclick="switchTab('mov')"><span class="ni">📦</span> Movimientos</button>
     <button class="nav-item" id="nav-stk" onclick="switchTab('stk')"><span class="ni">🏭</span> Stock Predio</button>
+    <button class="nav-item" id="nav-moto" onclick="switchTab('moto')"><span class="ni">🏍️</span> Alistaje Motos</button>
     <div class="nav-sep"></div>
     <!-- Params Averías -->
     <div id="sb-p-avr" style="padding:8px 18px 4px">
@@ -563,6 +565,19 @@ tbody tr:hover td{background:var(--surface2);}
         </div>
       </div>
     </div>
+    <!-- Params Alistaje Motos -->
+    <div id="sb-p-moto" style="display:none;padding:8px 18px 4px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--sb-txt);margin-bottom:8px">Parámetros</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--sb-txt)">Operarios</span>
+        <input type="number" id="mt-ops" value="2" min="0.5" max="20" step="0.5" onchange="mtApply()" style="width:50px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;padding:3px 6px;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;text-align:center;outline:none;">
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--sb-txt)">Motos/op/día</span>
+        <input type="number" id="mt-cap" value="8" min="1" max="30" step="0.5" onchange="mtApply()" style="width:50px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;padding:3px 6px;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;text-align:center;outline:none;">
+      </div>
+      <div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:4px;line-height:1.5" id="mt-cap-auto" title="Promedio real de motos alistadas por operario en los días que trabajó, calculado sobre todo el historial cargado · solo a modo de referencia, no se usa para la meta">Hist.: — u/día</div>
+    </div>
   </nav>
   <div class="sb-bottom">
     <div class="sb-filters-title">Filtros activos</div>
@@ -585,6 +600,11 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="sb-upload-area" id="sb-upload-mov" style="display:none">
       <button class="sb-upload-btn" style="background:#7c3aed" onclick="loadSheet('mov')" id="btn-mov">↻ Actualizar Movimientos</button>
       <div class="sb-file-info"><div class="sb-file-dot" id="fd-mov"></div><div class="sb-file-name" id="fn-mov">Esperando...</div></div>
+    </div>
+    <div class="sb-upload-area" id="sb-upload-moto" style="display:none">
+      <label class="sb-upload-btn" style="background:var(--moto);display:flex;align-items:center;justify-content:center;cursor:pointer" for="mt-fi">📂 Cargar CSV Motos</label>
+      <input type="file" id="mt-fi" accept=".csv,.txt" style="display:none">
+      <div class="sb-file-info"><div class="sb-file-dot" id="fd-mt"></div><div class="sb-file-name" id="fn-mt">Ningún archivo</div></div>
     </div>
   </div>
 </aside>
@@ -1284,6 +1304,192 @@ tbody tr:hover td{background:var(--surface2);}
     </div><!-- /stk-dash -->
   </div><!-- /pw -->
 </div><!-- /tab-stk -->
+
+<!-- ══ TAB ALISTAJE MOTOS ══ -->
+<div id="tab-moto" style="display:none">
+  <div class="fbar" id="mt-fbar" style="display:none">
+    <div class="fgroup"><div class="flbl">Marca</div><select id="mt-smarca" onchange="mtApply()"><option value="">Todas</option></select></div>
+    <div class="fdiv"></div>
+    <div class="fgroup"><div class="flbl">Operario</div><select id="mt-sop" onchange="mtApply()"><option value="">Todos</option></select></div>
+    <div class="fdiv"></div>
+    <div class="fgroup"><div class="flbl">Desde</div><input type="date" id="mt-dfrom" onchange="mtApply()"></div>
+    <div class="fgroup"><div class="flbl">Hasta</div><input type="date" id="mt-dto" onchange="mtApply()"></div>
+    <div class="fdiv"></div>
+    <div class="fgroup"><div class="flbl">Mes rápido</div><select id="mt-smes" onchange="mtSetMes()"><option value="">— elegir —</option></select></div>
+    <button class="clrbtn" onclick="mtClear()" style="margin-left:auto;align-self:flex-end">↺ Limpiar</button>
+    <div class="chart-chip" id="mt-chart-chip" onclick="mtClearChartFilter()" style="display:none">📊 <span id="mt-chart-chip-lbl"></span> <span style="opacity:.55">✕</span></div>
+  </div>
+  <div class="pw">
+    <div class="empty-st" id="mt-empty">
+      <div class="ei">🏍️</div>
+      <div class="et">Sin datos cargados</div>
+      <div class="es">Hacé click en <strong>Cargar CSV</strong> (panel izquierdo) para importar el reporte de alistaje de motos. Soporta el export del sistema (separado por <code>;</code>, codificación Latin1).</div>
+    </div>
+
+    <div id="mt-dash" style="display:none">
+      <div class="dlayout">
+        <div class="mcol">
+
+          <!-- KPIs principales -->
+          <div class="stitle"><span class="sdot"></span>KPIs del Período <em>Cumplimiento · Volumen · Eficiencia</em></div>
+          <div class="kgrid4 kgrid-spark">
+            <div class="kcard" id="mt-ck-dias" style="--kc:var(--blue)">
+              <div class="kcard-top"><div class="kic" style="--kc:var(--blue)">🎯</div><div class="kinfo"><div class="klbl">Cumplimiento Obj. Diario</div><div class="kval lg" id="mt-k-dias">—</div><div class="ksub" id="mt-k-dias-s"></div><div class="kmeta"><div id="mt-k-dias-m"></div></div></div></div>
+              <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-mt-dias" class="spark-path" style="stroke:var(--blue)"/></svg></div>
+              <div class="kcard-trend"><span id="sp-mt-dias-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> vs período anterior</span></div>
+            </div>
+            <div class="kcard" id="mt-ck-total" style="--kc:var(--moto)">
+              <div class="kcard-top"><div class="kic" style="--kc:var(--moto)">🏍️</div><div class="kinfo"><div class="klbl">Total Alistadas</div><div class="kval lg" id="mt-k-total">—</div><div class="ksub" id="mt-k-total-s">Motos</div></div></div>
+              <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-mt-total" class="spark-path" style="stroke:var(--moto)"/></svg></div>
+              <div class="kcard-trend"><span id="sp-mt-total-t" class="trend-nt">—</span><span id="sp-mt-total-diff" style="font-size:11px;font-weight:600;margin-left:4px"></span><span style="color:var(--text-dim)"> vs período anterior</span></div>
+            </div>
+            <div class="kcard" id="mt-ck-rend" style="--kc:var(--green)">
+              <div class="kcard-top"><div class="kic" style="--kc:var(--green)">📊</div><div class="kinfo"><div class="klbl">Rendimiento</div><div class="kval lg" id="mt-k-rend">—</div><div class="ksub">Total alistadas / Capacidad instalada</div><div class="kmeta"><div id="mt-k-rend-m"></div></div><div class="kpbar"><div class="kpfill" id="mt-rend-fill"></div></div></div></div>
+              <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-mt-rend" class="spark-path" style="stroke:var(--green)"/></svg></div>
+              <div class="kcard-trend"><span id="sp-mt-rend-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> vs período anterior</span></div>
+            </div>
+            <div class="kcard" id="mt-ck-tiempo" style="--kc:var(--orange)">
+              <div class="kcard-top"><div class="kic" style="--kc:var(--orange)">⏱</div><div class="kinfo"><div class="klbl">Tiempo Promedio Alistaje</div><div style="display:flex;align-items:baseline;gap:4px"><div class="kval lg" id="mt-k-tiempo">—</div><span class="kunit" style="color:var(--orange)">días</span></div><div class="ksub">Arribo → Finalizado</div><div class="kmeta"><div id="mt-k-tiempo-m"></div></div></div></div>
+              <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-mt-tiempo" class="spark-path" style="stroke:var(--orange)"/></svg></div>
+              <div class="kcard-trend"><span id="sp-mt-tiempo-t" class="trend-nt">—</span><span style="color:var(--text-dim)"> vs período anterior</span></div>
+            </div>
+          </div>
+
+          <!-- KPIs Operativos -->
+          <div class="stitle"><span class="sdot" style="background:var(--blue)"></span>KPIs Operativos <em>Gestión diaria</em></div>
+          <div class="kgrid4">
+            <div class="kcard" id="mt-ck-cob" style="--kc:var(--blue)"><div class="kcard-top"><div class="kic" style="--kc:var(--blue)">📅</div><div class="kinfo"><div class="klbl">Días Activos</div><div class="kval md" id="mt-k-cob">—</div><div class="ksub" id="mt-k-cob-s">Cobertura del período</div></div></div></div>
+            <div class="kcard" id="mt-ck-marcatop" style="--kc:var(--moto)"><div class="kcard-top"><div class="kic" style="--kc:var(--moto)">🏷️</div><div class="kinfo"><div class="klbl">Marca Predominante</div><div class="kval leader" id="mt-k-marcatop">—</div><div class="ksub" id="mt-k-marcatop-s"></div></div></div></div>
+            <div class="kcard" id="mt-ck-avgop" style="--kc:var(--blue)"><div class="kcard-top"><div class="kic" style="--kc:var(--blue)">👥</div><div class="kinfo"><div class="klbl">Promedio por Op./Día</div><div style="display:flex;align-items:baseline;gap:4px"><div class="kval md" id="mt-k-avgop">—</div><span class="kunit" style="color:var(--blue)">motos</span></div><div class="ksub">Rendimiento promedio</div><div class="kmeta"><div id="mt-k-avgop-m"></div></div></div></div></div>
+            <div class="kcard" id="mt-ck-capd" style="--kc:var(--moto)"><div class="kcard-top"><div class="kic" style="--kc:var(--moto)">⚙️</div><div class="kinfo"><div class="klbl">Capacidad Diaria</div><div style="display:flex;align-items:baseline;gap:4px"><div class="kval md" id="mt-k-capd">—</div><span class="kunit">motos/día</span></div><div class="ksub" id="mt-k-capd-s"></div></div></div></div>
+          </div>
+
+          <!-- Alertas -->
+          <div class="stitle"><span class="sdot" style="background:var(--red)"></span>Alertas Automáticas</div>
+          <div class="agrid" id="mt-alerts"></div>
+
+          <!-- Charts: rendimiento + diario -->
+          <div class="stitle"><span class="sdot" style="background:var(--green)"></span>Rendimiento Diario vs Capacidad</div>
+          <div class="crow c21">
+            <div class="cc">
+              <div class="ctitle">Rendimiento Diario % · <span id="mt-periodo-lbl"></span></div>
+              <div class="ch300"><canvas id="mt-c-rend-line"></canvas></div>
+              <div class="cstats">
+                <div class="cstat"><div class="cstat-lbl">Promedio Rendimiento</div><div class="cstat-val" id="mt-cs-avgr">—</div></div>
+                <div class="cstat"><div class="cstat-lbl">Mejor Día</div><div class="cstat-val grn" id="mt-cs-best">—</div><div class="cstat-sub" id="mt-cs-best-d"></div></div>
+                <div class="cstat"><div class="cstat-lbl">Peor Día</div><div class="cstat-val red" id="mt-cs-worst">—</div><div class="cstat-sub" id="mt-cs-worst-d"></div></div>
+                <div class="cstat"><div class="cstat-lbl">Días ≥ Capacidad</div><div class="cstat-val" id="mt-cs-dcap">—</div><div class="cstat-sub" id="mt-cs-dcap-s"></div></div>
+              </div>
+            </div>
+            <div class="cc">
+              <div class="ctitle">Alistadas por Día</div>
+              <div class="ch300"><canvas id="mt-c-daily-bars"></canvas></div>
+              <div class="cstats">
+                <div class="cstat"><div class="cstat-lbl">Prom. Diario</div><div class="cstat-val" id="mt-cs-avgd">—</div></div>
+                <div class="cstat"><div class="cstat-lbl">Máximo</div><div class="cstat-val grn" id="mt-cs-maxd">—</div><div class="cstat-sub" id="mt-cs-maxd-d"></div></div>
+                <div class="cstat"><div class="cstat-lbl">Mínimo</div><div class="cstat-val red" id="mt-cs-mind">—</div><div class="cstat-sub" id="mt-cs-mind-d"></div></div>
+                <div class="cstat"><div class="cstat-lbl">Total Días</div><div class="cstat-val" id="mt-cs-totd">—</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tendencia semanal -->
+          <div class="stitle"><span class="sdot" style="background:var(--text-mid)"></span>Tendencia Semanal <em>Rendimiento promedio</em></div>
+          <div class="tgrid" id="mt-tend-grid"></div>
+
+          <!-- Heatmap operario x semana -->
+          <div class="stitle"><span class="sdot" style="background:var(--blue)"></span>Mapa de Rendimiento · Operario × Semana</div>
+          <div class="cc" style="margin-bottom:14px">
+            <div class="ctitle">Rendimiento individual por semana <span>% vs capacidad diaria · últimas 10 semanas</span></div>
+            <div id="mt-op-heatmap" style="margin-top:4px"></div>
+          </div>
+
+          <!-- Charts: operario + marca -->
+          <div class="stitle"><span class="sdot" style="background:var(--blue)"></span>Por Operario y Marca</div>
+          <div class="crow c3">
+            <div class="cc"><div class="ctitle">Alistadas por Operario</div><div class="ch260"><canvas id="mt-c-op"></canvas></div></div>
+            <div class="cc"><div class="ctitle">Distribución por Marca</div><div class="ch260"><canvas id="mt-c-marca"></canvas></div></div>
+            <div class="cc"><div class="ctitle">Rendimiento vs Cap. Individual</div><div class="ch260"><canvas id="mt-c-oprend"></canvas></div></div>
+          </div>
+
+          <!-- Tabla operarios -->
+          <div class="stitle"><span class="sdot" style="background:var(--text-dim)"></span>Detalle por Operario</div>
+          <div class="cc" style="margin-bottom:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
+              <div class="ctitle" style="margin:0">Resumen Operarios <span id="mt-tbl-cnt" style="font-weight:400;color:var(--text-dim)"></span></div>
+              <input type="text" id="mt-search" placeholder="Buscar operario…" oninput="mtRT()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;width:200px;outline:none;">
+            </div>
+            <div class="twrap">
+              <table>
+                <thead><tr>
+                  <th onclick="mtSort('operario')" id="mt-th-op">Operario <span class="sa"></span></th>
+                  <th onclick="mtSort('total')" id="mt-th-tot" class="sort-desc">Alistadas <span class="sa"></span></th>
+                  <th onclick="mtSort('rend')" id="mt-th-rend">Rendimiento <span class="sa"></span></th>
+                  <th onclick="mtSort('diasTrab')" id="mt-th-dias">Días <span class="sa"></span></th>
+                  <th></th>
+                </tr></thead>
+                <tbody id="mt-tbl-body"></tbody>
+              </table>
+            </div>
+            <div class="pagination"><span id="mt-pag-info"></span><button class="pbtn" id="mt-prev" onclick="mtCP(-1)">‹ Ant</button><button class="pbtn" id="mt-next" onclick="mtCP(1)">Sig ›</button></div>
+          </div>
+
+          <!-- Tabla diaria -->
+          <div class="stitle"><span class="sdot" style="background:var(--text-dim)"></span>Detalle Diario</div>
+          <div class="cc" style="margin-bottom:28px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div class="ctitle" style="margin:0">Alistadas por día <span id="mt-tbl2-cnt" style="font-weight:400;color:var(--text-dim)"></span></div>
+              <span style="font-size:11px;color:var(--text-dim)">🟢 ≥ cap &nbsp;🟡 ≥ 75% &nbsp;🔴 &lt; 75%</span>
+            </div>
+            <div class="twrap"><table><thead><tr><th>Día</th><th>Total</th><th>Capacidad</th><th>Rendimiento</th></tr></thead><tbody id="mt-tbl2-body"></tbody></table></div>
+          </div>
+
+        </div>
+
+        <!-- Right column -->
+        <div class="rcol">
+          <div class="rpanel">
+            <div class="rp-hdr">Detalle por Operario</div>
+            <select class="rp-sel" id="mt-sb-sel" onchange="mtUpdateSB()"><option value="">— Todos —</option></select>
+            <div class="rp-card">
+              <div class="rp-av" id="mt-sb-av">👤</div>
+              <div><div class="rp-name" id="mt-sb-name">General</div><div style="margin-top:4px"><span id="mt-sb-badge" class="kbadge bgrn">—</span></div></div>
+            </div>
+            <div class="rp-stats">
+              <div class="rp-st"><div class="rp-stv" id="mt-sb-tot">—</div><div class="rp-stl">Alistadas<br>en período</div></div>
+              <div class="rp-st"><div class="rp-stv" id="mt-sb-avg">—</div><div class="rp-stl">Motos/día<br>promedio</div></div>
+            </div>
+            <div class="rp-sec"><div class="rp-sectl">Distribución por Marca</div><div class="ch180"><canvas id="mt-sb-marca"></canvas></div></div>
+            <div class="rp-sec">
+              <div class="rp-sectl">Rendimiento vs Capacidad</div>
+              <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:5px">
+                <span id="mt-sb-rpct" style="font-size:22px;font-weight:800;color:var(--moto)">—</span>
+                <span id="mt-sb-rlbl" style="font-size:11px;color:var(--text-mid)">—</span>
+              </div>
+              <div class="dbw"><div class="dbf" id="mt-sb-rbar" style="width:0%"></div></div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:5px">
+                <span>Cap: <strong id="mt-sb-cap">—</strong></span>
+                <span>Real: <strong id="mt-sb-real">—</strong></span>
+              </div>
+            </div>
+            <div class="rp-sec">
+              <div class="rp-sectl">Días Activos</div>
+              <div style="display:flex;align-items:baseline;gap:5px;margin-bottom:3px">
+                <span id="mt-sb-dias" style="font-size:24px;font-weight:800;color:var(--moto)">—</span>
+                <span id="mt-sb-diasmax" style="font-size:12px;color:var(--text-mid)">días</span>
+              </div>
+              <div style="font-size:11px;color:var(--text-dim)" id="mt-sb-diaspct">—</div>
+            </div>
+            <div class="rp-sec">
+              <div class="rp-sectl">Actividad Reciente</div>
+              <div id="mt-sb-act"><div style="font-size:12px;color:var(--text-dim);text-align:center;padding:10px 0">Sin datos</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /tab-moto -->
 </div><!-- /main-wrap -->
 
 <!-- Slide panel -->
@@ -1325,13 +1531,13 @@ tbody tr:hover td{background:var(--surface2);}
 const COLORS=['#2563eb','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16'];
 let AC={};
 function switchTab(t){
-  ['avr','ali','mov','stk'].forEach(id=>{
+  ['avr','ali','mov','stk','moto'].forEach(id=>{
     const tab=document.getElementById('tab-'+id);if(tab)tab.style.display=id===t?'':'none';
     document.getElementById('nav-'+id).classList.toggle('active',id===t);
     document.getElementById('sb-p-'+id).style.display=id===t?'':'none';
     document.getElementById('sb-upload-'+id).style.display=id===t?'':'none';
   });
-  const titles={avr:'Dashboard Averías',ali:'Dashboard Alistaje',mov:'Dashboard Movimientos',stk:'Stock Predio'};
+  const titles={avr:'Dashboard Averías',ali:'Dashboard Alistaje',mov:'Dashboard Movimientos',stk:'Stock Predio',moto:'Dashboard Alistaje Motos'};
   document.getElementById('hdr-sub').textContent=titles[t]||'';
 }
 document.getElementById('sb-p-ali').style.display='none';
@@ -1347,6 +1553,7 @@ function toggleTheme(){
   if(aliFiltered.length){aliUpdateKPIs();aliUpdateCharts();}
   if(movAllRows.length)movRedrawCharts();
   if(stkAll&&stkAll.length)stkRedrawCharts();
+  if(typeof mtFiltered!=='undefined'&&mtFiltered.length){mtUpdateKPIs();mtUpdateCharts();}
 }
 function gc(){const d=document.body.classList.contains('dark');return{grid:d?'#2d3f5e':'#e2e8f0',lbl:d?'#94a3b8':'#64748b'};}
 function DC(id){if(AC[id]){AC[id].destroy();delete AC[id];}}
@@ -3642,6 +3849,361 @@ function stkTK(id,show){const el=ge_stk(id);if(el)el.toggleAttribute('hidden-kpi
 function stkSetAllK(on){document.querySelectorAll('#stk-kpi-menu input[type=checkbox]').forEach(cb=>{cb.checked=on;cb.dispatchEvent(new Event('change'));});}
 function stkToggleKpiMenu(e){e.stopPropagation();ge_stk('stk-kpi-menu').classList.toggle('open');}
 document.addEventListener('click',()=>ge_stk('stk-kpi-menu')?.classList.remove('open'));
+
+// ══════════ ALISTAJE MOTOS ══════════
+const KNOWN_BRAND_COLORS={HONDA:'#cc2929',YAMAHA:'#1a56db',BAJAJ:'#dc6803',KTM:'#f97316',ZANELLA:'#16a34a',CORVEN:'#7c3aed',MOTOMEL:'#0891b2',TVS:'#059669',BETA:'#d97706',KAWASAKI:'#16a34a',SUZUKI:'#2563eb',BENELLI:'#9333ea',KOVE:'#0d9488',MORBIDELLI:'#e11d48',DUCATI:'#b91c1c',KEEWAY:'#65a30d','S Y M':'#0369a1'};
+function brandColor(m){if(KNOWN_BRAND_COLORS[m])return KNOWN_BRAND_COLORS[m];let h=0;for(let i=0;i<m.length;i++)h=(h*31+m.charCodeAt(i))%360;return`hsl(${h},55%,45%)`;}
+let MOTO_MARCAS=[];
+let mtAll=[],mtFiltered=[],mtOpSum=[],mtDaySum=[];
+let mtSortKey='total',mtSortDir=-1,mtPage=1;const MT_PP=20;
+let mtChartFilter={key:null,val:null};
+function mtSetChartFilter(key,val,displayLabel){mtChartFilter={key,val};const chip=document.getElementById('mt-chart-chip');if(chip)chip.style.display='inline-flex';const lbl=document.getElementById('mt-chart-chip-lbl');if(lbl)lbl.textContent=displayLabel||val;mtApply();}
+function mtClearChartFilter(){mtChartFilter={key:null,val:null};const chip=document.getElementById('mt-chart-chip');if(chip)chip.style.display='none';mtApply();}
+let mtHistAvg=8,mtHistN=0;
+// Promedio histórico real de motos por operario en los días que trabajó (sobre TODO el historial
+// cargado, no sobre el período filtrado) — reemplaza la meta fija manual, porque acá no hay un
+// objetivo diario único: el mismo operario reparte el día entre alistaje y recepción/despaletizado.
+function mtComputeHistAvg(){
+  const byOpDay={};
+  mtAll.forEach(r=>{if(!r._fin||!r._op)return;const k=r._op+'||'+mtYMD(r._fin);byOpDay[k]=(byOpDay[k]||0)+1;});
+  const vals=Object.values(byOpDay);
+  mtHistN=vals.length;
+  mtHistAvg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:8;
+  const el=document.getElementById('mt-cap-auto');
+  if(el)el.textContent=`Hist.: ${mtHistAvg.toFixed(1)} u/día (${mtHistN} días-op.)`;
+}
+function mtGP(){return{ops:parseFloat(document.getElementById('mt-ops').value)||2,cap:parseFloat(document.getElementById('mt-cap').value)||8};}
+function mtExportCsv(){
+  if(!mtFiltered||!mtFiltered.length){alert('No hay datos cargados para exportar.');return;}
+  const rows=mtFiltered;
+  const headers=['Fecha Finalizado','Fecha Arribo','Marca','Modelo','Operario','Chasis'];
+  const lines=[headers.join(';')];
+  rows.forEach(r=>{
+    lines.push([r._fin?mtYMD(r._fin).split('-').reverse().join('/'):'',r._arri?mtYMD(r._arri).split('-').reverse().join('/'):'',r._marca,r._modelo,r._op,r._id].map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(';'));
+  });
+  const blob=new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const from=document.getElementById('mt-dfrom').value,to=document.getElementById('mt-dto').value;
+  a.href=url;a.download=`alistaje_motos_${from||'inicio'}_a_${to||'fin'}.csv`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function mtCD(){const p=mtGP();return p.ops*p.cap;}
+
+document.getElementById('mt-fi').addEventListener('change',function(e){
+  const f=e.target.files[0];if(!f)return;ST('fn-mt',f.name);document.getElementById('fd-mt').classList.add('on');
+  document.getElementById('hdr-update').textContent='Actualizado: ahora mismo';
+  const r=new FileReader();r.onload=e=>mtParseCsv(e.target.result);r.readAsText(f,'latin-1');
+});
+function mtParseCsv(t){mtProcess(Papa.parse(t,{delimiter:'',header:true,skipEmptyLines:true}).data);}
+
+// ── Fechas: soporta dd/m/aaaa, d/mm/aaaa, con o sin hora pegada ("23/3/2026 09:05:22") ──
+function mtED(n){return new Date(Date.UTC(1899,11,30)+n*86400000);}
+function mtPD(s){if(s===null||s===undefined||s==='')return null;if(s instanceof Date)return isNaN(s)?null:s;if(typeof s==='number'){if(s>10000&&s<100000)return mtED(s);return null;}const x=s.toString().trim();if(!x||x==='null')return null;let m=x.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return new Date(+m[3],+m[2]-1,+m[1]);m=x.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3]);const d=new Date(x);return isNaN(d)?null:d;}
+function mtYMD(d){if(!d)return'';return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function mtYM(d){if(!d)return'';return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
+function mtFM(ym){if(!ym)return'';const[y,m]=ym.split('-');return`${['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+m-1]} ${y}`;}
+function mtDB(a,b){if(!a||!b)return null;return(b-a)/86400000;}
+function mtWD(from,to){if(!from||!to)return 22;let n=0,d=new Date(from);while(d<=to){if(d.getDay()!==0&&d.getDay()!==6)n++;d.setDate(d.getDate()+1);}return n||22;}
+function mtMon(dateStr){const s=typeof dateStr==='string'?dateStr:mtYMD(dateStr);const[y,m,d]=s.split('-').map(Number);const dt=new Date(y,m-1,d);const day=dt.getDay()||7;dt.setDate(dt.getDate()-day+1);return mtYMD(dt);}
+
+function mtProcess(raw){
+  mtAll=raw.map(r=>{const n={};Object.keys(r).forEach(k=>n[k.trim()]=(r[k]==null?'':r[k]).toString().trim());return n;});
+  mtAll=mtAll.filter(r=>Object.values(r).some(v=>v));
+  const keys=Object.keys(mtAll[0]||{});
+  function fc(...c){for(const x of c){const f=keys.find(k=>k.toLowerCase().includes(x.toLowerCase()));if(f)return f;}return'';}
+  // Fecha: priorizamos "Fecha Finalizado" (cuándo se terminó el alistaje) por sobre
+  // "Fecha de Pedido"/"Fecha Arribo", que aparecen antes en el CSV y "ganarían" un match genérico de "fecha".
+  const colFecha=fc('fecha finalizado','finalizado','fecha alistaje','fecha proceso','fecha carga')||fc('fecha');
+  window._mC={marca:fc('marca'),op:fc('operario'),fin:colFecha,arri:fc('fecha arribo','arribo'),id:fc('chasis','n° chasis','nro chasis','vin')||fc('interno','dominio','patente'),modelo:fc('modelo')};
+  mtAll.forEach(r=>{r._fin=mtPD(r[window._mC.fin]);r._arri=mtPD(r[window._mC.arri]);r._marca=(r[window._mC.marca]||'Sin marca').toUpperCase();r._op=(r[window._mC.op]||'Sin operario').trim();r._id=(window._mC.id?r[window._mC.id]||'':'').toString().trim().toUpperCase();r._modelo=(window._mC.modelo?r[window._mC.modelo]||'':'').toString().trim();});
+
+  const brandCount={};mtAll.forEach(r=>{brandCount[r._marca]=(brandCount[r._marca]||0)+1;});
+  MOTO_MARCAS=Object.keys(brandCount).sort((a,b)=>brandCount[b]-brandCount[a]);
+  mtComputeHistAvg();
+
+  const meses=[...new Set(mtAll.map(r=>r._fin?mtYM(r._fin):'').filter(Boolean))].sort();
+  const marcas=[...MOTO_MARCAS];
+  const ops=[...new Set(mtAll.map(r=>r._op).filter(Boolean))].sort();
+  mtFillSel('mt-smarca',marcas);mtFillSel('mt-sop',ops);
+  const ms=document.getElementById('mt-smes');ms.innerHTML='<option value="">— elegir —</option>'+meses.map(m=>`<option value="${m}">${mtFM(m)}</option>`).join('');
+  const sb=document.getElementById('mt-sb-sel');sb.innerHTML='<option value="">— Todos —</option>'+ops.map(o=>`<option value="${o}">${o}</option>`).join('');
+  document.getElementById('mt-empty').style.display='none';document.getElementById('mt-dash').style.display='block';document.getElementById('mt-fbar').style.display='flex';
+  if(meses.length){ms.value=meses[meses.length-1];mtSetMes();}
+  else{const ds=mtAll.map(r=>r._fin).filter(Boolean).sort((a,b)=>a-b);if(ds.length){document.getElementById('mt-dfrom').value=mtYMD(ds[0]);document.getElementById('mt-dto').value=mtYMD(ds[ds.length-1]);}mtApply();}
+}
+function mtFillSel(id,vals){const s=document.getElementById(id);const cv=s.value;s.innerHTML='<option value="">'+(id==='mt-smarca'?'Todas':'Todos')+'</option>'+vals.map(v=>`<option value="${v}">${v}</option>`).join('');if([...s.options].some(o=>o.value===cv))s.value=cv;}
+function mtSetMes(){const ym=document.getElementById('mt-smes').value;if(!ym)return;const[y,m]=ym.split('-').map(Number);document.getElementById('mt-dfrom').value=mtYMD(new Date(y,m-1,1));document.getElementById('mt-dto').value=mtYMD(new Date(y,m,0));mtApply();}
+function mtClear(){document.getElementById('mt-smarca').value='';document.getElementById('mt-sop').value='';document.getElementById('mt-smes').value='';const ds=mtAll.map(r=>r._fin).filter(Boolean).sort((a,b)=>a-b);if(ds.length){document.getElementById('mt-dfrom').value=mtYMD(ds[0]);document.getElementById('mt-dto').value=mtYMD(ds[ds.length-1]);}mtChartFilter={key:null,val:null};const chip=document.getElementById('mt-chart-chip');if(chip)chip.style.display='none';mtApply();}
+
+// ── Reingresos: misma moto (chasis) cargada más de una vez ──
+function mtDedupe(rows){
+  if(!window._mC||!window._mC.id)return{unique:rows,reingresos:0};
+  const seen=new Map();
+  rows.forEach((r,i)=>{const id=r._id;if(!id)return;const prev=seen.get(id);if(prev===undefined)seen.set(id,i);else{const dPrev=rows[prev]._fin,dCurr=r._fin;if(dCurr&&(!dPrev||dCurr>dPrev))seen.set(id,i);}});
+  const keepIdx=new Set(seen.values());
+  const withId=rows.filter(r=>r._id).length,uniqueIdCount=seen.size,reingresos=withId-uniqueIdCount;
+  const unique=rows.filter((r,i)=>!r._id||keepIdx.has(i));
+  return{unique,reingresos};
+}
+
+function mtApply(){
+  const marca=document.getElementById('mt-smarca').value,op=document.getElementById('mt-sop').value;
+  const from=mtPD(document.getElementById('mt-dfrom').value),to=mtPD(document.getElementById('mt-dto').value);
+  const baseRows=mtAll.filter(r=>{if(!r._fin)return false;if(marca&&r._marca!==marca)return false;if(op&&r._op!==op)return false;if(from&&r._fin<from)return false;if(to&&r._fin>new Date(to.getFullYear(),to.getMonth(),to.getDate(),23,59,59))return false;return true;});
+  mtFiltered=mtChartFilter.key&&mtChartFilter.val?baseRows.filter(r=>{const ck=mtChartFilter.key,cv=mtChartFilter.val;if(ck==='marca')return r._marca===cv;if(ck==='op')return r._op===cv;if(ck==='dia')return r._fin&&mtYMD(r._fin)===cv;return true;}):baseRows;
+  const cs=mtComputeSums(baseRows);mtOpSumChart=cs.opSum;mtDaySumChart=cs.daySum;
+  mtBuildSum();mtUpdateKPIs();mtUpdateCharts();mtSort(mtSortKey,true);
+}
+function mtComputeSums(rows){
+  const oM={};
+  rows.forEach(r=>{const op=r._op;if(!oM[op])oM[op]={operario:op,total:0,byMarca:{},dias:new Set(),ts:[]};oM[op].total++;oM[op].byMarca[r._marca]=(oM[op].byMarca[r._marca]||0)+1;if(r._fin)oM[op].dias.add(mtYMD(r._fin));const t=mtDB(r._arri,r._fin);if(t!==null&&t>=0)oM[op].ts.push(t);});
+  const from=mtPD(document.getElementById('mt-dfrom').value),to=mtPD(document.getElementById('mt-dto').value);
+  const hd=mtWD(from,to),p=mtGP();
+  const opSum=Object.values(oM).map(o=>{const ci=hd*p.cap;return{...o,diasTrab:o.dias.size,capInd:ci,rend:ci>0?o.total/ci:0,tprom:o.ts.length?o.ts.reduce((a,b)=>a+b,0)/o.ts.length:null};});
+  const dM={};rows.forEach(r=>{if(!r._fin)return;const k=mtYMD(r._fin);if(!dM[k])dM[k]={dia:k,total:0,byMarca:{}};dM[k].total++;dM[k].byMarca[r._marca]=(dM[k].byMarca[r._marca]||0)+1;});
+  const daySum=Object.values(dM).sort((a,b)=>a.dia.localeCompare(b.dia));
+  return{opSum,daySum};
+}
+let mtOpSumChart=[],mtDaySumChart=[];
+function mtBuildSum(){const{opSum,daySum}=mtComputeSums(mtFiltered);mtOpSum=opSum;mtDaySum=daySum;}
+function mtKM(val,meta,dir,fmt){const ok=dir==='>='?val>=meta:val<=meta;const w=dir==='>='?val>=meta*.75:val<=meta*1.5;const cls=ok?'bgrn':w?'born':'bred';const ic=ok?'✅':w?'⚠':'⛔';return`<span class="kbadge ${cls}">${ic} meta ${dir} ${fmt(meta)}</span>`;}
+
+function mtUpdateKPIs(){
+  const p=mtGP(),from=mtPD(document.getElementById('mt-dfrom').value),to=mtPD(document.getElementById('mt-dto').value);
+  const hd=mtWD(from,to),cap=hd*mtCD(),capD=mtCD();
+  const{unique,reingresos}=mtDedupe(mtFiltered);
+  const tot=unique.length;
+  const avgDay=mtDaySum.length?mtFiltered.length/mtDaySum.length:0,ocup=capD>0?avgDay/capD:0;
+  const avgOp=(hd*p.ops)>0?mtFiltered.length/(hd*p.ops):0,rend=cap>0?tot/cap:0;
+  const ts=mtFiltered.map(r=>mtDB(r._arri,r._fin)).filter(t=>t!==null&&t>=0);
+  const tp=ts.length?ts.reduce((a,b)=>a+b,0)/ts.length:null;
+  const diasCumplieron=mtDaySum.filter(d=>d.total>=capD).length;
+  const cumplimientoPct=mtDaySum.length>0?(diasCumplieron/mtDaySum.length)*100:0;
+  // Cobertura: días con actividad registrada sobre días hábiles del período (no depende de a quién se le cargó el trabajo)
+  const diasActivos=mtDaySum.length,coberturaPct=hd>0?(diasActivos/hd)*100:0;
+  // Marca predominante del período
+  const marcaCount={};mtFiltered.forEach(r=>{marcaCount[r._marca]=(marcaCount[r._marca]||0)+1;});
+  const marcaEntries=Object.entries(marcaCount).sort((a,b)=>b[1]-a[1]);
+  const marcaTop=marcaEntries[0]||null;
+  const marcaTopPct=marcaTop&&mtFiltered.length?(marcaTop[1]/mtFiltered.length*100):0;
+  const pcts=mtDaySum.map(d=>+(d.total/capD*100).toFixed(1));
+  const dlyTots=mtDaySum.map(d=>d.total);
+  setSpark('sp-mt-total',dlyTots,'#f97316');setSpark('sp-mt-rend',pcts,'#22c55e');
+  let prevTotM=null,prevRendM=null,prevTpM=null,prevDiasM=null;
+  {const fromDate=mtPD(document.getElementById('mt-dfrom').value);
+  if(fromDate){const prevEnd=new Date(fromDate.getFullYear(),fromDate.getMonth(),0);const prevStart=new Date(prevEnd.getFullYear(),prevEnd.getMonth(),1);
+    const marca2=document.getElementById('mt-smarca').value,op2=document.getElementById('mt-sop').value;
+    const prevData=mtAll.filter(r=>{if(!r._fin)return false;if(marca2&&r._marca!==marca2)return false;if(op2&&r._op!==op2)return false;return r._fin>=prevStart&&r._fin<=new Date(prevEnd.getFullYear(),prevEnd.getMonth(),prevEnd.getDate(),23,59,59);});
+    if(prevData.length){const prevDedup=mtDedupe(prevData);prevTotM=prevDedup.unique.length;const prevHD=mtWD(prevStart,prevEnd);const prevCap=prevHD*mtCD();prevRendM=prevCap>0?prevTotM/prevCap:0;const prevTs=prevData.map(r=>mtDB(r._arri,r._fin)).filter(t=>t!==null&&t>=0);prevTpM=prevTs.length?prevTs.reduce((a,b)=>a+b,0)/prevTs.length:null;const prevDM={};prevData.forEach(r=>{if(r._fin){const k2=mtYMD(r._fin);prevDM[k2]=(prevDM[k2]||0)+1;}});const prevDCount=Object.keys(prevDM).length;const prevCumplCount=Object.values(prevDM).filter(v=>v>=capD).length;prevDiasM=prevDCount>0?prevCumplCount/prevDCount*100:null;}
+  }}
+  [['total',tot,prevTotM],['rend',rend,prevRendM]].forEach(([k,cur,prev])=>{const tr=momTrend(cur,prev);const el=document.getElementById('sp-mt-'+k+'-t');if(el){el.textContent=tr.txt;el.className=tr.cls;}});
+  {const diffEl=document.getElementById('sp-mt-total-diff');if(diffEl){if(prevTotM!==null&&prevTotM!==undefined){const d=tot-prevTotM;const sign=d>=0?'+':'';diffEl.textContent=`· ${sign}${d} u`;diffEl.style.color=d>=0?'var(--green)':'var(--red)';}else{diffEl.textContent='';}}}
+  const runCumpl=mtDaySum.map((d,i)=>{const sl=mtDaySum.slice(0,i+1);return Math.round(sl.filter(x=>x.total>=capD).length/sl.length*100);});
+  setSpark('sp-mt-dias',runCumpl,'#3b82f6');const trD=momTrendAbsPp(cumplimientoPct,prevDiasM);const elD=document.getElementById('sp-mt-dias-t');if(elD){elD.textContent=trD.txt;elD.className=trD.cls;}
+  const dTpMap={};mtFiltered.forEach(r=>{if(!r._fin)return;const k=mtYMD(r._fin);const t=mtDB(r._arri,r._fin);if(t!==null&&t>=0){if(!dTpMap[k])dTpMap[k]=[];dTpMap[k].push(t);}});
+  const dTpVals=mtDaySum.map(d=>{const a=dTpMap[d.dia];return a&&a.length?a.reduce((x,y)=>x+y,0)/a.length:null;}).filter(v=>v!==null);
+  if(dTpVals.length>=2)setSpark('sp-mt-tiempo',dTpVals,'#f59e0b');
+  const tiempoTr=tp!==null?momTrend(tp,prevTpM):{txt:'Sin datos',cls:'trend-nt'};const elT=document.getElementById('sp-mt-tiempo-t');if(elT){elT.textContent=tiempoTr.txt;elT.className=tiempoTr.cls;}
+  ST('mt-k-total',tot.toLocaleString('es-AR'));
+  ST('mt-k-total-s',reingresos>0?`${hd} días hábiles · ${reingresos} reingreso${reingresos!==1?'s':''} excluido${reingresos!==1?'s':''}`:`${hd} días hábiles · ${mtDaySum.length} con actividad`);
+  ST('mt-k-rend',(rend*100).toFixed(1)+'%');document.getElementById('mt-k-rend-m').innerHTML=mtKM(rend,.85,'>=',v=>(v*100).toFixed(0)+'%');
+  const rf=document.getElementById('mt-rend-fill');rf.style.width=Math.min(rend*100,100)+'%';rf.style.background=rend>=.85?'var(--green)':rend>=.65?'var(--orange)':'var(--red)';
+  ST('mt-k-tiempo',tp!==null?tp.toFixed(1):'—');document.getElementById('mt-k-tiempo-m').innerHTML=tp!==null?mtKM(tp,3,'<=',v=>v.toFixed(0)+' d'):'<span class="kbadge">sin datos</span>';
+  const cumplColor=cumplimientoPct>=80?'var(--green)':cumplimientoPct>=60?'var(--orange)':'var(--red)';
+  const cumplBadge=cumplimientoPct>=80?'bgrn':cumplimientoPct>=60?'born':'bred';
+  const cumplIco=cumplimientoPct>=80?'✅':cumplimientoPct>=60?'⚠':'⛔';
+  document.getElementById('mt-ck-dias').style.setProperty('--kc',cumplColor);
+  ST('mt-k-dias',cumplimientoPct.toFixed(0)+'%');
+  ST('mt-k-dias-s',`${diasCumplieron} de ${mtDaySum.length} días cumplieron la meta`);
+  document.getElementById('mt-k-dias-m').innerHTML=`<span class="kbadge ${cumplBadge}">${cumplIco} meta ≥ 80%</span>`;
+  const cobColor=coberturaPct>=80?'var(--green)':coberturaPct>=50?'var(--orange)':'var(--red)';
+  document.getElementById('mt-ck-cob').style.setProperty('--kc',cobColor);
+  ST('mt-k-cob',diasActivos);
+  ST('mt-k-cob-s',`${diasActivos} de ${hd} días hábiles (${coberturaPct.toFixed(0)}%)`);
+  if(marcaTop){ST('mt-k-marcatop',marcaTop[0]);ST('mt-k-marcatop-s',`${marcaTop[1]} unidades · ${marcaTopPct.toFixed(0)}% del período`);}
+  else{ST('mt-k-marcatop','—');ST('mt-k-marcatop-s','Sin datos');}
+  ST('mt-k-avgop',avgOp.toFixed(2));document.getElementById('mt-k-avgop-m').innerHTML=mtKM(avgOp,p.cap,'>=',v=>v.toFixed(0));
+  ST('mt-k-capd',capD.toFixed(1));ST('mt-k-capd-s',`${p.ops} op × ${p.cap} u/día · hist.: ${mtHistAvg.toFixed(1)} u/día`);
+  const al=[];
+  al.push({c:rend>=.85?'var(--green)':rend>=.65?'var(--orange)':'var(--red)',i:'🎯',t:'Rendimiento: '+(rend*100).toFixed(1)+'%',s:rend>=.85?'Excelente · meta superada (85%)':rend>=.65?'Aceptable · hay margen de mejora':'Bajo rendimiento – atención requerida'});
+  al.push({c:ocup>=.85?'var(--green)':ocup>=.65?'var(--orange)':'var(--red)',i:'📊',t:'Ocupación diaria: '+(ocup*100).toFixed(1)+'%',s:ocup>=.85?'Operación eficiente en el período':ocup>=.65?'Nivel medio – puede mejorar':'Baja ocupación diaria'});
+  if(tp!==null)al.push({c:tp<=3?'var(--green)':tp<=6?'var(--orange)':'var(--red)',i:'⏱',t:'Tiempo prom.: '+tp.toFixed(1)+' días',s:tp<=3?'Dentro del objetivo (≤ 3 días)':tp<=6?'Levemente elevado':'Tiempo excesivo – revisar proceso'});
+  else al.push({c:'var(--text-dim)',i:'⏱',t:'Tiempo promedio sin datos',s:'No hay fechas de arribo en el reporte'});
+  al.push({c:cumplimientoPct>=80?'var(--green)':cumplimientoPct>=60?'var(--orange)':'var(--red)',i:'🎯',t:'Cumplimiento: '+cumplimientoPct.toFixed(0)+'% ('+diasCumplieron+'/'+mtDaySum.length+' días)',s:cumplimientoPct>=80?'Excelente · objetivo superado':cumplimientoPct>=60?'Aceptable · hay margen de mejora':'Bajo cumplimiento – atención requerida'});
+  if(reingresos>0)al.push({c:'var(--purple)',i:'🔁',t:reingresos+' reingreso'+(reingresos!==1?'s':'')+' detectado'+(reingresos!==1?'s':''),s:'Mismo chasis cargado más de una vez · excluido del conteo de unidades'});
+  document.getElementById('mt-alerts').innerHTML=al.map(a=>`<div class="acard" style="--ac:${a.c}"><div class="aiw">${a.i}</div><div><div class="atitle">${a.t}</div><div class="asub">${a.s}</div></div></div>`).join('');
+  const weekMap={};mtDaySum.forEach(d=>{const k=mtMon(d.dia);if(!weekMap[k])weekMap[k]={total:0,days:0,from:d.dia,to:d.dia};weekMap[k].total+=d.total;weekMap[k].days++;if(d.dia>weekMap[k].to)weekMap[k].to=d.dia;});
+  const weeks=Object.entries(weekMap).sort((a,b)=>a[0].localeCompare(b[0])).slice(-4);
+  document.getElementById('mt-tend-grid').innerHTML=weeks.map(([,wd],i)=>{
+    const tc=wd.days*capD,r=tc>0?(wd.total/tc)*100:0;const prev=i>0?weeks[i-1][1]:null;
+    const pr=prev?(prev.total/(prev.days*capD)*100):null;const diff=pr!==null?r-pr:null;
+    const f=wd.from.split('-').slice(1).reverse().join('/'),t2=wd.to.split('-').slice(1).reverse().join('/');
+    const cls=r>=85?'grn':r>=65?'orn':'red';
+    const diffTxt=diff!==null?`<span class="tarr">${diff>=0?'↑':'↓'}</span>vs sem. ant.: ${diff>=0?'+':''}${diff.toFixed(1)} pp`:'Primera semana';
+    return`<div class="tcard"><div class="trange">${f} - ${t2}</div><div class="tval ${cls}">${r.toFixed(1)}%</div><div class="tdelta">${diffTxt}</div></div>`;
+  }).join('')||'<div class="tcard"><div class="trange">Sin datos</div></div>';
+  // Sidebar: info de filtros activos (compartida con las otras pestañas)
+  const dv=document.getElementById('mt-dfrom').value,hv=document.getElementById('mt-dto').value;
+  if(dv&&hv)ST('sb-periodo',dv.split('-').reverse().join('/')+' - '+hv.split('-').reverse().join('/'));
+  const mSel=document.getElementById('mt-smarca').value;ST('sb-marca',mSel||'Todas');
+  mtRenderOpHeatmap();
+}
+
+function mtUpdateCharts(){
+  const{grid,lbl}=gc(),capD=mtCD();
+  const chartLabels=mtDaySumChart.map(d=>{const[,m,dd]=d.dia.split('-');return`${dd}/${m}`;});
+  DC('mt-c-rend-line');const re=document.getElementById('mt-c-rend-line');
+  if(re){
+    const pcts=mtDaySum.map(d=>+(d.total/capD*100).toFixed(1));
+    const avgR=pcts.length?pcts.reduce((a,b)=>a+b,0)/pcts.length:0;
+    const maxRI=pcts.indexOf(Math.max(...pcts)),minRI=pcts.indexOf(Math.min(...pcts));
+    ST('mt-cs-avgr',avgR.toFixed(1)+'%');
+    ST('mt-cs-best',pcts[maxRI]!==undefined?pcts[maxRI].toFixed(1)+'%':'—');ST('mt-cs-best-d',mtDaySum[maxRI]?mtDaySum[maxRI].dia.split('-').slice(1).reverse().join('/'):'');
+    ST('mt-cs-worst',pcts[minRI]!==undefined?pcts[minRI].toFixed(1)+'%':'—');ST('mt-cs-worst-d',mtDaySum[minRI]?mtDaySum[minRI].dia.split('-').slice(1).reverse().join('/'):'');
+    const dc=pcts.filter(p=>p>=100).length;ST('mt-cs-dcap',dc);ST('mt-cs-dcap-s',mtDaySum.length>0?(dc/mtDaySum.length*100).toFixed(0)+'% del período':'');
+    AC['mt-c-rend-line']=new Chart(re,{type:'line',data:{labels:chartLabels,datasets:[
+      {label:'Rendimiento (%)',data:mtDaySumChart.map(d=>+(d.total/capD*100).toFixed(1)),borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.06)',fill:true,tension:0.35,pointRadius:2,pointHoverRadius:5,borderWidth:2},
+      {label:'Capacidad (100%)',data:chartLabels.map(()=>100),borderColor:'rgba(100,116,139,0.4)',borderDash:[5,4],borderWidth:1.5,pointRadius:0,fill:false}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:lbl,font:{size:10},boxWidth:10,padding:8}},tooltip:{mode:'index',intersect:false}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:40,font:{size:10}}},y:{grid:{color:grid},ticks:{color:lbl,callback:v=>v+'%'}}}}});
+    ST('mt-periodo-lbl',mtFM(document.getElementById('mt-dfrom').value.slice(0,7)||''));
+  }
+  DC('mt-c-daily-bars');const db=document.getElementById('mt-c-daily-bars');
+  if(db){
+    const tots=mtDaySumChart.map(d=>d.total);
+    const totsKpi=mtDaySum.map(d=>d.total);
+    const avgD=totsKpi.length?totsKpi.reduce((a,b)=>a+b,0)/totsKpi.length:0;
+    ST('mt-cs-avgd',avgD.toFixed(1));ST('mt-cs-totd',mtDaySumChart.length);
+    ST('mt-cs-maxd',tots[tots.indexOf(Math.max(...tots))]||'—');ST('mt-cs-maxd-d',mtDaySumChart[tots.indexOf(Math.max(...tots))]?mtDaySumChart[tots.indexOf(Math.max(...tots))].dia.split('-').slice(1).reverse().join('/'):'');
+    ST('mt-cs-mind',tots[tots.indexOf(Math.min(...tots))]||'—');ST('mt-cs-mind-d',mtDaySumChart[tots.indexOf(Math.min(...tots))]?mtDaySumChart[tots.indexOf(Math.min(...tots))].dia.split('-').slice(1).reverse().join('/'):'');
+    const isFilteredDia=mtChartFilter.key==='dia';
+    const dBgColors=mtDaySumChart.map((d,i)=>{const baseColor=tots[i]>=capD?[34,197,94]:tots[i]>=capD*.75?[245,158,11]:[239,68,68];const alpha=isFilteredDia?(mtChartFilter.val===d.dia?.9:.2):.75;return`rgba(${baseColor.join(',')},${alpha})`;});
+    AC['mt-c-daily-bars']=new Chart(db,{type:'bar',data:{labels:chartLabels,datasets:[{data:tots,backgroundColor:dBgColors,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} alistadas`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:40,font:{size:10}}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const d=mtDaySumChart[els[0].index];if(!d)return;const dia=d.dia;const diaDisp=dia.split('-').slice(1).reverse().join('/');if(mtChartFilter.key==='dia'&&mtChartFilter.val===dia)mtClearChartFilter();else mtSetChartFilter('dia',dia,diaDisp);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
+  }
+  DC('mt-c-op');const opEl=document.getElementById('mt-c-op');
+  if(opEl){const opS=[...mtOpSumChart].sort((a,b)=>b.total-a.total);const opL=opS.map(o=>o.operario.split(' ').slice(0,2).join(' '));
+    const isFilteredOp=mtChartFilter.key==='op';
+    const opAlpha=(i)=>isFilteredOp?(mtChartFilter.val===opS[i].operario?.9:.2):.8;
+    AC['mt-c-op']=new Chart(opEl,{type:'bar',data:{labels:opL,datasets:[{label:'Total',data:opS.map(o=>o.total),backgroundColor:opS.map((_,i)=>`rgba(249,115,22,${opAlpha(i)})`),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:grid},ticks:{color:lbl}},y:{grid:{display:false},ticks:{color:lbl,font:{size:10}}}},onClick(evt,els){if(!els.length)return;const op=opS[els[0].index]?.operario;if(!op)return;const opShort=op.split(' ').slice(0,2).join(' ');if(mtChartFilter.key==='op'&&mtChartFilter.val===op)mtClearChartFilter();else mtSetChartFilter('op',op,opShort);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});}
+  DC('mt-c-marca');const mc=document.getElementById('mt-c-marca');
+  if(mc){
+    const md=MOTO_MARCAS.map(m=>mtOpSumChart.reduce((sum,o)=>sum+(o.byMarca[m]||0),0));
+    const isFilteredMarca=mtChartFilter.key==='marca';
+    const baseColors=MOTO_MARCAS.map(m=>brandColor(m));
+    const mBgColors=baseColors.map((c,i)=>{if(!isFilteredMarca)return c+'d9';return mtChartFilter.val===MOTO_MARCAS[i]?c:c+'33';});
+    AC['mt-c-marca']=new Chart(mc,{type:'doughnut',data:{labels:MOTO_MARCAS,datasets:[{data:md,backgroundColor:mBgColors,borderColor:'#ffffff00',borderWidth:1,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{color:lbl,font:{size:10},boxWidth:10,padding:6}},tooltip:{callbacks:{label:ctx=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return` ${ctx.raw} (${t?(ctx.raw/t*100).toFixed(1):0}%)`;}}}},onClick(evt,els){if(!els.length)return;const m=MOTO_MARCAS[els[0].index];if(mtChartFilter.key==='marca'&&mtChartFilter.val===m)mtClearChartFilter();else mtSetChartFilter('marca',m,m);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});}
+  DC('mt-c-oprend');const or=document.getElementById('mt-c-oprend');
+  if(or){const opS=[...mtOpSumChart].sort((a,b)=>b.total-a.total);const opL=opS.map(o=>o.operario.split(' ').slice(0,2).join(' '));
+    const isFilteredOp2=mtChartFilter.key==='op';
+    AC['mt-c-oprend']=new Chart(or,{type:'bar',data:{labels:opL,datasets:[{data:opS.map(o=>+(o.rend*100).toFixed(1)),backgroundColor:opS.map((o,i)=>{const base=o.rend>=.85?'rgba(34,197,94,':o.rend>=.65?'rgba(245,158,11,':'rgba(239,68,68,';const alpha=isFilteredOp2?(mtChartFilter.val===o.operario?.9:.2):.8;return base+alpha+')'}),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw}%`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,callback:v=>v+'%'},max:130},y:{grid:{display:false},ticks:{color:lbl,font:{size:10}}}},onClick(evt,els){if(!els.length)return;const op=opS[els[0].index]?.operario;if(!op)return;const opShort=op.split(' ').slice(0,2).join(' ');if(mtChartFilter.key==='op'&&mtChartFilter.val===op)mtClearChartFilter();else mtSetChartFilter('op',op,opShort);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});}
+  mtRenderDT();mtUpdateSB();
+}
+let mtDispOps=[];
+function mtSort(key,noToggle){
+  if(!noToggle){if(mtSortKey===key)mtSortDir*=-1;else{mtSortKey=key;mtSortDir=-1;}}
+  document.querySelectorAll('thead th[id^=mt-th-]').forEach(th=>{th.classList.remove('sort-asc','sort-desc');if(th.id.replace('mt-th-','')===mtSortKey.replace('operario','op').replace('total','tot').replace('diasTrab','dias'))th.classList.add(mtSortDir===1?'sort-asc':'sort-desc');});
+  const sorted=[...mtOpSum].sort((a,b)=>{let av=a[mtSortKey],bv=b[mtSortKey];if(typeof av==='number')return(av-bv)*mtSortDir;return String(av||'').localeCompare(String(bv||''))*mtSortDir;});
+  const q=document.getElementById('mt-search').value.toLowerCase();
+  mtDispOps=q?sorted.filter(o=>o.operario.toLowerCase().includes(q)):sorted;
+  ST('mt-tbl-cnt',`(${mtDispOps.length})`);mtPage=1;mtRT();
+}
+function mtRT(){
+  const total=mtDispOps.length,pages=Math.max(1,Math.ceil(total/MT_PP));
+  if(mtPage>pages)mtPage=pages;
+  ST('mt-pag-info',`${mtPage}/${pages}`);
+  document.getElementById('mt-prev').disabled=mtPage<=1;document.getElementById('mt-next').disabled=mtPage>=pages;
+  const sl=mtDispOps.slice((mtPage-1)*MT_PP,mtPage*MT_PP);const mx=mtDispOps.length?Math.max(...mtDispOps.map(x=>x.total)):1;
+  document.getElementById('mt-tbl-body').innerHTML=sl.map(o=>{
+    const rc=o.rend>=.85?'rok':o.rend>=.65?'rmed':'rbad';const bw=Math.round((o.total/mx)*60);
+    return`<tr onclick="mtUpdateSBfor('${o.operario.replace(/'/g,"\\'")}')"><td style="cursor:pointer;font-weight:500">${o.operario}</td><td style="font-weight:700;font-size:15px">${o.total}<span class="bseg" style="width:${bw}px"></span></td><td><span class="rpill ${rc}">${(o.rend*100).toFixed(0)}%</span></td><td style="font-weight:600">${o.diasTrab}</td><td><button class="pbtn" style="font-size:11px" onclick="event.stopPropagation();mtUpdateSBfor('${o.operario.replace(/'/g,"\\'")}')">Ver</button></td></tr>`;
+  }).join('')||'<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-dim)">Sin resultados</td></tr>';
+}
+function mtCP(d){mtPage+=d;mtRT();}
+function mtUpdateSBfor(op){document.getElementById('mt-sb-sel').value=op;mtUpdateSB();}
+function mtRenderDT(){
+  const capD=mtCD();ST('mt-tbl2-cnt',`(${mtDaySum.length} días)`);
+  document.getElementById('mt-tbl2-body').innerHTML=mtDaySum.map(d=>{
+    const p=capD>0?d.total/capD:0;const em=p>=1?'🟢':p>=.75?'🟡':'🔴';
+    return`<tr><td style="font-weight:600">${d.dia.split('-').reverse().join('/')}</td><td style="font-weight:800;font-size:15px">${d.total}</td><td style="color:var(--text-dim)">${capD}</td><td>${em} <span class="rpill ${p>=1?'rok':p>=.75?'rmed':'rbad'}">${(p*100).toFixed(0)}%</span></td></tr>`;
+  }).join('')||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-dim)">Sin datos</td></tr>';
+}
+function mtUpdateSB(){
+  const sel=document.getElementById('mt-sb-sel').value;
+  const from=mtPD(document.getElementById('mt-dfrom').value),to=mtPD(document.getElementById('mt-dto').value);
+  const hd=mtWD(from,to),capD=mtCD();
+  const op=sel?mtOpSum.find(o=>o.operario===sel):null;
+  const genByMarca={};mtFiltered.forEach(r=>{genByMarca[r._marca]=(genByMarca[r._marca]||0)+1;});
+  const rd=op||{operario:'General',total:mtFiltered.length,byMarca:genByMarca,diasTrab:mtDaySum.length,rend:mtFiltered.length/(hd*mtCD())||0,capInd:hd*capD,tprom:null};
+  document.getElementById('mt-sb-av').textContent=sel?sel.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase():'👤';
+  ST('mt-sb-name',sel?sel.split(' ').slice(0,2).join(' '):'General');
+  const avgPD=rd.diasTrab>0?(rd.total/rd.diasTrab).toFixed(1):'—';
+  ST('mt-sb-tot',rd.total);ST('mt-sb-avg',avgPD);
+  const badge=document.getElementById('mt-sb-badge');
+  if(rd.rend>=.85){badge.textContent='✅ ALTO VOLUMEN';badge.className='kbadge bgrn';}
+  else if(rd.rend>=.65){badge.textContent='⚡ NORMAL';badge.className='kbadge born';}
+  else{badge.textContent='⚠ BAJO';badge.className='kbadge bred';}
+  const topMarcas=Object.entries(rd.byMarca).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const mLbls=topMarcas.map(([m])=>m),mVals=topMarcas.map(([,v])=>v),mClrs=topMarcas.map(([m])=>brandColor(m));
+  DC('mt-sb-marca');const smc=document.getElementById('mt-sb-marca');
+  if(smc&&mVals.some(v=>v>0))AC['mt-sb-marca']=new Chart(smc,{type:'doughnut',data:{labels:mLbls,datasets:[{data:mVals,backgroundColor:mClrs.map(c=>c+'cc'),borderColor:mClrs,borderWidth:2,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{boxWidth:9,padding:6,font:{size:10}}},tooltip:{callbacks:{label:ctx=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return` ${ctx.raw} (${t?(ctx.raw/t*100).toFixed(0):0}%)`;}}}}}});
+  const rp=rd.rend*100,rpBar=Math.min(rp,130);
+  const rb=document.getElementById('mt-sb-rbar');if(rb){rb.style.width=(rpBar/130*100)+'%';rb.style.background=rp>=100?'#22c55e':rp>=75?'#f59e0b':'#ef4444';}
+  const rl=document.getElementById('mt-sb-rpct');if(rl)rl.textContent=rp.toFixed(1)+'%';
+  const rll=document.getElementById('mt-sb-rlbl');if(rll)rll.textContent=rp>=100?'Muy por encima del promedio':rp>=85?'Por encima del promedio':rp>=65?'En el promedio':'Por debajo del promedio';
+  ST('mt-sb-cap',rd.capInd.toLocaleString('es-AR')+' motos');ST('mt-sb-real',rd.total.toLocaleString('es-AR')+' motos');
+  const totalDays=mtDaySum.length;
+  ST('mt-sb-dias',rd.diasTrab);ST('mt-sb-diasmax','de '+totalDays+' días');
+  ST('mt-sb-diaspct',totalDays>0?(rd.diasTrab/totalDays*100).toFixed(0)+'% del período':'—');
+  const rows=sel?mtFiltered.filter(r=>r._op===sel):mtFiltered;
+  const byDay={};rows.forEach(r=>{if(!r._fin)return;const k=mtYMD(r._fin);byDay[k]=(byDay[k]||0)+1;});
+  const recent=Object.entries(byDay).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,5);
+  document.getElementById('mt-sb-act').innerHTML=recent.map(([d,cnt])=>`<div class="actrow"><span class="actf">${d.split('-').reverse().join('/')}</span><span class="actm">${cnt} alist.</span></div>`).join('')||'<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:10px 0">Sin actividad</div>';
+}
+function mtRenderOpHeatmap(){
+  const el=document.getElementById('mt-op-heatmap');
+  if(!el)return;
+  if(!mtFiltered.length){el.innerHTML='<div style="text-align:center;color:var(--text-dim);font-size:12px;padding:20px">Sin datos cargados</div>';return;}
+  const p=mtGP(),capInd=p.cap;
+  const wdMap={};
+  mtDaySum.forEach(d=>{const w=mtMon(d.dia);if(!wdMap[w])wdMap[w]=new Set();wdMap[w].add(d.dia);});
+  const weeks=Object.keys(wdMap).sort().slice(-10);
+  if(!weeks.length){el.innerHTML='<div style="text-align:center;color:var(--text-dim);font-size:12px;padding:20px">Sin datos semanales suficientes</div>';return;}
+  const ops=[...new Set(mtFiltered.map(r=>r._op))].filter(Boolean).sort();
+  const mat={};
+  ops.forEach(op=>{mat[op]={};weeks.forEach(w=>{mat[op][w]=0;});});
+  mtFiltered.forEach(r=>{if(!r._fin||!r._op)return;const w=mtMon(mtYMD(r._fin));if(weeks.includes(w)&&mat[r._op])mat[r._op][w]++;});
+  const thS='font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);padding:5px 3px;text-align:center;border-bottom:1px solid var(--border);';
+  const nmS='font-size:11px;font-weight:600;color:var(--text);padding:6px 10px 6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;border-bottom:1px solid var(--border);';
+  const wkLbls=weeks.map(w=>{const[,m,d]=w.split('-');return`${d}/${m}`;});
+  let html=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:separate;border-spacing:3px">
+    <thead><tr>
+      <th style="${thS}text-align:left;min-width:110px">Operario</th>
+      ${wkLbls.map((l,i)=>`<th style="${thS}" title="Semana del ${weeks[i]}">${l}</th>`).join('')}
+      <th style="${thS}">Total</th>
+    </tr></thead><tbody>`;
+  ops.forEach(op=>{
+    const sn=op.split(' ').filter(x=>x.length>2).slice(0,2).join(' ');
+    let rowTot=0;
+    const cells=weeks.map(w=>{
+      const cnt=mat[op][w];rowTot+=cnt;
+      const wd=wdMap[w]?wdMap[w].size:0,cap=wd*capInd;
+      if(!cnt||!cap)return`<td style="padding:2px"><div style="padding:8px 4px;border-radius:7px;background:var(--surface2);text-align:center;font-size:10px;color:var(--text-dim)">—</div></td>`;
+      const pct=cnt/cap*100;
+      const[bg,tc]=pct>=85?['rgba(34,197,94,.15)','#22c55e']:pct>=65?['rgba(245,158,11,.15)','#f59e0b']:['rgba(239,68,68,.15)','#ef4444'];
+      return`<td style="padding:2px" title="${op} · ${w}: ${cnt} alist. (${pct.toFixed(0)}%)"><div style="padding:8px 4px;border-radius:7px;background:${bg};border:1px solid ${tc}44;text-align:center"><div style="font-size:12px;font-weight:800;color:${tc}">${pct.toFixed(0)}%</div><div style="font-size:9px;font-weight:600;color:${tc};opacity:.8;margin-top:1px">${cnt}u</div></div></td>`;
+    });
+    html+=`<tr><td style="${nmS}" title="${op}">${sn}</td>${cells.join('')}<td style="padding:2px"><div style="padding:8px 4px;border-radius:7px;background:var(--surface2);text-align:center;font-size:13px;font-weight:800;color:var(--text)">${rowTot}</div></td></tr>`;
+  });
+  html+='</tbody></table></div>';
+  html+=`<div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-dim)"><div style="width:10px;height:10px;border-radius:3px;background:#22c55e;flex-shrink:0"></div>≥ 85% · Excelente</div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-dim)"><div style="width:10px;height:10px;border-radius:3px;background:#f59e0b;flex-shrink:0"></div>65–84% · Aceptable</div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-dim)"><div style="width:10px;height:10px;border-radius:3px;background:#ef4444;flex-shrink:0"></div>&lt; 65% · Bajo</div>
+  </div>`;
+  el.innerHTML=html;
+}
+
 </script>
 <!-- ══ STOCK: VEHICLE DETAIL PANEL ══ -->
 <div class="overlay" id="stk-overlay" onclick="stkCloseVehicle()"></div>
