@@ -1512,6 +1512,19 @@ tbody tr:hover td{background:var(--surface2);}
 
 <!-- ══ TAB STOCK MOTOS ══ -->
 <div id="tab-smoto" style="display:none">
+  <div class="fbar" id="smt-fbar" style="display:none">
+    <div class="fgroup"><div class="flbl">Marca</div><select id="smt-f-marca" onchange="smtApply()"><option value="">Todas</option></select></div>
+    <div class="fdiv"></div>
+    <div class="fgroup"><div class="flbl">Estado</div><select id="smt-f-estado" onchange="smtApply()"><option value="">Todos</option></select></div>
+    <div class="fdiv"></div>
+    <div class="fgroup"><div class="flbl">Arribo desde</div><input type="date" id="smt-fdfrom" onchange="smtApply()"></div>
+    <div class="fgroup"><div class="flbl">Arribo hasta</div><input type="date" id="smt-fdto" onchange="smtApply()"></div>
+    <div class="fdiv"></div>
+    <div class="fgroup"><div class="flbl">Mes rápido</div><select id="smt-fsmes" onchange="smtSetMes()"><option value="">— elegir —</option></select></div>
+    <div class="fdiv"></div>
+    <div class="fgroup"><div class="flbl">Ubicación</div><select id="smt-f-ubic" onchange="smtApply()"><option value="">Todas</option></select></div>
+    <button class="clrbtn" onclick="smtClear()" style="margin-left:auto;align-self:flex-end">↺ Limpiar</button>
+  </div>
   <div class="pw">
     <div class="empty-st" id="smt-empty">
       <div class="ei">🏍️</div>
@@ -1545,11 +1558,7 @@ tbody tr:hover td{background:var(--surface2);}
           <div class="cc" style="margin-bottom:28px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
               <div class="ctitle" style="margin:0">Unidades en stock <span id="smt-tbl-cnt" style="font-weight:400;color:var(--text-dim)"></span></div>
-              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                <select id="smt-f-marca" onchange="smtApply()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;outline:none"><option value="">Todas las marcas</option></select>
-                <select id="smt-f-estado" onchange="smtApply()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;outline:none"><option value="">Todos los estados</option></select>
-                <input type="text" id="smt-search" placeholder="Buscar…" oninput="smtRenderTable()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;width:160px;outline:none">
-              </div>
+              <input type="text" id="smt-search" placeholder="Buscar dominio, chasis, cliente…" oninput="smtRenderTable()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;width:240px;outline:none">
             </div>
             <div style="display:flex;gap:12px;margin-bottom:8px;font-size:10px;color:var(--text-dim)">
               <span>🔴 ≥ días crítico</span><span>🟡 ≥ días alerta</span><span>🟢 Normal</span>
@@ -3981,35 +3990,62 @@ function smtProcess(raw){
     r._ubicacion=r[cols.ubicacion]||'';
     r._cliente=r[cols.cliente]||'';
     r._color=r[cols.color]||'';
-    // Días: intentamos calcular desde fecha arribo; si no, usamos el campo días del sistema
+    r._arribo=cols.arribo?mtPD(r[cols.arribo]):null;
     let d=null;
-    if(cols.arribo&&r[cols.arribo]){
-      const arr=mtPD(r[cols.arribo]);// reutilizamos el parser de motos
-      if(arr)d=Math.floor((hoy-arr)/86400000);
-    }
-    if(d===null&&cols.dias&&r[cols.dias]){
-      const parsed=parseInt((r[cols.dias]||'').replace(/[^\d]/g,''));
-      if(!isNaN(parsed))d=parsed;
-    }
+    if(r._arribo)d=Math.floor((hoy-r._arribo)/86400000);
+    if(d===null&&cols.dias&&r[cols.dias]){const p=parseInt((r[cols.dias]||'').replace(/[^\d]/g,''));if(!isNaN(p))d=p;}
     r._dias=d!==null&&d>=0?d:null;
   });
-  // Poblar filtros
+  // Poblar filtros fbar
   const marcas=[...new Set(smtAll.map(r=>r._marca))].sort();
   const estados=[...new Set(smtAll.map(r=>r._estado))].sort();
-  const mSel=document.getElementById('smt-f-marca');const eSel=document.getElementById('smt-f-estado');
-  if(mSel)mSel.innerHTML='<option value="">Todas las marcas</option>'+marcas.map(m=>`<option value="${m}">${m}</option>`).join('');
-  if(eSel)eSel.innerHTML='<option value="">Todos los estados</option>'+estados.map(e=>`<option value="${e}">${e}</option>`).join('');
+  const ubicaciones=[...new Set(smtAll.map(r=>r._ubicacion).filter(Boolean))].sort();
+  const meses=[...new Set(smtAll.map(r=>r._arribo?mtYM(r._arribo):'').filter(Boolean))].sort();
+  function fillSel(id,opts,all){const s=document.getElementById(id);if(!s)return;s.innerHTML=`<option value="">${all}</option>`+opts.map(o=>`<option value="${o}">${o}</option>`).join('');}
+  fillSel('smt-f-marca',marcas,'Todas');
+  fillSel('smt-f-estado',estados,'Todos');
+  fillSel('smt-f-ubic',ubicaciones,'Todas');
+  const ms=document.getElementById('smt-fsmes');
+  if(ms)ms.innerHTML='<option value="">— elegir —</option>'+meses.map(m=>`<option value="${m}">${mtFM(m)}</option>`).join('');
+  // Rango de fechas por defecto: todo el historial
+  const arriboFechas=smtAll.map(r=>r._arribo).filter(Boolean).sort((a,b)=>a-b);
+  if(arriboFechas.length){
+    const fd=document.getElementById('smt-fdfrom'),ft=document.getElementById('smt-fdto');
+    if(fd&&!fd.value)fd.value=mtYMD(arriboFechas[0]);
+    if(ft&&!ft.value)ft.value=mtYMD(arriboFechas[arriboFechas.length-1]);
+  }
+  document.getElementById('smt-fbar').style.display='flex';
   document.getElementById('smt-empty').style.display='none';
   document.getElementById('smt-dash').style.display='block';
   smtApply();
 }
 function smtRecalc(){smtApply();}
+function smtSetMes(){
+  const ym=document.getElementById('smt-fsmes')?.value;if(!ym)return;
+  const[y,m]=ym.split('-').map(Number);
+  document.getElementById('smt-fdfrom').value=mtYMD(new Date(y,m-1,1));
+  document.getElementById('smt-fdto').value=mtYMD(new Date(y,m,0));
+  smtApply();
+}
+function smtClear(){
+  ['smt-f-marca','smt-f-estado','smt-f-ubic','smt-fsmes'].forEach(id=>{const s=document.getElementById(id);if(s)s.value='';});
+  const arriboFechas=smtAll.map(r=>r._arribo).filter(Boolean).sort((a,b)=>a-b);
+  if(arriboFechas.length){document.getElementById('smt-fdfrom').value=mtYMD(arriboFechas[0]);document.getElementById('smt-fdto').value=mtYMD(arriboFechas[arriboFechas.length-1]);}
+  const ss=document.getElementById('smt-search');if(ss)ss.value='';
+  smtApply();
+}
 function smtApply(){
   const marca=document.getElementById('smt-f-marca')?.value||'';
   const estado=document.getElementById('smt-f-estado')?.value||'';
+  const ubic=document.getElementById('smt-f-ubic')?.value||'';
+  const from=mtPD(document.getElementById('smt-fdfrom')?.value);
+  const to=mtPD(document.getElementById('smt-fdto')?.value);
   smtFiltered=smtAll.filter(r=>{
     if(marca&&r._marca!==marca)return false;
     if(estado&&r._estado!==estado)return false;
+    if(ubic&&r._ubicacion!==ubic)return false;
+    if(from&&r._arribo&&r._arribo<from)return false;
+    if(to&&r._arribo&&r._arribo>new Date(to.getFullYear(),to.getMonth(),to.getDate(),23,59,59))return false;
     return true;
   });
   smtUpdateKPIs();smtUpdateCharts();smtSort(smtSortKey,true);
