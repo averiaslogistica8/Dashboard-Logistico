@@ -20,6 +20,7 @@
 }
 .dark{--bg:#0f1629;--surface:#1a2438;--surface2:#1f2d45;--border:#2d3f5e;--text:#e2e8f0;--text-mid:#94a3b8;--text-dim:#64748b;--shadow:0 1px 3px rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.2);}
 #nav-moto.active{background:rgba(249,115,22,.18)!important;border-left-color:var(--moto)!important;color:#fff!important;}
+#nav-smoto.active{background:rgba(249,115,22,.18)!important;border-left-color:var(--moto)!important;color:#fff!important;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;min-height:100vh;display:flex;transition:background .2s,color .2s;}
 
@@ -442,7 +443,10 @@ tbody tr:hover td{background:var(--surface2);}
     <button class="nav-item" id="nav-ali" onclick="switchTab('ali')"><span class="ni">🚗</span> Alistaje</button>
     <button class="nav-item" id="nav-mov" onclick="switchTab('mov')"><span class="ni">📦</span> Movimientos</button>
     <button class="nav-item" id="nav-stk" onclick="switchTab('stk')"><span class="ni">🏭</span> Stock Predio</button>
-    <button class="nav-item" id="nav-moto" onclick="switchTab('moto')"><span class="ni">🏍️</span> Alistaje Motos</button>
+    <div class="nav-sep"></div>
+    <div style="padding:4px 18px 2px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.28)">🏍 Motos</div>
+    <button class="nav-item" id="nav-moto" onclick="switchTab('moto')"><span class="ni" style="font-size:13px">↳</span> Alistaje</button>
+    <button class="nav-item" id="nav-smoto" onclick="switchTab('smoto')"><span class="ni" style="font-size:13px">↳</span> Stock</button>
     <div class="nav-sep"></div>
     <!-- Params Averías -->
     <div id="sb-p-avr" style="padding:8px 18px 4px">
@@ -578,6 +582,18 @@ tbody tr:hover td{background:var(--surface2);}
       </div>
       <div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:4px;line-height:1.5" id="mt-cap-auto" title="Promedio real de motos alistadas por operario en los días que trabajó, calculado sobre todo el historial cargado · solo a modo de referencia, no se usa para la meta">Hist.: — u/día</div>
     </div>
+    <!-- Params Stock Motos -->
+    <div id="sb-p-smoto" style="display:none;padding:8px 18px 4px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--sb-txt);margin-bottom:8px">Parámetros</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--sb-txt)">Días crítico</span>
+        <input type="number" id="smt-crit" value="60" min="1" onchange="smtRecalc()" style="width:50px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;padding:3px 6px;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;text-align:center;outline:none;">
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--sb-txt)">Días alerta</span>
+        <input type="number" id="smt-alert" value="30" min="1" onchange="smtRecalc()" style="width:50px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;padding:3px 6px;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;text-align:center;outline:none;">
+      </div>
+    </div>
   </nav>
   <div class="sb-bottom">
     <div class="sb-filters-title">Filtros activos</div>
@@ -602,9 +618,12 @@ tbody tr:hover td{background:var(--surface2);}
       <div class="sb-file-info"><div class="sb-file-dot" id="fd-mov"></div><div class="sb-file-name" id="fn-mov">Esperando...</div></div>
     </div>
     <div class="sb-upload-area" id="sb-upload-moto" style="display:none">
-      <label class="sb-upload-btn" style="background:var(--moto);display:flex;align-items:center;justify-content:center;cursor:pointer" for="mt-fi">📂 Cargar CSV Motos</label>
-      <input type="file" id="mt-fi" accept=".csv,.txt" style="display:none">
-      <div class="sb-file-info"><div class="sb-file-dot" id="fd-mt"></div><div class="sb-file-name" id="fn-mt">Ningún archivo</div></div>
+      <button class="sb-upload-btn" style="background:var(--moto)" onclick="loadSheet('moto')" id="btn-moto">↻ Actualizar Alistaje Motos</button>
+      <div class="sb-file-info"><div class="sb-file-dot" id="fd-moto"></div><div class="sb-file-name" id="fn-moto">Esperando...</div></div>
+    </div>
+    <div class="sb-upload-area" id="sb-upload-smoto" style="display:none">
+      <button class="sb-upload-btn" style="background:var(--moto)" onclick="loadSheet('smoto')" id="btn-smoto">↻ Actualizar Stock Motos</button>
+      <div class="sb-file-info"><div class="sb-file-dot" id="fd-smoto"></div><div class="sb-file-name" id="fn-smoto">Esperando...</div></div>
     </div>
   </div>
 </aside>
@@ -1490,6 +1509,82 @@ tbody tr:hover td{background:var(--surface2);}
     </div>
   </div>
 </div><!-- /tab-moto -->
+
+<!-- ══ TAB STOCK MOTOS ══ -->
+<div id="tab-smoto" style="display:none">
+  <div class="pw">
+    <div class="empty-st" id="smt-empty">
+      <div class="ei">🏍️</div>
+      <div class="et">Cargando stock de motos…</div>
+      <div class="es">Los datos se actualizan automáticamente desde Google Sheets. Si tarda, usá el botón <strong>↻ Actualizar Stock Motos</strong> del panel izquierdo.</div>
+    </div>
+    <div id="smt-dash" style="display:none">
+      <div class="stitle"><span class="sdot" style="background:var(--moto)"></span>Resumen del Predio <em>Motos en stock</em></div>
+      <div class="kgrid4" style="margin-bottom:14px">
+        <div class="kcard" style="--kc:var(--moto)"><div class="kcard-top"><div class="kic" style="--kc:var(--moto)">🏍️</div><div class="kinfo"><div class="klbl">Total en Predio</div><div class="kval lg" id="smt-k-total">—</div><div class="ksub" id="smt-k-total-s"></div></div></div></div>
+        <div class="kcard" style="--kc:var(--orange)"><div class="kcard-top"><div class="kic" style="--kc:var(--orange)">⏱</div><div class="kinfo"><div class="klbl">Días Promedio</div><div class="kval lg" id="smt-k-prom">—</div><div class="ksub">Tiempo en predio</div></div></div></div>
+        <div class="kcard" style="--kc:var(--red)" id="smt-ck-crit"><div class="kcard-top"><div class="kic" style="--kc:var(--red)">🔴</div><div class="kinfo"><div class="klbl">Críticas</div><div class="kval lg" id="smt-k-crit">—</div><div class="ksub" id="smt-k-crit-s"></div></div></div></div>
+        <div class="kcard" style="--kc:var(--blue)"><div class="kcard-top"><div class="kic" style="--kc:var(--blue)">🏷️</div><div class="kinfo"><div class="klbl">Marca Predominante</div><div class="kval leader" id="smt-k-marca">—</div><div class="ksub" id="smt-k-marca-s"></div></div></div></div>
+      </div>
+
+      <div class="stitle"><span class="sdot" style="background:var(--blue)"></span>Distribución por Marca y Estado</div>
+      <div class="crow c21" style="margin-bottom:14px">
+        <div class="cc"><div class="ctitle">Unidades por Marca</div><div class="ch300"><canvas id="smt-c-marca"></canvas></div></div>
+        <div class="cc"><div class="ctitle">Distribución por Estado</div><div class="ch300"><canvas id="smt-c-estado"></canvas></div></div>
+      </div>
+
+      <div class="stitle"><span class="sdot" style="background:var(--orange)"></span>Permanencia · Días en Predio</div>
+      <div class="cc" style="margin-bottom:14px">
+        <div class="ctitle">Antigüedad por Unidad <span id="smt-periodo-lbl"></span></div>
+        <div class="ch300"><canvas id="smt-c-dias"></canvas></div>
+      </div>
+
+      <div class="dlayout">
+        <div class="mcol">
+          <div class="stitle"><span class="sdot" style="background:var(--text-dim)"></span>Detalle de Unidades</div>
+          <div class="cc" style="margin-bottom:28px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
+              <div class="ctitle" style="margin:0">Unidades en stock <span id="smt-tbl-cnt" style="font-weight:400;color:var(--text-dim)"></span></div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <select id="smt-f-marca" onchange="smtApply()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;outline:none"><option value="">Todas las marcas</option></select>
+                <select id="smt-f-estado" onchange="smtApply()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;outline:none"><option value="">Todos los estados</option></select>
+                <input type="text" id="smt-search" placeholder="Buscar…" oninput="smtRenderTable()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;width:160px;outline:none">
+              </div>
+            </div>
+            <div style="display:flex;gap:12px;margin-bottom:8px;font-size:10px;color:var(--text-dim)">
+              <span>🔴 ≥ días crítico</span><span>🟡 ≥ días alerta</span><span>🟢 Normal</span>
+            </div>
+            <div class="twrap">
+              <table>
+                <thead><tr>
+                  <th onclick="smtSort('marca')" id="smt-th-marca">Marca <span class="sa"></span></th>
+                  <th onclick="smtSort('modelo')" id="smt-th-modelo">Modelo <span class="sa"></span></th>
+                  <th onclick="smtSort('interno')" id="smt-th-interno">Nro Interno <span class="sa"></span></th>
+                  <th onclick="smtSort('dominio')" id="smt-th-dominio">Dominio <span class="sa"></span></th>
+                  <th onclick="smtSort('estado')" id="smt-th-estado">Estado <span class="sa"></span></th>
+                  <th onclick="smtSort('dias')" id="smt-th-dias" class="sort-desc">Días <span class="sa"></span></th>
+                  <th onclick="smtSort('ubicacion')" id="smt-th-ubic">Ubicación <span class="sa"></span></th>
+                </tr></thead>
+                <tbody id="smt-tbl-body"></tbody>
+              </table>
+            </div>
+            <div class="pagination"><span id="smt-pag-info"></span><button class="pbtn" id="smt-prev" onclick="smtCP(-1)">‹ Ant</button><button class="pbtn" id="smt-next" onclick="smtCP(1)">Sig ›</button></div>
+          </div>
+        </div>
+        <div class="rcol">
+          <div class="rpanel">
+            <div class="rp-hdr">⏱ Top 10 · Mayor Antigüedad</div>
+            <div id="smt-top10"></div>
+          </div>
+          <div class="rpanel">
+            <div class="rp-hdr">🏷️ Resumen por Marca</div>
+            <div id="smt-brand-sum"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /tab-smoto -->
 </div><!-- /main-wrap -->
 
 <!-- Slide panel -->
@@ -1531,13 +1626,14 @@ tbody tr:hover td{background:var(--surface2);}
 const COLORS=['#2563eb','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16'];
 let AC={};
 function switchTab(t){
-  ['avr','ali','mov','stk','moto'].forEach(id=>{
+  ['avr','ali','mov','stk','moto','smoto'].forEach(id=>{
     const tab=document.getElementById('tab-'+id);if(tab)tab.style.display=id===t?'':'none';
-    document.getElementById('nav-'+id).classList.toggle('active',id===t);
-    document.getElementById('sb-p-'+id).style.display=id===t?'':'none';
-    document.getElementById('sb-upload-'+id).style.display=id===t?'':'none';
+    const nav=document.getElementById('nav-'+id);if(nav)nav.classList.toggle('active',id===t);
+    const sbp=document.getElementById('sb-p-'+id);if(sbp)sbp.style.display=id===t?'':'none';
+    const sbu=document.getElementById('sb-upload-'+id);if(sbu)sbu.style.display=id===t?'':'none';
   });
-  const titles={avr:'Dashboard Averías',ali:'Dashboard Alistaje',mov:'Dashboard Movimientos',stk:'Stock Predio',moto:'Dashboard Alistaje Motos'};
+  const motoFbar=document.getElementById('mt-fbar');if(motoFbar&&t!=='moto')motoFbar.style.display='none';
+  const titles={avr:'Dashboard Averías',ali:'Dashboard Alistaje',mov:'Dashboard Movimientos',stk:'Stock Predio',moto:'Dashboard Alistaje Motos',smoto:'Stock Motos'};
   document.getElementById('hdr-sub').textContent=titles[t]||'';
 }
 document.getElementById('sb-p-ali').style.display='none';
@@ -1554,6 +1650,7 @@ function toggleTheme(){
   if(movAllRows.length)movRedrawCharts();
   if(stkAll&&stkAll.length)stkRedrawCharts();
   if(typeof mtFiltered!=='undefined'&&mtFiltered.length){mtUpdateKPIs();mtUpdateCharts();}
+  if(typeof smtFiltered!=='undefined'&&smtFiltered.length){smtUpdateCharts();}
 }
 function gc(){const d=document.body.classList.contains('dark');return{grid:d?'#2d3f5e':'#e2e8f0',lbl:d?'#94a3b8':'#64748b'};}
 function DC(id){if(AC[id]){AC[id].destroy();delete AC[id];}}
@@ -2759,7 +2856,9 @@ const GS_URLS = {
   avr: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRajCdRSVbHrwPCJEc8r_HP2tXw93X-2yHNpWHykbkoDwsaRh1GLilPK_3uB6YqOyArCpScOkpNkePx/pub?output=csv',
   ali: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4SHTzQiqQOjLYcGErelIRGlnml9cPzgoXi5M0LAdmmqGLgk8kxMG1_SlC7DdBBt_f6bJkyPkPC9wX/pub?output=csv&gid=127628867',
   mov: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtC2eRdTMsJV50O6rDDEB4Pdn8NZPJSWvJIYGSnRh9Luu5FNxK5e0aQIfvltTUpy0_in80shzsSUdm/pub?output=csv&gid=1181695820',
-  stk: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRjQGle2dKSwMjCj3Cg4pDKkjAfemWZZhZs4QzExJeqAYU5m_fj0_yZ3I9Yq70-v7oTAzhKd7QMFDb3/pub?gid=0&single=true&output=csv'
+  stk: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRjQGle2dKSwMjCj3Cg4pDKkjAfemWZZhZs4QzExJeqAYU5m_fj0_yZ3I9Yq70-v7oTAzhKd7QMFDb3/pub?gid=0&single=true&output=csv',
+  moto: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSedxwtoLHdrCupzZEftZzJOIUu7IoUWGOga4wBdWC3po0j5XB_lvHRY0Xizlz0vwAzRDz1DRV1p9Yc/pub?gid=0&single=true&output=csv',
+  smoto: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRH2TXdNpbnrVZn566Wy4FEL0T9ORpAE7GVowKno6qu2gHho4m7T0PXWsqFIt42d7XnXM1wnkuOmqa7/pub?gid=0&single=true&output=csv'
 };
 
 function gsSetStatus(key, state, msg) {
@@ -2810,6 +2909,10 @@ async function loadSheet(key) {
       movProcess(parsed.data);
     } else if (key === 'stk') {
       stkProcess(parsed.data);
+    } else if (key === 'moto') {
+      mtProcess(parsed.data);
+    } else if (key === 'smoto') {
+      smtProcess(parsed.data);
     }
 
     gsSetStatus(key, 'ok', 'Actualizado ' + fmtNow());
@@ -2827,6 +2930,8 @@ window.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => loadSheet('ali'), 600);
   setTimeout(() => loadSheet('mov'), 1200);
   setTimeout(() => loadSheet('stk'), 1800);
+  setTimeout(() => loadSheet('moto'), 2400);
+  setTimeout(() => loadSheet('smoto'), 3000);
 });
 
 // ══ SPLASH ══
@@ -3850,6 +3955,150 @@ function stkSetAllK(on){document.querySelectorAll('#stk-kpi-menu input[type=chec
 function stkToggleKpiMenu(e){e.stopPropagation();ge_stk('stk-kpi-menu').classList.toggle('open');}
 document.addEventListener('click',()=>ge_stk('stk-kpi-menu')?.classList.remove('open'));
 
+// ══════════ STOCK MOTOS ══════════
+let smtAll=[],smtFiltered=[];
+let smtSortKey='dias',smtSortDir=-1,smtPage=1;const SMT_PP=25;
+
+function smtProcess(raw){
+  if(!raw||!raw.length){return;}
+  smtAll=raw.map(r=>{const n={};Object.keys(r).forEach(k=>n[k.trim()]=(r[k]==null?'':r[k]).toString().trim());return n;});
+  smtAll=smtAll.filter(r=>Object.values(r).some(v=>v));
+  const keys=Object.keys(smtAll[0]||{});
+  function fc(...cs){for(const c of cs){const f=keys.find(k=>k.toLowerCase().includes(c.toLowerCase()));if(f)return f;}return'';}
+  const cols={
+    marca:fc('marca'),modelo:fc('modelo'),interno:fc('nro interno','interno'),dominio:fc('dominio','patente'),
+    estado:fc('estado'),arribo:fc('fecha arribo','fecha carga','arribo'),
+    ubicacion:fc('ubicacion','ubicación','dique'),cliente:fc('cliente'),dias:fc('días','dias','permanencia'),
+    color:fc('color')
+  };
+  const hoy=new Date();hoy.setHours(0,0,0,0);
+  smtAll.forEach(r=>{
+    r._marca=(r[cols.marca]||'Sin marca').toUpperCase();
+    r._modelo=r[cols.modelo]||'';
+    r._interno=r[cols.interno]||'';
+    r._dominio=r[cols.dominio]||'';
+    r._estado=(r[cols.estado]||'SIN ESTADO').toUpperCase();
+    r._ubicacion=r[cols.ubicacion]||'';
+    r._cliente=r[cols.cliente]||'';
+    r._color=r[cols.color]||'';
+    // Días: intentamos calcular desde fecha arribo; si no, usamos el campo días del sistema
+    let d=null;
+    if(cols.arribo&&r[cols.arribo]){
+      const arr=mtPD(r[cols.arribo]);// reutilizamos el parser de motos
+      if(arr)d=Math.floor((hoy-arr)/86400000);
+    }
+    if(d===null&&cols.dias&&r[cols.dias]){
+      const parsed=parseInt((r[cols.dias]||'').replace(/[^\d]/g,''));
+      if(!isNaN(parsed))d=parsed;
+    }
+    r._dias=d!==null&&d>=0?d:null;
+  });
+  // Poblar filtros
+  const marcas=[...new Set(smtAll.map(r=>r._marca))].sort();
+  const estados=[...new Set(smtAll.map(r=>r._estado))].sort();
+  const mSel=document.getElementById('smt-f-marca');const eSel=document.getElementById('smt-f-estado');
+  if(mSel)mSel.innerHTML='<option value="">Todas las marcas</option>'+marcas.map(m=>`<option value="${m}">${m}</option>`).join('');
+  if(eSel)eSel.innerHTML='<option value="">Todos los estados</option>'+estados.map(e=>`<option value="${e}">${e}</option>`).join('');
+  document.getElementById('smt-empty').style.display='none';
+  document.getElementById('smt-dash').style.display='block';
+  smtApply();
+}
+function smtRecalc(){smtApply();}
+function smtApply(){
+  const marca=document.getElementById('smt-f-marca')?.value||'';
+  const estado=document.getElementById('smt-f-estado')?.value||'';
+  smtFiltered=smtAll.filter(r=>{
+    if(marca&&r._marca!==marca)return false;
+    if(estado&&r._estado!==estado)return false;
+    return true;
+  });
+  smtUpdateKPIs();smtUpdateCharts();smtSort(smtSortKey,true);
+}
+function smtGetParams(){return{crit:parseInt(document.getElementById('smt-crit')?.value)||60,alert:parseInt(document.getElementById('smt-alert')?.value)||30};}
+function smtUpdateKPIs(){
+  const p=smtGetParams();
+  const total=smtFiltered.length;
+  const withDias=smtFiltered.filter(r=>r._dias!==null);
+  const avg=withDias.length?Math.round(withDias.reduce((a,r)=>a+r._dias,0)/withDias.length):null;
+  const crit=smtFiltered.filter(r=>r._dias!==null&&r._dias>=p.crit).length;
+  const mc={};smtFiltered.forEach(r=>{mc[r._marca]=(mc[r._marca]||0)+1;});
+  const top=Object.entries(mc).sort((a,b)=>b[1]-a[1])[0];
+  ST('smt-k-total',total.toLocaleString('es-AR'));
+  ST('smt-k-total-s',`${smtFiltered.filter(r=>r._dias!==null&&r._dias>=p.alert).length} con alerta o críticas`);
+  ST('smt-k-prom',avg!==null?avg+'d':'—');
+  const critPct=total>0?((crit/total)*100).toFixed(0)+'%':'0%';
+  ST('smt-k-crit',crit);ST('smt-k-crit-s',`${critPct} del stock · ≥ ${p.crit} días`);
+  if(top){ST('smt-k-marca',top[0]);ST('smt-k-marca-s',`${top[1]} unidades · ${total?(top[1]/total*100).toFixed(0):0}%`);}
+  // Top 10 antigüedad
+  const top10=[...smtFiltered].filter(r=>r._dias!==null).sort((a,b)=>b._dias-a._dias).slice(0,10);
+  document.getElementById('smt-top10').innerHTML=top10.map(r=>{
+    const cls=r._dias>=p.crit?'bred':r._dias>=p.alert?'born':'bgrn';
+    return`<div class="rp-link" style="flex-direction:column;align-items:flex-start;gap:2px;padding:10px 14px">
+      <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
+        <span style="font-size:12px;font-weight:600;color:var(--text)">${r._marca} ${r._modelo.split(' ')[0]||''}</span>
+        <span class="rpill ${cls}">${r._dias}d</span>
+      </div>
+      <div style="font-size:10px;color:var(--text-dim)">${r._interno||'—'} · ${r._dominio||'sin patente'} · ${r._estado}</div>
+    </div>`;
+  }).join('')||'<div style="padding:14px;font-size:12px;color:var(--text-dim)">Sin datos de días</div>';
+  // Brand summary
+  const brandRows=Object.entries(mc).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('smt-brand-sum').innerHTML=brandRows.map(([m,cnt])=>{
+    const critM=smtFiltered.filter(r=>r._marca===m&&r._dias!==null&&r._dias>=p.crit).length;
+    const pct=total?(cnt/total*100).toFixed(0):0;
+    return`<div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:12px;font-weight:600">${m}</span>
+        <span style="font-size:13px;font-weight:800;color:var(--moto)">${cnt}</span>
+      </div>
+      <div class="dbw"><div class="dbf" style="width:${pct}%;background:var(--moto)"></div></div>
+      <div style="font-size:10px;color:var(--text-dim);margin-top:3px">${pct}% del total${critM>0?` · <span style="color:var(--red)">${critM} crítica${critM!==1?'s':''}</span>`:''}</div>
+    </div>`;
+  }).join('')||'<div style="padding:14px;font-size:12px;color:var(--text-dim)">Sin datos</div>';
+}
+function smtUpdateCharts(){
+  const{grid,lbl}=gc(),p=smtGetParams();
+  DC('smt-c-marca');const mc2=document.getElementById('smt-c-marca');
+  if(mc2){const md2={};smtFiltered.forEach(r=>{md2[r._marca]=(md2[r._marca]||0)+1;});
+    const sortedM=Object.entries(md2).sort((a,b)=>b[1]-a[1]);
+    AC['smt-c-marca']=new Chart(mc2,{type:'bar',data:{labels:sortedM.map(([m])=>m),datasets:[{data:sortedM.map(([,v])=>v),backgroundColor:sortedM.map(([m])=>{const hm=m.split('').reduce((h,c)=>((h*31+c.charCodeAt(0))%360),0);return`hsla(${hm},55%,50%,0.75)`;} ),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:grid},ticks:{color:lbl}},y:{grid:{display:false},ticks:{color:lbl,font:{size:10}}}}}});}
+  DC('smt-c-estado');const ec=document.getElementById('smt-c-estado');
+  if(ec){const ed={};smtFiltered.forEach(r=>{ed[r._estado]=(ed[r._estado]||0)+1;});
+    const stColors={'PATENTADO':'#22c55e','FACTURADO':'#3b82f6','RESERVADO':'#f59e0b','ARRIBADO':'#94a3b8','ENTREGADO':'#8b5cf6','ANULADO':'#ef4444'};
+    const sortedE=Object.entries(ed).sort((a,b)=>b[1]-a[1]);
+    AC['smt-c-estado']=new Chart(ec,{type:'doughnut',data:{labels:sortedE.map(([e])=>e),datasets:[{data:sortedE.map(([,v])=>v),backgroundColor:sortedE.map(([e])=>stColors[e]||'#94a3b8'),borderColor:'#ffffff00',borderWidth:1,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{display:true,position:'right',labels:{color:lbl,font:{size:10},boxWidth:10,padding:6}}}}});}
+  DC('smt-c-dias');const dc=document.getElementById('smt-c-dias');
+  if(dc){const withD=smtFiltered.filter(r=>r._dias!==null).sort((a,b)=>b._dias-a._dias).slice(0,40);
+    AC['smt-c-dias']=new Chart(dc,{type:'bar',data:{labels:withD.map(r=>`${r._marca.split(' ')[0]} ${r._interno||r._dominio||'?'}`),datasets:[{data:withD.map(r=>r._dias),backgroundColor:withD.map(r=>r._dias>=p.crit?'rgba(239,68,68,0.7)':r._dias>=p.alert?'rgba(245,158,11,0.7)':'rgba(34,197,94,0.7)'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} días`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxRotation:60,font:{size:9}}},y:{grid:{color:grid},ticks:{color:lbl}}}}});}
+  ST('smt-periodo-lbl',`(Top 40 de ${smtFiltered.filter(r=>r._dias!==null).length} con fecha)`);
+}
+let smtDisp=[];
+function smtSort(key,noToggle){
+  if(!noToggle){if(smtSortKey===key)smtSortDir*=-1;else{smtSortKey=key;smtSortDir=-1;}}
+  document.querySelectorAll('thead th[id^=smt-th-]').forEach(th=>{th.classList.remove('sort-asc','sort-desc');});
+  const thMap={marca:'smt-th-marca',modelo:'smt-th-modelo',interno:'smt-th-interno',dominio:'smt-th-dominio',estado:'smt-th-estado',dias:'smt-th-dias',ubicacion:'smt-th-ubic'};
+  const th=document.getElementById(thMap[key]);if(th)th.classList.add(smtSortDir===1?'sort-asc':'sort-desc');
+  const q=(document.getElementById('smt-search')?.value||'').toLowerCase();
+  const sorted=[...smtFiltered].sort((a,b)=>{const av=a['_'+key]??'',bv=b['_'+key]??'';if(typeof av==='number')return(av-bv)*smtSortDir;return String(av).localeCompare(String(bv))*smtSortDir;});
+  smtDisp=q?sorted.filter(r=>Object.values(r).some(v=>v.toString().toLowerCase().includes(q))):sorted;
+  ST('smt-tbl-cnt',`(${smtDisp.length})`);smtPage=1;smtRenderTable();
+}
+function smtRenderTable(){
+  const p=smtGetParams(),total=smtDisp.length,pages=Math.max(1,Math.ceil(total/SMT_PP));
+  if(smtPage>pages)smtPage=pages;
+  ST('smt-pag-info',`${smtPage}/${pages}`);
+  document.getElementById('smt-prev').disabled=smtPage<=1;document.getElementById('smt-next').disabled=smtPage>=pages;
+  const sl=smtDisp.slice((smtPage-1)*SMT_PP,smtPage*SMT_PP);
+  document.getElementById('smt-tbl-body').innerHTML=sl.map(r=>{
+    const diasCls=r._dias!==null?(r._dias>=p.crit?'rbad':r._dias>=p.alert?'rmed':'rok'):'';
+    const diasTxt=r._dias!==null?`<span class="rpill ${diasCls}">${r._dias}d</span>`:'<span style="color:var(--text-dim)">—</span>';
+    const estCls={'PATENTADO':'bgrn','FACTURADO':'bgrn','RESERVADO':'born','ARRIBADO':'','ENTREGADO':'bgrn','ANULADO':'bred'}[r._estado]||'';
+    return`<tr><td style="font-weight:600">${r._marca}</td><td style="font-size:12px">${r._modelo||'—'}</td><td>${r._interno||'—'}</td><td>${r._dominio||'Sin patente'}</td><td><span class="kbadge ${estCls}" style="font-size:10px">${r._estado}</span></td><td>${diasTxt}</td><td style="font-size:11px;color:var(--text-mid)">${r._ubicacion||'—'}</td></tr>`;
+  }).join('')||'<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-dim)">Sin resultados</td></tr>';
+}
+function smtCP(d){smtPage+=d;smtRenderTable();}
+
+
 // ══════════ ALISTAJE MOTOS ══════════
 const KNOWN_BRAND_COLORS={HONDA:'#cc2929',YAMAHA:'#1a56db',BAJAJ:'#dc6803',KTM:'#f97316',ZANELLA:'#16a34a',CORVEN:'#7c3aed',MOTOMEL:'#0891b2',TVS:'#059669',BETA:'#d97706',KAWASAKI:'#16a34a',SUZUKI:'#2563eb',BENELLI:'#9333ea',KOVE:'#0d9488',MORBIDELLI:'#e11d48',DUCATI:'#b91c1c',KEEWAY:'#65a30d','S Y M':'#0369a1'};
 function brandColor(m){if(KNOWN_BRAND_COLORS[m])return KNOWN_BRAND_COLORS[m];let h=0;for(let i=0;i<m.length;i++)h=(h*31+m.charCodeAt(i))%360;return`hsl(${h},55%,45%)`;}
@@ -3891,11 +4140,6 @@ function mtExportCsv(){
 }
 function mtCD(){const p=mtGP();return p.ops*p.cap;}
 
-document.getElementById('mt-fi').addEventListener('change',function(e){
-  const f=e.target.files[0];if(!f)return;ST('fn-mt',f.name);document.getElementById('fd-mt').classList.add('on');
-  document.getElementById('hdr-update').textContent='Actualizado: ahora mismo';
-  const r=new FileReader();r.onload=e=>mtParseCsv(e.target.result);r.readAsText(f,'latin-1');
-});
 function mtParseCsv(t){mtProcess(Papa.parse(t,{delimiter:'',header:true,skipEmptyLines:true}).data);}
 
 // ── Fechas: soporta dd/m/aaaa, d/mm/aaaa, con o sin hora pegada ("23/3/2026 09:05:22") ──
