@@ -2397,7 +2397,6 @@ function aliClosePanel(){document.getElementById('ali-dpanel').classList.remove(
     </div>
 
     <div id="mov-dash" style="display:none">
-      <div id="mov-debug-panel" style="background:#fff7ed;border:2px dashed #f97316;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-family:monospace;font-size:12px;line-height:1.7;color:#7c2d12"></div>
       <div class="dlayout">
 
         <!-- ── COLUMNA PRINCIPAL ── -->
@@ -2544,22 +2543,6 @@ function movProcess(data){
   cols.fechaEstado=keys.find(k=>k.toLowerCase().replace(/\s+/g,' ').includes('fecha de estado')||k.toLowerCase().replace(/\s+/g,' ').includes('fecha estado'))||keys[17]||keys[8];
   window._movCols=cols;
   console.log('[MOV] Columnas detectadas:',cols);
-  console.log('[MOV] Valores únicos en columna SITUACION:',[...new Set(movAllRows.map(r=>r[cols.situacion]).filter(Boolean))]);
-  console.log('[MOV] Ejemplo de 3 filas crudas:',movAllRows.slice(0,3));
-  {
-    const dp=document.getElementById('mov-debug-panel');
-    if(dp){
-      const sitVals=[...new Set(movAllRows.map(r=>r[cols.situacion]).filter(Boolean))];
-      const usadosPorSituacion=movAllRows.filter(r=>(r[cols.situacion]||'').toUpperCase().trim().includes('USADO')).length;
-      dp.innerHTML=`🔧 <strong>PANEL DE DIAGNÓSTICO TEMPORAL</strong> (avisame cuando lo puedas ver así lo saco)<br>
-      Columna "interno" detectada: <strong>${cols.interno||'—NO DETECTADA—'}</strong><br>
-      Columna "situacion" detectada: <strong>${cols.situacion||'—NO DETECTADA—'}</strong><br>
-      Columna "motivo" detectada: <strong>${cols.motivo||'—NO DETECTADA—'}</strong><br>
-      Total filas cargadas: <strong>${movAllRows.length}</strong><br>
-      Valores únicos vistos en SITUACION: <strong>${sitVals.length?sitVals.join(', '):'(ninguno / columna vacía)'}</strong><br>
-      Filas cuya SITUACION contiene "USADO": <strong>${usadosPorSituacion}</strong> de ${movAllRows.length}`;
-    }
-  }
 
   movSynRows=movBuildSynRows(movAllRows,cols);
 
