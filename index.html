@@ -2726,9 +2726,10 @@ function movUpdateKPIs(rows){
 function movUpdateCharts(rows){
   const c=window._movCols,{grid,lbl}=gc();
   const MESES_CORTOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const noAnulado=r=>(r[c.estado]||'').toLowerCase()!=='anulado';
 
-  // ── BARRA MESES: siempre todos los meses, respeta filtro de motivo pero NO de fecha ──
-  const barRows=movGetFiltered({exDate:true});
+  // ── BARRA MESES: siempre todos los meses, respeta filtro de motivo pero NO de fecha (excluye Anulados, igual que los KPIs) ──
+  const barRows=movGetFiltered({exDate:true}).filter(noAnulado);
   const byMonth={};
   barRows.forEach(r=>{const d=movParseDate(r[c.fechaPedido]);if(!d)return;const k=movToDate(d).slice(0,7);byMonth[k]=(byMonth[k]||0)+1;});
   const dKeys=Object.keys(byMonth).sort();
@@ -2740,8 +2741,8 @@ function movUpdateCharts(rows){
     AC['mov-chart-fecha']=new Chart(ce,{type:'bar',data:{labels:dLabels,datasets:[{data:dVals,backgroundColor:bClr,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,animation:{onComplete({chart:ch}){const{ctx:cx}=ch,{lbl:lc}=gc();cx.save();ch.data.datasets.forEach((ds,di)=>{ch.getDatasetMeta(di).data.forEach((bar,i)=>{const v=ds.data[i];if(!v)return;cx.fillStyle=lc;cx.font='600 11px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(v,bar.x,bar.y-3);});});cx.restore();}},plugins:{legend:{display:false},tooltip:{callbacks:{title:its=>dLabels[its[0].dataIndex],label:ctx=>`${ctx.raw} movimientos`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:0}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const k=dKeys[els[0].index];if(movSelDate===k){movClearDateSelection();}else{movSelDate=k;movApplyDateFilter();}},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
   }
 
-  // ── DOUGHNUT MOTIVO: siempre todos los motivos, respeta filtro de fecha pero NO de motivo ──
-  const doughnutRows=movGetFiltered({exMotivo:true});
+  // ── DOUGHNUT MOTIVO: siempre todos los motivos, respeta filtro de fecha pero NO de motivo (excluye Anulados) ──
+  const doughnutRows=movGetFiltered({exMotivo:true}).filter(noAnulado);
   const byMotivo={};
   doughnutRows.forEach(r=>{const m=r[c.motivo]||'Sin motivo';byMotivo[m]=(byMotivo[m]||0)+1;});
   const mLabels=Object.keys(byMotivo).sort((a,b)=>byMotivo[b]-byMotivo[a]),mVals=mLabels.map(k=>byMotivo[k]);
@@ -2752,9 +2753,9 @@ function movUpdateCharts(rows){
     AC['mov-chart-motivo']=new Chart(cm,{type:'doughnut',data:{labels:mLabels,datasets:[{data:mVals,backgroundColor:sClr,borderColor:mLabels.map((l,i)=>movSelMotivo&&l===movSelMotivo?pal[i%pal.length]:'transparent'),borderWidth:mLabels.map(l=>movSelMotivo&&l===movSelMotivo?3:2),hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'right',labels:{color:lbl,font:{size:10},boxWidth:10,padding:6}}},onClick(evt,els){if(!els.length)return;const mot=mLabels[els[0].index];if(movSelMotivo===mot)movClearMotivoSelection();else{movSelMotivo=mot;movApplyMotivoFilter();}},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
   }
 
-  // ── BARRAS DESTINO: respeta TODOS los filtros activos ──
+  // ── BARRAS DESTINO: respeta TODOS los filtros activos (excluye Anulados) ──
   const byDest={};
-  rows.forEach(r=>{const d=(r[c.ubDestino]||'').trim();if(!d)return;byDest[d]=(byDest[d]||0)+1;});
+  rows.filter(noAnulado).forEach(r=>{const d=(r[c.ubDestino]||'').trim();if(!d)return;byDest[d]=(byDest[d]||0)+1;});
   const destEntries=Object.entries(byDest).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const destLabels=destEntries.map(e=>e[0]),destVals=destEntries.map(e=>e[1]);
   DC('mov-chart-ubdest');const cd=document.getElementById('mov-chart-ubdest');
