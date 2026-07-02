@@ -1331,6 +1331,17 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="fdiv"></div>
     <div class="fgroup"><div class="flbl">Operario</div><select id="mt-sop" onchange="mtApply()"><option value="">Todos</option></select></div>
     <div class="fdiv"></div>
+    <div class="fgroup">
+      <div class="flbl">Color</div>
+      <div style="position:relative;display:inline-block" id="mt-clr-wrap">
+        <button id="mt-clr-btn" onclick="mtToggleClr(event)" class="msb" style="min-width:100px"><span id="mt-clr-lbl">Todos</span></button>
+        <div id="mt-clr-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:10px;min-width:200px;max-height:260px;overflow-y:auto;box-shadow:var(--shadow-md)">
+          <div class="mshdr"><button onclick="mtSelClr(true)" class="mssm">Todos</button><button onclick="mtSelClr(false)" class="mssm">Ninguno</button></div>
+          <div id="mt-clr-checks" style="padding:6px 4px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="fdiv"></div>
     <div class="fgroup"><div class="flbl">Desde</div><input type="date" id="mt-dfrom" onchange="mtApply()"></div>
     <div class="fgroup"><div class="flbl">Hasta</div><input type="date" id="mt-dto" onchange="mtApply()"></div>
     <div class="fdiv"></div>
@@ -1512,19 +1523,6 @@ tbody tr:hover td{background:var(--surface2);}
 
 <!-- ══ TAB STOCK MOTOS ══ -->
 <div id="tab-smoto" style="display:none">
-  <div class="fbar" id="smt-fbar" style="display:none">
-    <div class="fgroup"><div class="flbl">Marca</div><select id="smt-f-marca" onchange="smtApply()"><option value="">Todas</option></select></div>
-    <div class="fdiv"></div>
-    <div class="fgroup"><div class="flbl">Estado</div><select id="smt-f-estado" onchange="smtApply()"><option value="">Todos</option></select></div>
-    <div class="fdiv"></div>
-    <div class="fgroup"><div class="flbl">Arribo desde</div><input type="date" id="smt-fdfrom" onchange="smtApply()"></div>
-    <div class="fgroup"><div class="flbl">Arribo hasta</div><input type="date" id="smt-fdto" onchange="smtApply()"></div>
-    <div class="fdiv"></div>
-    <div class="fgroup"><div class="flbl">Mes rápido</div><select id="smt-fsmes" onchange="smtSetMes()"><option value="">— elegir —</option></select></div>
-    <div class="fdiv"></div>
-    <div class="fgroup"><div class="flbl">Ubicación</div><select id="smt-f-ubic" onchange="smtApply()"><option value="">Todas</option></select></div>
-    <button class="clrbtn" onclick="smtClear()" style="margin-left:auto;align-self:flex-end">↺ Limpiar</button>
-  </div>
   <div class="pw">
     <div class="empty-st" id="smt-empty">
       <div class="ei">🏍️</div>
@@ -3996,58 +3994,14 @@ function smtProcess(raw){
     if(d===null&&cols.dias&&r[cols.dias]){const p=parseInt((r[cols.dias]||'').replace(/[^\d]/g,''));if(!isNaN(p))d=p;}
     r._dias=d!==null&&d>=0?d:null;
   });
-  // Poblar filtros fbar
-  const marcas=[...new Set(smtAll.map(r=>r._marca))].sort();
-  const estados=[...new Set(smtAll.map(r=>r._estado))].sort();
-  const ubicaciones=[...new Set(smtAll.map(r=>r._ubicacion).filter(Boolean))].sort();
-  const meses=[...new Set(smtAll.map(r=>r._arribo?mtYM(r._arribo):'').filter(Boolean))].sort();
-  function fillSel(id,opts,all){const s=document.getElementById(id);if(!s)return;s.innerHTML=`<option value="">${all}</option>`+opts.map(o=>`<option value="${o}">${o}</option>`).join('');}
-  fillSel('smt-f-marca',marcas,'Todas');
-  fillSel('smt-f-estado',estados,'Todos');
-  fillSel('smt-f-ubic',ubicaciones,'Todas');
-  const ms=document.getElementById('smt-fsmes');
-  if(ms)ms.innerHTML='<option value="">— elegir —</option>'+meses.map(m=>`<option value="${m}">${mtFM(m)}</option>`).join('');
-  // Rango de fechas por defecto: todo el historial
-  const arriboFechas=smtAll.map(r=>r._arribo).filter(Boolean).sort((a,b)=>a-b);
-  if(arriboFechas.length){
-    const fd=document.getElementById('smt-fdfrom'),ft=document.getElementById('smt-fdto');
-    if(fd&&!fd.value)fd.value=mtYMD(arriboFechas[0]);
-    if(ft&&!ft.value)ft.value=mtYMD(arriboFechas[arriboFechas.length-1]);
-  }
-  document.getElementById('smt-fbar').style.display='flex';
   document.getElementById('smt-empty').style.display='none';
   document.getElementById('smt-dash').style.display='block';
   smtApply();
 }
 function smtRecalc(){smtApply();}
-function smtSetMes(){
-  const ym=document.getElementById('smt-fsmes')?.value;if(!ym)return;
-  const[y,m]=ym.split('-').map(Number);
-  document.getElementById('smt-fdfrom').value=mtYMD(new Date(y,m-1,1));
-  document.getElementById('smt-fdto').value=mtYMD(new Date(y,m,0));
-  smtApply();
-}
-function smtClear(){
-  ['smt-f-marca','smt-f-estado','smt-f-ubic','smt-fsmes'].forEach(id=>{const s=document.getElementById(id);if(s)s.value='';});
-  const arriboFechas=smtAll.map(r=>r._arribo).filter(Boolean).sort((a,b)=>a-b);
-  if(arriboFechas.length){document.getElementById('smt-fdfrom').value=mtYMD(arriboFechas[0]);document.getElementById('smt-fdto').value=mtYMD(arriboFechas[arriboFechas.length-1]);}
-  const ss=document.getElementById('smt-search');if(ss)ss.value='';
-  smtApply();
-}
 function smtApply(){
-  const marca=document.getElementById('smt-f-marca')?.value||'';
-  const estado=document.getElementById('smt-f-estado')?.value||'';
-  const ubic=document.getElementById('smt-f-ubic')?.value||'';
-  const from=mtPD(document.getElementById('smt-fdfrom')?.value);
-  const to=mtPD(document.getElementById('smt-fdto')?.value);
-  smtFiltered=smtAll.filter(r=>{
-    if(marca&&r._marca!==marca)return false;
-    if(estado&&r._estado!==estado)return false;
-    if(ubic&&r._ubicacion!==ubic)return false;
-    if(from&&r._arribo&&r._arribo<from)return false;
-    if(to&&r._arribo&&r._arribo>new Date(to.getFullYear(),to.getMonth(),to.getDate(),23,59,59))return false;
-    return true;
-  });
+  // Sin filtros: el stock de motos es una foto estática del predio (sin días anteriores para comparar).
+  smtFiltered=smtAll.slice();
   smtUpdateKPIs();smtUpdateCharts();smtSort(smtSortKey,true);
 }
 function smtGetParams(){return{crit:parseInt(document.getElementById('smt-crit')?.value)||60,alert:parseInt(document.getElementById('smt-alert')?.value)||30};}
@@ -4196,8 +4150,8 @@ function mtProcess(raw){
   // Fecha: priorizamos "Fecha Finalizado" (cuándo se terminó el alistaje) por sobre
   // "Fecha de Pedido"/"Fecha Arribo", que aparecen antes en el CSV y "ganarían" un match genérico de "fecha".
   const colFecha=fc('fecha finalizado','finalizado','fecha alistaje','fecha proceso','fecha carga')||fc('fecha');
-  window._mC={marca:fc('marca'),op:fc('operario'),fin:colFecha,arri:fc('fecha arribo','arribo'),id:fc('chasis','n° chasis','nro chasis','vin')||fc('interno','dominio','patente'),modelo:fc('modelo')};
-  mtAll.forEach(r=>{r._fin=mtPD(r[window._mC.fin]);r._arri=mtPD(r[window._mC.arri]);r._marca=(r[window._mC.marca]||'Sin marca').toUpperCase();r._op=(r[window._mC.op]||'Sin operario').trim();r._id=(window._mC.id?r[window._mC.id]||'':'').toString().trim().toUpperCase();r._modelo=(window._mC.modelo?r[window._mC.modelo]||'':'').toString().trim();});
+  window._mC={marca:fc('marca'),op:fc('operario'),fin:colFecha,arri:fc('fecha arribo','arribo'),id:fc('chasis','n° chasis','nro chasis','vin')||fc('interno','dominio','patente'),modelo:fc('modelo'),clr:fc('color')};
+  mtAll.forEach(r=>{r._fin=mtPD(r[window._mC.fin]);r._arri=mtPD(r[window._mC.arri]);r._marca=(r[window._mC.marca]||'Sin marca').toUpperCase();r._op=(r[window._mC.op]||'Sin operario').trim();r._id=(window._mC.id?r[window._mC.id]||'':'').toString().trim().toUpperCase();r._modelo=(window._mC.modelo?r[window._mC.modelo]||'':'').toString().trim();r._clr=(window._mC.clr?r[window._mC.clr]||'':'').toString().trim()||'Sin dato';});
 
   const brandCount={};mtAll.forEach(r=>{brandCount[r._marca]=(brandCount[r._marca]||0)+1;});
   MOTO_MARCAS=Object.keys(brandCount).sort((a,b)=>brandCount[b]-brandCount[a]);
@@ -4206,7 +4160,8 @@ function mtProcess(raw){
   const meses=[...new Set(mtAll.map(r=>r._fin?mtYM(r._fin):'').filter(Boolean))].sort();
   const marcas=[...MOTO_MARCAS];
   const ops=[...new Set(mtAll.map(r=>r._op).filter(Boolean))].sort();
-  mtFillSel('mt-smarca',marcas);mtFillSel('mt-sop',ops);
+  const mtClrs=[...new Set(mtAll.map(r=>r._clr).filter(c=>c&&c!=='Sin dato'))].sort();
+  mtFillSel('mt-smarca',marcas);mtFillSel('mt-sop',ops);mtFillClr(mtClrs);
   const ms=document.getElementById('mt-smes');ms.innerHTML='<option value="">— elegir —</option>'+meses.map(m=>`<option value="${m}">${mtFM(m)}</option>`).join('');
   const sb=document.getElementById('mt-sb-sel');sb.innerHTML='<option value="">— Todos —</option>'+ops.map(o=>`<option value="${o}">${o}</option>`).join('');
   document.getElementById('mt-empty').style.display='none';document.getElementById('mt-dash').style.display='block';document.getElementById('mt-fbar').style.display='flex';
@@ -4214,8 +4169,15 @@ function mtProcess(raw){
   else{const ds=mtAll.map(r=>r._fin).filter(Boolean).sort((a,b)=>a-b);if(ds.length){document.getElementById('mt-dfrom').value=mtYMD(ds[0]);document.getElementById('mt-dto').value=mtYMD(ds[ds.length-1]);}mtApply();}
 }
 function mtFillSel(id,vals){const s=document.getElementById(id);const cv=s.value;s.innerHTML='<option value="">'+(id==='mt-smarca'?'Todas':'Todos')+'</option>'+vals.map(v=>`<option value="${v}">${v}</option>`).join('');if([...s.options].some(o=>o.value===cv))s.value=cv;}
+let _mtClrs=[];
+function mtFillClr(c){_mtClrs=c;const b=document.getElementById('mt-clr-checks');b.innerHTML=c.map(x=>`<label class="msopt"><input type="checkbox" value="${x}" checked onchange="mtOnClr()"><span>${x}</span></label>`).join('');mtUpdClrBtn();}
+function mtOnClr(){mtUpdClrBtn();mtApply();}
+function mtSelClr(all){document.querySelectorAll('#mt-clr-checks input').forEach(i=>i.checked=all);mtUpdClrBtn();mtApply();}
+function mtUpdClrBtn(){const t=document.querySelectorAll('#mt-clr-checks input').length,c=document.querySelectorAll('#mt-clr-checks input:checked').length;document.getElementById('mt-clr-lbl').textContent=c===0?'Ninguno':c===t?'Todos':`${c} colores`;}
+function mtToggleClr(e){e.stopPropagation();const m=document.getElementById('mt-clr-menu');m.style.display=m.style.display==='none'?'block':'none';}
+document.addEventListener('click',e=>{const d=document.getElementById('mt-clr-wrap');if(d&&!d.contains(e.target))document.getElementById('mt-clr-menu').style.display='none';});
 function mtSetMes(){const ym=document.getElementById('mt-smes').value;if(!ym)return;const[y,m]=ym.split('-').map(Number);document.getElementById('mt-dfrom').value=mtYMD(new Date(y,m-1,1));document.getElementById('mt-dto').value=mtYMD(new Date(y,m,0));mtApply();}
-function mtClear(){document.getElementById('mt-smarca').value='';document.getElementById('mt-sop').value='';document.getElementById('mt-smes').value='';const ds=mtAll.map(r=>r._fin).filter(Boolean).sort((a,b)=>a-b);if(ds.length){document.getElementById('mt-dfrom').value=mtYMD(ds[0]);document.getElementById('mt-dto').value=mtYMD(ds[ds.length-1]);}mtChartFilter={key:null,val:null};const chip=document.getElementById('mt-chart-chip');if(chip)chip.style.display='none';mtApply();}
+function mtClear(){document.getElementById('mt-smarca').value='';document.getElementById('mt-sop').value='';mtSelClr(true);document.getElementById('mt-smes').value='';const ds=mtAll.map(r=>r._fin).filter(Boolean).sort((a,b)=>a-b);if(ds.length){document.getElementById('mt-dfrom').value=mtYMD(ds[0]);document.getElementById('mt-dto').value=mtYMD(ds[ds.length-1]);}mtChartFilter={key:null,val:null};const chip=document.getElementById('mt-chart-chip');if(chip)chip.style.display='none';mtApply();}
 
 // ── Reingresos: misma moto (chasis) cargada más de una vez ──
 function mtDedupe(rows){
@@ -4230,8 +4192,9 @@ function mtDedupe(rows){
 
 function mtApply(){
   const marca=document.getElementById('mt-smarca').value,op=document.getElementById('mt-sop').value;
+  const clrs=[...document.querySelectorAll('#mt-clr-checks input:checked')].map(i=>i.value);
   const from=mtPD(document.getElementById('mt-dfrom').value),to=mtPD(document.getElementById('mt-dto').value);
-  const baseRows=mtAll.filter(r=>{if(!r._fin)return false;if(marca&&r._marca!==marca)return false;if(op&&r._op!==op)return false;if(from&&r._fin<from)return false;if(to&&r._fin>new Date(to.getFullYear(),to.getMonth(),to.getDate(),23,59,59))return false;return true;});
+  const baseRows=mtAll.filter(r=>{if(!r._fin)return false;if(marca&&r._marca!==marca)return false;if(op&&r._op!==op)return false;if(clrs.length&&!clrs.includes(r._clr))return false;if(from&&r._fin<from)return false;if(to&&r._fin>new Date(to.getFullYear(),to.getMonth(),to.getDate(),23,59,59))return false;return true;});
   mtFiltered=mtChartFilter.key&&mtChartFilter.val?baseRows.filter(r=>{const ck=mtChartFilter.key,cv=mtChartFilter.val;if(ck==='marca')return r._marca===cv;if(ck==='op')return r._op===cv;if(ck==='dia')return r._fin&&mtYMD(r._fin)===cv;return true;}):baseRows;
   const cs=mtComputeSums(baseRows);mtOpSumChart=cs.opSum;mtDaySumChart=cs.daySum;
   mtBuildSum();mtUpdateKPIs();mtUpdateCharts();mtSort(mtSortKey,true);
@@ -4275,7 +4238,8 @@ function mtUpdateKPIs(){
   {const fromDate=mtPD(document.getElementById('mt-dfrom').value);
   if(fromDate){const prevEnd=new Date(fromDate.getFullYear(),fromDate.getMonth(),0);const prevStart=new Date(prevEnd.getFullYear(),prevEnd.getMonth(),1);
     const marca2=document.getElementById('mt-smarca').value,op2=document.getElementById('mt-sop').value;
-    const prevData=mtAll.filter(r=>{if(!r._fin)return false;if(marca2&&r._marca!==marca2)return false;if(op2&&r._op!==op2)return false;return r._fin>=prevStart&&r._fin<=new Date(prevEnd.getFullYear(),prevEnd.getMonth(),prevEnd.getDate(),23,59,59);});
+    const clrs2=[...document.querySelectorAll('#mt-clr-checks input:checked')].map(i=>i.value);
+    const prevData=mtAll.filter(r=>{if(!r._fin)return false;if(marca2&&r._marca!==marca2)return false;if(op2&&r._op!==op2)return false;if(clrs2.length&&!clrs2.includes(r._clr))return false;return r._fin>=prevStart&&r._fin<=new Date(prevEnd.getFullYear(),prevEnd.getMonth(),prevEnd.getDate(),23,59,59);});
     if(prevData.length){const prevDedup=mtDedupe(prevData);prevTotM=prevDedup.unique.length;const prevHD=mtWD(prevStart,prevEnd);const prevCap=prevHD*mtCD();prevRendM=prevCap>0?prevTotM/prevCap:0;const prevTs=prevData.map(r=>mtDB(r._arri,r._fin)).filter(t=>t!==null&&t>=0);prevTpM=prevTs.length?prevTs.reduce((a,b)=>a+b,0)/prevTs.length:null;const prevDM={};prevData.forEach(r=>{if(r._fin){const k2=mtYMD(r._fin);prevDM[k2]=(prevDM[k2]||0)+1;}});const prevDCount=Object.keys(prevDM).length;const prevCumplCount=Object.values(prevDM).filter(v=>v>=capD).length;prevDiasM=prevDCount>0?prevCumplCount/prevDCount*100:null;}
   }}
   [['total',tot,prevTotM],['rend',rend,prevRendM]].forEach(([k,cur,prev])=>{const tr=momTrend(cur,prev);const el=document.getElementById('sp-mt-'+k+'-t');if(el){el.textContent=tr.txt;el.className=tr.cls;}});
