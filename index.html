@@ -2580,6 +2580,15 @@ function movProcess(data){
 }
 
 // ── MOV FILTERS (adaptado de Dash_movimientos.html) ──
+// ── MOV: clasificación 0km / Usado ──
+// Un interno se considera "usado" si: no tiene número interno, o nunca tuvo un "ARRIBO DE UNIDAD"
+// registrado, o -reingreso- la columna SITUACION indica "USADOS" (mismo interno reingresado como usado).
+function movEsUsado(r,c){
+  if(!r[c.interno]||r._sinArribo)return true;
+  const sit=(r[c.situacion]||'').toUpperCase().trim();
+  if(sit.includes('USADO'))return true;
+  return false;
+}
 function movGetFiltered({exDate=false,exMotivo=false}={}){
   const c=window._movCols;if(!c)return[];
   const motivo=document.getElementById('mov-sel-motivo').value;
@@ -2590,7 +2599,7 @@ function movGetFiltered({exDate=false,exMotivo=false}={}){
   const from=fromS?new Date(fromS+'T00:00:00'):null;
   const to=toS?new Date(toS+'T23:59:59'):null;
   return movSynRows.filter(r=>{
-    const esUsado=!r[c.interno]||r._sinArribo;
+    const esUsado=movEsUsado(r,c);
     if(movFilterTipo==='usado'&&!esUsado)return false;
     if(movFilterTipo==='0km'&&esUsado)return false;
     if(motivo&&r[c.motivo]!==motivo)return false;
@@ -2696,7 +2705,7 @@ function movRegroup(rows){
   const c=window._movCols,map={};
   rows.forEach(r=>{
     const interno=r[c.interno],dominio=r[c.dominio],key=interno||dominio;if(!key)return;
-    const esUsado=!interno||r._sinArribo;
+    const esUsado=movEsUsado(r,c);
     const esAnulado=(r[c.estado]||'').toLowerCase()==='anulado';
     if(!map[key])map[key]={id:key,tipo:esUsado?'usado':'0km',marca:r[c.marca],modelo:r[c.modelo],movimientos:0,traslados:0,estados:{},fechas:[],rows:[]};
     if(!esAnulado){map[key].movimientos++;if((r[c.motivo]||'').toUpperCase()==='TRASLADO')map[key].traslados++;}
@@ -2715,8 +2724,8 @@ function movUpdateKPIs(rows){
   const act=rows.filter(r=>(r[c.estado]||'').toLowerCase()!=='anulado');
   ST('mov-k-total',act.length.toLocaleString('es-AR'));
   ST('mov-k-unidades',new Set(act.map(r=>r[c.interno]||r[c.dominio])).size.toLocaleString('es-AR'));
-  ST('mov-k-0km',act.filter(r=>r[c.interno]&&!r._sinArribo).length.toLocaleString('es-AR'));
-  ST('mov-k-usados',act.filter(r=>!r[c.interno]||r._sinArribo).length.toLocaleString('es-AR'));
+  ST('mov-k-0km',act.filter(r=>!movEsUsado(r,c)).length.toLocaleString('es-AR'));
+  ST('mov-k-usados',act.filter(r=>movEsUsado(r,c)).length.toLocaleString('es-AR'));
   ST('mov-k-traslados',act.filter(r=>(r[c.motivo]||'').toUpperCase()==='TRASLADO').length.toLocaleString('es-AR'));
   const uniq=new Set(act.map(r=>r[c.interno]||r[c.dominio])).size;
   ST('mov-k-promedio',uniq>0?(act.length/uniq).toFixed(1):'—');
