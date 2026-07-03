@@ -439,14 +439,15 @@ tbody tr:hover td{background:var(--surface2);}
     <div><div class="sb-logo-text">Movimiento 0km</div><div class="sb-logo-sub">Dashboard Operativo</div></div>
   </div>
   <nav class="sb-nav">
+    <div style="padding:4px 18px 2px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.28)">🚗 Autos</div>
     <button class="nav-item active" id="nav-avr" onclick="switchTab('avr')"><span class="ni">🔧</span> Averías</button>
     <button class="nav-item" id="nav-ali" onclick="switchTab('ali')"><span class="ni">🚗</span> Alistaje</button>
     <button class="nav-item" id="nav-mov" onclick="switchTab('mov')"><span class="ni">📦</span> Movimientos</button>
     <button class="nav-item" id="nav-stk" onclick="switchTab('stk')"><span class="ni">🏭</span> Stock Predio</button>
     <div class="nav-sep"></div>
     <div style="padding:4px 18px 2px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.28)">🏍 Motos</div>
-    <button class="nav-item" id="nav-moto" onclick="switchTab('moto')"><span class="ni" style="font-size:13px">↳</span> Alistaje</button>
-    <button class="nav-item" id="nav-smoto" onclick="switchTab('smoto')"><span class="ni" style="font-size:13px">↳</span> Stock</button>
+    <button class="nav-item" id="nav-moto" onclick="switchTab('moto')"><span class="ni">🔧</span> Alistaje</button>
+    <button class="nav-item" id="nav-smoto" onclick="switchTab('smoto')"><span class="ni">🏭</span> Stock</button>
     <div class="nav-sep"></div>
     <!-- Params Averías -->
     <div id="sb-p-avr" style="padding:8px 18px 4px">
@@ -1639,7 +1640,11 @@ function switchTab(t){
     const sbp=document.getElementById('sb-p-'+id);if(sbp)sbp.style.display=id===t?'':'none';
     const sbu=document.getElementById('sb-upload-'+id);if(sbu)sbu.style.display=id===t?'':'none';
   });
-  const motoFbar=document.getElementById('mt-fbar');if(motoFbar&&t!=='moto')motoFbar.style.display='none';
+  const motoFbar=document.getElementById('mt-fbar');
+  if(motoFbar){
+    if(t!=='moto')motoFbar.style.display='none';
+    else if(typeof mtAll!=='undefined'&&mtAll.length)motoFbar.style.display='flex';
+  }
   const titles={avr:'Dashboard Averías',ali:'Dashboard Alistaje',mov:'Dashboard Movimientos',stk:'Stock Predio',moto:'Dashboard Alistaje Motos',smoto:'Stock Motos'};
   document.getElementById('hdr-sub').textContent=titles[t]||'';
 }
