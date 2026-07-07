@@ -1912,6 +1912,7 @@ function avrRecalc(){
         borderWidth:1
       }))
     },options:{responsive:true,maintainAspectRatio:false,
+      animation:{onComplete({chart:ch}){const{ctx:cx}=ch,{lbl:lc}=gc();cx.save();cx.fillStyle=lc;cx.font='600 11px Inter';cx.textAlign='center';cx.textBaseline='bottom';const n=ch.data.labels.length;for(let i=0;i<n;i++){let total=0,topY=Infinity,barX=null;ch.data.datasets.forEach((ds,di)=>{const v=ds.data[i]||0;total+=v;if(v>0){const meta=ch.getDatasetMeta(di).data[i];if(meta){if(meta.y<topY)topY=meta.y;barX=meta.x;}}});if(total>0&&barX!==null)cx.fillText(total,barX,topY-3);}cx.restore();}},
       plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10},color:lbl,padding:8}}},
       scales:{
         x:{stacked:true,grid:{color:grid},ticks:{color:lbl,font:{size:10}}},
@@ -2268,7 +2269,7 @@ function aliUpdateCharts(){
     ST('ali-cs-mind',tots[tots.indexOf(Math.min(...tots))]||'—');ST('ali-cs-mind-d',aliDaySumChart[tots.indexOf(Math.min(...tots))]?aliDaySumChart[tots.indexOf(Math.min(...tots))].dia.split('-').slice(1).reverse().join('/'):'');
     const isFilteredDia=aliChartFilter.key==='dia';
     const dBgColors=aliDaySumChart.map((d,i)=>{const baseColor=tots[i]>=capD?[34,197,94]:tots[i]>=capD*.75?[245,158,11]:[239,68,68];const alpha=isFilteredDia?(aliChartFilter.val===d.dia?.9:.2):.75;return`rgba(${baseColor.join(',')},${alpha})`;});
-    AC['ali-c-daily-bars']=new Chart(db,{type:'bar',data:{labels:chartLabels,datasets:[{data:tots,backgroundColor:dBgColors,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} alistajes`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:40,font:{size:10}}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const d=aliDaySumChart[els[0].index];if(!d)return;const dia=d.dia;const diaDisp=dia.split('-').slice(1).reverse().join('/');if(aliChartFilter.key==='dia'&&aliChartFilter.val===dia)aliClearChartFilter();else aliSetChartFilter('dia',dia,diaDisp);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
+    AC['ali-c-daily-bars']=new Chart(db,{type:'bar',data:{labels:chartLabels,datasets:[{data:tots,backgroundColor:dBgColors,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,animation:{onComplete({chart:ch}){const{ctx:cx}=ch,{lbl:lc}=gc();cx.save();ch.data.datasets.forEach((ds,di)=>{ch.getDatasetMeta(di).data.forEach((bar,i)=>{const v=ds.data[i];if(!v)return;cx.fillStyle=lc;cx.font='600 11px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(v,bar.x,bar.y-3);});});cx.restore();}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} alistajes`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:40,font:{size:10}}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const d=aliDaySumChart[els[0].index];if(!d)return;const dia=d.dia;const diaDisp=dia.split('-').slice(1).reverse().join('/');if(aliChartFilter.key==='dia'&&aliChartFilter.val===dia)aliClearChartFilter();else aliSetChartFilter('dia',dia,diaDisp);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
   }
   DC('ali-c-op');const opEl=document.getElementById('ali-c-op');
   if(opEl){const opS=[...aliOpSumChart].sort((a,b)=>b.total-a.total);const opL=opS.map(o=>o.operario.split(' ').slice(0,2).join(' '));
@@ -3445,6 +3446,7 @@ function stkChartAging(){
     type:'bar',
     data:{labels:groups,datasets:[{label:'Unidades',data:[g1,g2,g3,g4],backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,borderRadius:6}]},
     options:{responsive:true,maintainAspectRatio:false,
+      animation:{onComplete({chart:ch}){const{ctx:cx}=ch,{lbl:lc}=gc();cx.save();ch.data.datasets.forEach((ds,di)=>{ch.getDatasetMeta(di).data.forEach((bar,i)=>{const v=ds.data[i];if(!v)return;cx.fillStyle=lc;cx.font='600 11px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(v,bar.x,bar.y-3);});});cx.restore();}},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} unidades`}}},
       scales:{x:{ticks:{color:lbl},grid:{color:grid}},y:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true}}}
   });
@@ -3526,6 +3528,7 @@ function stkChartMarcaDias(){
     type:'bar',
     data:{labels:brs,datasets:[{label:'Días promedio',data,backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,borderRadius:6}]},
     options:{responsive:true,maintainAspectRatio:false,
+      animation:{onComplete({chart:ch}){const{ctx:cx}=ch,{lbl:lc}=gc();cx.save();ch.data.datasets.forEach((ds,di)=>{ch.getDatasetMeta(di).data.forEach((bar,i)=>{const v=ds.data[i];if(!v)return;cx.fillStyle=lc;cx.font='600 11px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(v,bar.x,bar.y-3);});});cx.restore();}},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>` ${c2.raw} días promedio`}}},
       scales:{x:{ticks:{color:lbl},grid:{color:grid}},y:{ticks:{color:lbl},grid:{color:grid},beginAtZero:true}}}
   });
@@ -3936,6 +3939,7 @@ function stkRenderFactPat(){
         type:'bar',
         data:{labels:ranges.map(r=>r[2]),datasets:[{label:'Unidades',data:dist,backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:2,borderRadius:6}]},
         options:{responsive:true,maintainAspectRatio:false,
+          animation:{onComplete({chart:ch}){const{ctx:cx}=ch,{lbl:lc}=gc();cx.save();ch.data.datasets.forEach((ds,di)=>{ch.getDatasetMeta(di).data.forEach((bar,i)=>{const v=ds.data[i];if(!v)return;cx.fillStyle=lc;cx.font='600 11px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(v,bar.x,bar.y-3);});});cx.restore();}},
           plugins:{legend:{display:false},tooltip:{callbacks:{label:c2=>`${c2.raw} unidades`}}},
           scales:{x:{ticks:{color:lbl},grid:{color:grid}},y:{ticks:{color:lbl,stepSize:1},grid:{color:grid},beginAtZero:true}}}
       });
@@ -4076,7 +4080,7 @@ function smtUpdateCharts(){
     AC['smt-c-estado']=new Chart(ec,{type:'doughnut',data:{labels:sortedE.map(([e])=>e),datasets:[{data:sortedE.map(([,v])=>v),backgroundColor:sortedE.map(([e])=>stColors[e]||'#94a3b8'),borderColor:'#ffffff00',borderWidth:1,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{display:true,position:'right',labels:{color:lbl,font:{size:10},boxWidth:10,padding:6}}}}});}
   DC('smt-c-dias');const dc=document.getElementById('smt-c-dias');
   if(dc){const withD=smtFiltered.filter(r=>r._dias!==null).sort((a,b)=>b._dias-a._dias).slice(0,40);
-    AC['smt-c-dias']=new Chart(dc,{type:'bar',data:{labels:withD.map(r=>`${r._marca.split(' ')[0]} ${r._interno||r._dominio||'?'}`),datasets:[{data:withD.map(r=>r._dias),backgroundColor:withD.map(r=>r._dias>=p.crit?'rgba(239,68,68,0.7)':r._dias>=p.alert?'rgba(245,158,11,0.7)':'rgba(34,197,94,0.7)'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} días`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxRotation:60,font:{size:9}}},y:{grid:{color:grid},ticks:{color:lbl}}}}});}
+    AC['smt-c-dias']=new Chart(dc,{type:'bar',data:{labels:withD.map(r=>`${r._marca.split(' ')[0]} ${r._interno||r._dominio||'?'}`),datasets:[{data:withD.map(r=>r._dias),backgroundColor:withD.map(r=>r._dias>=p.crit?'rgba(239,68,68,0.7)':r._dias>=p.alert?'rgba(245,158,11,0.7)':'rgba(34,197,94,0.7)'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,animation:{onComplete({chart:ch}){const{ctx:cx}=ch,{lbl:lc}=gc();cx.save();ch.data.datasets.forEach((ds,di)=>{ch.getDatasetMeta(di).data.forEach((bar,i)=>{const v=ds.data[i];if(!v)return;cx.fillStyle=lc;cx.font='600 11px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(v,bar.x,bar.y-3);});});cx.restore();}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} días`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxRotation:60,font:{size:9}}},y:{grid:{color:grid},ticks:{color:lbl}}}}});}
   ST('smt-periodo-lbl',`(Top 40 de ${smtFiltered.filter(r=>r._dias!==null).length} con fecha)`);
 }
 let smtDisp=[];
@@ -4340,7 +4344,7 @@ function mtUpdateCharts(){
     ST('mt-cs-mind',tots[tots.indexOf(Math.min(...tots))]||'—');ST('mt-cs-mind-d',mtDaySumChart[tots.indexOf(Math.min(...tots))]?mtDaySumChart[tots.indexOf(Math.min(...tots))].dia.split('-').slice(1).reverse().join('/'):'');
     const isFilteredDia=mtChartFilter.key==='dia';
     const dBgColors=mtDaySumChart.map((d,i)=>{const baseColor=tots[i]>=capD?[34,197,94]:tots[i]>=capD*.75?[245,158,11]:[239,68,68];const alpha=isFilteredDia?(mtChartFilter.val===d.dia?.9:.2):.75;return`rgba(${baseColor.join(',')},${alpha})`;});
-    AC['mt-c-daily-bars']=new Chart(db,{type:'bar',data:{labels:chartLabels,datasets:[{data:tots,backgroundColor:dBgColors,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} alistadas`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:40,font:{size:10}}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const d=mtDaySumChart[els[0].index];if(!d)return;const dia=d.dia;const diaDisp=dia.split('-').slice(1).reverse().join('/');if(mtChartFilter.key==='dia'&&mtChartFilter.val===dia)mtClearChartFilter();else mtSetChartFilter('dia',dia,diaDisp);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
+    AC['mt-c-daily-bars']=new Chart(db,{type:'bar',data:{labels:chartLabels,datasets:[{data:tots,backgroundColor:dBgColors,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,animation:{onComplete({chart:ch}){const{ctx:cx}=ch,{lbl:lc}=gc();cx.save();ch.data.datasets.forEach((ds,di)=>{ch.getDatasetMeta(di).data.forEach((bar,i)=>{const v=ds.data[i];if(!v)return;cx.fillStyle=lc;cx.font='600 11px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(v,bar.x,bar.y-3);});});cx.restore();}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} alistadas`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:40,font:{size:10}}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const d=mtDaySumChart[els[0].index];if(!d)return;const dia=d.dia;const diaDisp=dia.split('-').slice(1).reverse().join('/');if(mtChartFilter.key==='dia'&&mtChartFilter.val===dia)mtClearChartFilter();else mtSetChartFilter('dia',dia,diaDisp);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
   }
   DC('mt-c-op');const opEl=document.getElementById('mt-c-op');
   if(opEl){const opS=[...mtOpSumChart].sort((a,b)=>b.total-a.total);const opL=opS.map(o=>o.operario.split(' ').slice(0,2).join(' '));
