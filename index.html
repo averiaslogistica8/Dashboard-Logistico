@@ -611,7 +611,7 @@ tbody tr:hover td{background:var(--surface2);}
       <div class="sb-file-info"><div class="sb-file-dot" id="fd-ali"></div><div class="sb-file-name" id="fn-ali">Esperando...</div></div>
     </div>
     <div class="sb-upload-area" id="sb-upload-stk" style="display:none">
-      <button class="sb-upload-btn" style="background:#0f766e" onclick="loadSheet('stk')" id="btn-stk">↻ Actualizar Stock</button>
+      <button class="sb-upload-btn" style="background:#0f766e" onclick="loadSheet('stk');loadSheet('hist')" id="btn-stk">↻ Actualizar Stock</button>
       <div class="sb-file-info"><div class="sb-file-dot" id="fd-stk"></div><div class="sb-file-name" id="fn-stk">Esperando...</div></div>
     </div>
     <div class="sb-upload-area" id="sb-upload-mov" style="display:none">
@@ -855,7 +855,19 @@ tbody tr:hover td{background:var(--surface2);}
               </div>
             </div>
 
-            <!-- Tendencia semanal -->
+            <!-- Acumulado: período actual vs anterior, alineado por día con actividad -->
+            <div class="stitle"><span class="sdot" style="background:var(--accent)"></span>Acumulado vs Período Anterior <em>(alineado por día con actividad)</em></div>
+            <div class="cc" style="margin-bottom:14px">
+              <div class="ctitle">Alistajes acumulados por día con actividad <span id="ali-cum-periodo-lbl" style="color:var(--text-dim);font-weight:400"></span></div>
+              <div class="ch300"><canvas id="ali-c-cum-line"></canvas></div>
+              <div class="cstats">
+                <div class="cstat"><div class="cstat-lbl">Acumulado actual</div><div class="cstat-val" id="ali-cum-cur">—</div></div>
+                <div class="cstat"><div class="cstat-lbl">Acum. período anterior (mismo día)</div><div class="cstat-val" id="ali-cum-prev">—</div></div>
+                <div class="cstat"><div class="cstat-lbl">Diferencia</div><div class="cstat-val" id="ali-cum-diff">—</div></div>
+                <div class="cstat"><div class="cstat-lbl">Período anterior comparado</div><div class="cstat-val" style="font-size:12px" id="ali-cum-periodo">—</div></div>
+              </div>
+            </div>
+
             <div class="stitle"><span class="sdot" style="background:var(--text-mid)"></span>Tendencia Semanal <em>Rendimiento promedio</em></div>
             <div class="tgrid" id="ali-tend-grid"></div>
 
@@ -1200,6 +1212,18 @@ tbody tr:hover td{background:var(--surface2);}
                 <div class="cstat"><div class="cstat-lbl">+ 60 días</div><div class="cstat-val red" id="cs-g4">—</div></div>
               </div>
             </div>
+          </div>
+
+          <!-- ── EVOLUCIÓN DEL STOCK ── -->
+          <div class="stitle"><span class="sdot" style="background:var(--purple)"></span>Evolución del Stock <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-dim);font-size:11px">· cortes cargados a mano en "Historial Stock"</span></div>
+          <div class="cc" style="margin-bottom:14px" id="hist-cc">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px">
+              <div class="ctitle" style="margin:0">Variación de Stock por Marca</div>
+              <div style="text-align:right"><div class="cstat-lbl">Último corte</div><div class="cstat-val" style="font-size:14px" id="hist-last-date">—</div></div>
+            </div>
+            <div class="ch300"><canvas id="hist-c-evol"></canvas></div>
+            <div class="cstats cstats-4" id="hist-cs" style="margin-top:12px"></div>
+            <div id="hist-empty" style="display:none;text-align:center;padding:20px;font-size:12px;color:var(--text-dim)">Todavía no hay cortes cargados en la pestaña "Historial Stock" de la planilla.</div>
           </div>
 
           <!-- ── HEATMAP DIQUES ── -->
@@ -1697,6 +1721,7 @@ function toggleTheme(){
   if(aliFiltered.length){aliUpdateKPIs();aliUpdateCharts();}
   if(movAllRows.length)movRedrawCharts();
   if(stkAll&&stkAll.length)stkRedrawCharts();
+  if(typeof histRows!=='undefined'&&histRows.length)histRender();
   if(typeof mtFiltered!=='undefined'&&mtFiltered.length){mtUpdateKPIs();mtUpdateCharts();}
   if(typeof smtFiltered!=='undefined'&&smtFiltered.length){smtUpdateCharts();}
 }
@@ -2087,6 +2112,22 @@ function aliYM(d){if(!d)return'';return`${d.getFullYear()}-${String(d.getMonth()
 function aliFM(ym){if(!ym)return'';const[y,m]=ym.split('-');return`${['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+m-1]} ${y}`;}
 function aliDB(a,b){if(!a||!b)return null;return(b-a)/86400000;}
 function aliWD(from,to){if(!from||!to)return 22;let n=0,d=new Date(from);while(d<=to){if(d.getDay()!==0&&d.getDay()!==6)n++;d.setDate(d.getDate()+1);}return n||22;}
+// Período anterior "adaptativo": el bloque de días calendario inmediatamente anterior,
+// de igual longitud que el rango filtrado actualmente (ali-dfrom/ali-dto). Así, si el usuario
+// filtra un mes, la comparación es contra el mes anterior; si filtra 10 días, contra los 10 días previos.
+function aliGetPrevPeriod(){
+  const from=aliPD(document.getElementById('ali-dfrom').value),to=aliPD(document.getElementById('ali-dto').value);
+  if(!from||!to)return null;
+  const spanDays=Math.round((to-from)/86400000)+1;
+  const prevTo=new Date(from);prevTo.setDate(prevTo.getDate()-1);prevTo.setHours(23,59,59,999);
+  const prevFrom=new Date(prevTo);prevFrom.setDate(prevFrom.getDate()-(spanDays-1));prevFrom.setHours(0,0,0,0);
+  const marca2=document.getElementById('ali-smarca').value,op2=document.getElementById('ali-sop').value,clrs2=aliGetClrs();
+  const prevData=aliAll.filter(r=>{if(!r._fin)return false;if(marca2&&r._marca!==marca2)return false;if(op2&&r._op!==op2)return false;if(clrs2.length&&!clrs2.includes(r._clr))return false;return r._fin>=prevFrom&&r._fin<=prevTo;});
+  const prevDM={};prevData.forEach(r=>{const k=aliYMD(r._fin);prevDM[k]=(prevDM[k]||0)+1;});
+  const prevDaysSorted=Object.keys(prevDM).sort();
+  const prevTs=prevData.map(r=>aliDB(r._arri,r._fin)).filter(t=>t!==null&&t>=0);
+  return{prevFrom,prevTo,spanDays,prevData,prevDM,prevDaysSorted,prevTotal:prevData.length,prevTs};
+}
 // aliMon: devuelve el lunes de la semana (Lun-Sáb) del día dado.
 // Se parsea la fecha como hora local (no UTC) para evitar el offset UTC-3 que
 // desplazaba la semana un día y producía agrupaciones de Mar a Lun.
@@ -2208,29 +2249,29 @@ function aliUpdateKPIs(){
   const pcts=aliDaySum.map(d=>+(d.total/capD*100).toFixed(1));
   const dlyTots=aliDaySum.map(d=>d.total);
   setSpark('sp-ali-total',dlyTots,'#2563eb');setSpark('sp-ali-rend',pcts,'#22c55e');
-  // Compute previous month data for comparison
+  // Comparación vs período anterior (adaptativo al filtro de fechas actual)
   const activeDaysCur=aliDaySum.length; // días con actividad transcurridos en el período actual
   let prevTotM=null,prevRendM=null,prevTpM=null,prevDiasM=null,prevTotMSame=null,prevActiveDaysUsed=0;
-  {const fromDate=aliPD(document.getElementById('ali-dfrom').value);
-  if(fromDate){const prevEnd=new Date(fromDate.getFullYear(),fromDate.getMonth(),0);
-    const prevStart=new Date(prevEnd.getFullYear(),prevEnd.getMonth(),1);
-    const marca2=document.getElementById('ali-smarca').value,op2=document.getElementById('ali-sop').value,clrs2=aliGetClrs();
-    const prevData=aliAll.filter(r=>{if(!r._fin)return false;if(marca2&&r._marca!==marca2)return false;if(op2&&r._op!==op2)return false;if(clrs2.length&&!clrs2.includes(r._clr))return false;return r._fin>=prevStart&&r._fin<=new Date(prevEnd.getFullYear(),prevEnd.getMonth(),prevEnd.getDate(),23,59,59);});
-    if(prevData.length){prevTotM=prevData.length;const prevHD=aliWD(prevStart,prevEnd);const prevCap=prevHD*aliCD();prevRendM=prevCap>0?prevData.length/prevCap:0;const prevTs=prevData.map(r=>aliDB(r._arri,r._fin)).filter(t=>t!==null&&t>=0);prevTpM=prevTs.length?prevTs.reduce((a,b)=>a+b,0)/prevTs.length:null;
-      const prevDM={};prevData.forEach(r=>{if(r._fin){const k2=aliYMD(r._fin);prevDM[k2]=(prevDM[k2]||0)+1;}});
-      const prevDCount=Object.keys(prevDM).length;const prevCumplCount=Object.values(prevDM).filter(v=>v>=capD).length;prevDiasM=prevDCount>0?prevCumplCount/prevDCount*100:null;
-      // Total del mes anterior recortado al mismo Nº de días CON ACTIVIDAD que llevamos en el período actual
-      // (ej: si hoy es el día 10 con actividad del mes, comparamos contra los primeros 10 días con actividad del mes anterior)
-      if(activeDaysCur>0){const prevDaysSorted=Object.keys(prevDM).sort();const cutDays=prevDaysSorted.slice(0,activeDaysCur);prevActiveDaysUsed=cutDays.length;prevTotMSame=cutDays.reduce((a,k2)=>a+prevDM[k2],0);}
-    }
-  }}
+  const prevPeriod=aliGetPrevPeriod();
+  if(prevPeriod&&prevPeriod.prevTotal>0){
+    prevTotM=prevPeriod.prevTotal;
+    const prevHD=aliWD(prevPeriod.prevFrom,prevPeriod.prevTo);const prevCap=prevHD*aliCD();
+    prevRendM=prevCap>0?prevTotM/prevCap:0;
+    prevTpM=prevPeriod.prevTs.length?prevPeriod.prevTs.reduce((a,b)=>a+b,0)/prevPeriod.prevTs.length:null;
+    const prevDCount=prevPeriod.prevDaysSorted.length;
+    const prevCumplCount=prevPeriod.prevDaysSorted.filter(k=>prevPeriod.prevDM[k]>=capD).length;
+    prevDiasM=prevDCount>0?prevCumplCount/prevDCount*100:null;
+    // Total del período anterior recortado al mismo Nº de días CON ACTIVIDAD que llevamos en el período actual
+    // (ej: si hoy es el día 10 con actividad, comparamos contra los primeros 10 días con actividad del período anterior)
+    if(activeDaysCur>0){const cutDays=prevPeriod.prevDaysSorted.slice(0,activeDaysCur);prevActiveDaysUsed=cutDays.length;prevTotMSame=cutDays.reduce((a,k2)=>a+prevPeriod.prevDM[k2],0);}
+  }
   [['rend',rend,prevRendM]].forEach(([k,cur,prev])=>{const tr=momTrend(cur,prev);const el=document.getElementById('sp-ali-'+k+'-t');if(el){el.textContent=tr.txt;el.className=tr.cls;}});
   // Total Alistajes: comparación "a igualdad de días con actividad" vs el mes anterior
   {const tr=momTrend(tot,prevTotMSame);const el=document.getElementById('sp-ali-total-t');if(el){el.textContent=tr.txt;el.className=tr.cls;}}
   // Diferencia absoluta de unidades en Total Alistajes (misma cantidad de días con actividad)
   {const diffEl=document.getElementById('sp-ali-total-diff');if(diffEl){if(prevTotMSame!==null&&prevTotMSame!==undefined){const d=tot-prevTotMSame;const sign=d>=0?'+':'';diffEl.textContent=`· ${sign}${d} u`;diffEl.style.color=d>=0?'var(--green)':'var(--red)';}else{diffEl.textContent='';}}}
   // Etiqueta dinámica: aclara contra qué se está comparando
-  {const lblEl=document.getElementById('sp-ali-total-label');if(lblEl){lblEl.textContent=activeDaysCur>0&&prevTotMSame!==null?` vs día ${prevActiveDaysUsed} c/act. (mes ant.)`:' vs período anterior';}}
+  {const lblEl=document.getElementById('sp-ali-total-label');if(lblEl){lblEl.textContent=activeDaysCur>0&&prevTotMSame!==null?` vs día ${prevActiveDaysUsed} c/act. (período ant.)`:' vs período anterior';}}
   // Dias KPI sparkline: running total of days with ≥ cap
   const runCumpl=aliDaySum.map((d,i)=>{const sl=aliDaySum.slice(0,i+1);return Math.round(sl.filter(x=>x.total>=capD).length/sl.length*100);});
   setSpark('sp-ali-dias',runCumpl,'#3b82f6');const trD=momTrendAbsPp(cumplimientoPct,prevDiasM);const elD=document.getElementById('sp-ali-dias-t');if(elD){elD.textContent=trD.txt;elD.className=trD.cls;}
@@ -2344,9 +2385,42 @@ function aliUpdateCharts(){
   if(or){const opS=[...aliOpSumChart].sort((a,b)=>b.total-a.total);const opL=opS.map(o=>o.operario.split(' ').slice(0,2).join(' '));
     const isFilteredOp2=aliChartFilter.key==='op';
     AC['ali-c-oprend']=new Chart(or,{type:'bar',data:{labels:opL,datasets:[{data:opS.map(o=>+(o.rend*100).toFixed(1)),backgroundColor:opS.map((o,i)=>{const base=o.rend>=.85?'rgba(34,197,94,':o.rend>=.65?'rgba(245,158,11,':'rgba(239,68,68,';const alpha=isFilteredOp2?(aliChartFilter.val===o.operario?.9:.2):.8;return base+alpha+')'}),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:38}},animation:{onComplete({chart:ch}){const{ctx:cx}=ch,{lbl:lc}=gc();cx.save();cx.fillStyle=lc;cx.font='600 11px Inter';cx.textAlign='left';cx.textBaseline='middle';ch.data.datasets.forEach((ds,di)=>{ch.getDatasetMeta(di).data.forEach((bar,i)=>{const v=ds.data[i];if(v==null)return;cx.fillText(v+'%',bar.x+6,bar.y);});});cx.restore();}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw}%`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,callback:v=>v+'%'},max:130},y:{grid:{display:false},ticks:{color:lbl,font:{size:10}}}},onClick(evt,els){if(!els.length)return;const op=opS[els[0].index]?.operario;if(!op)return;const opShort=op.split(' ').slice(0,2).join(' ');if(aliChartFilter.key==='op'&&aliChartFilter.val===op)aliClearChartFilter();else aliSetChartFilter('op',op,opShort);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});}
+  aliUpdateCumChart();
   aliRenderDT();aliUpdateSB();
 }
-let aliDispOps=[];
+function aliUpdateCumChart(){
+  const{grid,lbl}=gc();
+  DC('ali-c-cum-line');
+  const canvas=document.getElementById('ali-c-cum-line');
+  if(!canvas)return;
+  const prev=aliGetPrevPeriod();
+  // Acumulado del período actual, por índice de día CON ACTIVIDAD (no por fecha calendario)
+  const curDays=aliDaySum; // ya viene ordenado ascendente
+  const curCum=[];{let run=0;curDays.forEach(d=>{run+=d.total;curCum.push(run);});}
+  const prevCum=[];if(prev){let run2=0;prev.prevDaysSorted.forEach(k=>{run2+=prev.prevDM[k];prevCum.push(run2);});}
+  const activeDaysCur=curDays.length;
+  const maxLen=Math.max(curCum.length,prevCum.length,1);
+  const labels=Array.from({length:maxLen},(_,i)=>`Día ${i+1}`);
+  const curData=labels.map((_,i)=>i<curCum.length?curCum[i]:null);
+  const prevData=labels.map((_,i)=>i<prevCum.length?prevCum[i]:null);
+  // Stats: acumulado actual vs. acumulado del período anterior al mismo día de actividad
+  const curAtN=curCum.length?curCum[curCum.length-1]:0;
+  const prevAtN=(activeDaysCur>0&&prevCum.length>=activeDaysCur)?prevCum[activeDaysCur-1]:(prevCum.length?prevCum[prevCum.length-1]:null);
+  ST('ali-cum-cur',curAtN.toLocaleString('es-AR'));
+  ST('ali-cum-prev',prevAtN!==null?prevAtN.toLocaleString('es-AR'):'—');
+  const diffN=prevAtN!==null?curAtN-prevAtN:null;
+  const diffEl=document.getElementById('ali-cum-diff');
+  if(diffEl){if(diffN!==null){const sign=diffN>=0?'+':'';diffEl.textContent=`${sign}${diffN} u`;diffEl.className='cstat-val '+(diffN>=0?'grn':'red');}else{diffEl.textContent='—';diffEl.className='cstat-val';}}
+  const fmtD=d=>d?d.toLocaleDateString('es-AR'):'—';
+  ST('ali-cum-periodo',prev?`${fmtD(prev.prevFrom)} - ${fmtD(prev.prevTo)}`:'Sin datos previos');
+  const lblEl2=document.getElementById('ali-cum-periodo-lbl');if(lblEl2)lblEl2.textContent=activeDaysCur?`· hoy = día ${activeDaysCur} con actividad`:'';
+  if(!curCum.length&&!prevCum.length)return;
+  AC['ali-c-cum-line']=new Chart(canvas,{type:'line',data:{labels,datasets:[
+    {label:'Período actual',data:curData,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.08)',fill:true,tension:0.3,pointRadius:2,pointHoverRadius:5,borderWidth:2.5,spanGaps:false},
+    {label:'Período anterior',data:prevData,borderColor:'#94a3b8',backgroundColor:'transparent',borderDash:[6,4],fill:false,tension:0.3,pointRadius:2,pointHoverRadius:5,borderWidth:2,spanGaps:false}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:true,position:'bottom',labels:{color:lbl,font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw!==null&&c.raw!==undefined?c.raw:'—'} u`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:14,font:{size:10}}},y:{grid:{color:grid},ticks:{color:lbl}}}},
+  plugins:[{id:'aliCurDayMarker',afterDraw(chart){if(!activeDaysCur)return;const idx=activeDaysCur-1;if(idx<0||idx>=labels.length)return;const xScale=chart.scales.x,yScale=chart.scales.y;const x=xScale.getPixelForValue(idx);const ctx=chart.ctx;ctx.save();ctx.beginPath();ctx.moveTo(x,yScale.top);ctx.lineTo(x,yScale.bottom);ctx.strokeStyle='rgba(37,99,235,0.35)';ctx.setLineDash([3,3]);ctx.lineWidth=1.5;ctx.stroke();ctx.restore();}}]});
+}
 function aliSort(key,noToggle){
   if(!noToggle){if(aliSortKey===key)aliSortDir*=-1;else{aliSortKey=key;aliSortDir=-1;}}
   document.querySelectorAll('thead th[id^=ali-th-]').forEach(th=>{th.classList.remove('sort-asc','sort-desc');if(th.id.replace('ali-th-','')===aliSortKey.replace('operario','op').replace('total','tot').replace('diasTrab','dias'))th.classList.add(aliSortDir===1?'sort-asc':'sort-desc');});
@@ -2950,6 +3024,7 @@ const GS_URLS = {
   ali: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4SHTzQiqQOjLYcGErelIRGlnml9cPzgoXi5M0LAdmmqGLgk8kxMG1_SlC7DdBBt_f6bJkyPkPC9wX/pub?output=csv&gid=127628867',
   mov: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtC2eRdTMsJV50O6rDDEB4Pdn8NZPJSWvJIYGSnRh9Luu5FNxK5e0aQIfvltTUpy0_in80shzsSUdm/pub?output=csv&gid=1181695820',
   stk: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRjQGle2dKSwMjCj3Cg4pDKkjAfemWZZhZs4QzExJeqAYU5m_fj0_yZ3I9Yq70-v7oTAzhKd7QMFDb3/pub?gid=0&single=true&output=csv',
+  hist: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRjQGle2dKSwMjCj3Cg4pDKkjAfemWZZhZs4QzExJeqAYU5m_fj0_yZ3I9Yq70-v7oTAzhKd7QMFDb3/pub?gid=712301170&single=true&output=csv',
   moto: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSedxwtoLHdrCupzZEftZzJOIUu7IoUWGOga4wBdWC3po0j5XB_lvHRY0Xizlz0vwAzRDz1DRV1p9Yc/pub?gid=0&single=true&output=csv',
   smoto: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRH2TXdNpbnrVZn566Wy4FEL0T9ORpAE7GVowKno6qu2gHho4m7T0PXWsqFIt42d7XnXM1wnkuOmqa7/pub?gid=0&single=true&output=csv'
 };
@@ -3002,6 +3077,8 @@ async function loadSheet(key) {
       movProcess(parsed.data);
     } else if (key === 'stk') {
       stkProcess(parsed.data);
+    } else if (key === 'hist') {
+      histProcess(parsed.data);
     } else if (key === 'moto') {
       mtProcess(parsed.data);
     } else if (key === 'smoto') {
@@ -3023,6 +3100,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => loadSheet('ali'), 600);
   setTimeout(() => loadSheet('mov'), 1200);
   setTimeout(() => loadSheet('stk'), 1800);
+  setTimeout(() => loadSheet('hist'), 2100);
   setTimeout(() => loadSheet('moto'), 2400);
   setTimeout(() => loadSheet('smoto'), 3000);
 });
@@ -3117,6 +3195,93 @@ function stkOnEstadoSelect(){
   const v=ge_stk('f-estado')?.value;
   if(!v){ stkClearChartFilter(); return; }
   stkSetChartFilter('estado', v, stkEstInfo(v).label);
+}
+
+/* ══════════════════════════════════════════════════
+   HISTORIAL STOCK (evolución manual por marca)
+══════════════════════════════════════════════════ */
+let histRows=[], histBrandCols=[];
+
+function histProcess(rawData){
+  const empty=document.getElementById('hist-empty');
+  if(!rawData||!rawData.length){
+    DC('hist-evol');
+    if(empty) empty.style.display='block';
+    return;
+  }
+  const cleaned=rawData.map(row=>{
+    const out={};
+    for(const k in row){
+      const key=k.replace(/^\uFEFF/,'').trim();
+      if(!key)continue;
+      out[key]=(row[k]??'').toString().trim();
+    }
+    return out;
+  }).filter(r=>Object.values(r).some(v=>v!==''));
+  if(!cleaned.length){
+    DC('hist-evol');
+    if(empty) empty.style.display='block';
+    return;
+  }
+  const headers=Object.keys(cleaned[0]);
+  const fechaCol=headers.find(h=>h.toLowerCase()==='fecha')||headers[0];
+  const totalCol=headers.find(h=>h.toLowerCase()==='total');
+  histBrandCols=headers.filter(h=>h!==fechaCol&&h!==totalCol);
+  histRows=cleaned.map(r=>{
+    const m=(r[fechaCol]||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    const date=m?new Date(+m[3],+m[2]-1,+m[1]):null;
+    const brands={};
+    histBrandCols.forEach(b=>brands[b]=+String(r[b]).replace(',','.')||0);
+    const total=totalCol?(+String(r[totalCol]).replace(',','.')||0):histBrandCols.reduce((s,b)=>s+brands[b],0);
+    return{dateStr:r[fechaCol],date,brands,total};
+  }).filter(r=>r.date).sort((a,b)=>a.date-b.date);
+  if(!histRows.length){
+    DC('hist-evol');
+    if(empty) empty.style.display='block';
+    return;
+  }
+  if(empty) empty.style.display='none';
+  histRender();
+}
+
+function histBrandColor(label){
+  const l=label.trim().toLowerCase();
+  if(l.startsWith('vw')||l.includes('volks'))return BRAND_C.Volkswagen;
+  if(l.includes('ford'))return BRAND_C.Ford;
+  if(l.includes('chev'))return BRAND_C.Chevrolet;
+  if(l.includes('audi'))return BRAND_C.Audi;
+  return typeof brandColor==='function'?brandColor(label):'#94a3b8';
+}
+
+function histRender(){
+  if(!histRows.length)return;
+  const{grid,lbl}=gc();
+  const labels=histRows.map(r=>r.dateStr);
+  DC('hist-evol');
+  const canvas=document.getElementById('hist-c-evol');
+  if(!canvas)return;
+  const datasets=histBrandCols.map(b=>{
+    const c=histBrandColor(b);
+    return{label:b,data:histRows.map(r=>r.brands[b]),borderColor:c,backgroundColor:c+'22',tension:.35,pointRadius:3,pointHoverRadius:6,borderWidth:2,fill:false};
+  });
+  AC['hist-evol']=new Chart(canvas,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'bottom',labels:{color:lbl,font:{size:10},boxWidth:10,padding:8}},
+      tooltip:{mode:'index',intersect:false}},
+    scales:{x:{grid:{color:grid},ticks:{color:lbl,font:{size:10}}},y:{grid:{color:grid},ticks:{color:lbl},beginAtZero:false}}}});
+  const last=histRows[histRows.length-1];
+  const prev=histRows.length>1?histRows[histRows.length-2]:null;
+  ST('hist-last-date',last.dateStr);
+  const cs=document.getElementById('hist-cs');
+  if(cs){
+    cs.innerHTML=histBrandCols.map(b=>{
+      const v=last.brands[b];
+      const d=prev?v-prev.brands[b]:0;
+      const arrow=d>0?'▲':d<0?'▼':'—';
+      const col=d>0?'var(--green)':d<0?'var(--red)':'var(--text-dim)';
+      const sub=prev?`<span style="color:${col}">${arrow} ${Math.abs(d)}</span> vs. corte anterior`:'primer corte';
+      return`<div class="cstat"><div class="cstat-lbl">${b}</div><div class="cstat-val" style="color:${histBrandColor(b)}">${v}</div><div class="cstat-sub">${sub}</div></div>`;
+    }).join('');
+  }
 }
 
 /* ══════════════════════════════════════════════════
