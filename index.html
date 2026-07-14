@@ -803,7 +803,7 @@ tbody tr:hover td{background:var(--surface2);}
               <div class="kcard" id="ali-ck-total" style="--kc:var(--accent)">
                 <div class="kcard-top"><div class="kic" style="--kc:var(--accent)">🚗</div><div class="kinfo"><div class="klbl">Total Alistajes</div><div class="kval lg" id="ali-k-total">—</div><div class="ksub" id="ali-k-total-s">Autos</div></div></div>
                 <div class="kcard-spark"><svg class="spark-svg" viewBox="0 0 200 42" preserveAspectRatio="none"><path id="sp-ali-total" class="spark-path" style="stroke:var(--accent)"/></svg></div>
-                <div class="kcard-trend"><span id="sp-ali-total-t" class="trend-nt">—</span><span id="sp-ali-total-diff" style="font-size:11px;font-weight:600;margin-left:4px"></span><span style="color:var(--text-dim)"> vs período anterior</span></div>
+                <div class="kcard-trend"><span id="sp-ali-total-t" class="trend-nt">—</span><span id="sp-ali-total-diff" style="font-size:11px;font-weight:600;margin-left:4px"></span><span id="sp-ali-total-label" style="color:var(--text-dim)"> vs período anterior</span></div>
               </div>
               <div class="kcard" id="ali-ck-rend" style="--kc:var(--green)">
                 <div class="kcard-top"><div class="kic" style="--kc:var(--green)">📊</div><div class="kinfo"><div class="klbl">Rendimiento</div><div class="kval lg" id="ali-k-rend">—</div><div class="ksub">Total alistajes / Capacidad instalada</div><div class="kmeta"><div id="ali-k-rend-m"></div></div><div class="kpbar"><div class="kpfill" id="ali-rend-fill"></div></div></div></div>
@@ -2209,17 +2209,28 @@ function aliUpdateKPIs(){
   const dlyTots=aliDaySum.map(d=>d.total);
   setSpark('sp-ali-total',dlyTots,'#2563eb');setSpark('sp-ali-rend',pcts,'#22c55e');
   // Compute previous month data for comparison
-  let prevTotM=null,prevRendM=null,prevTpM=null,prevDiasM=null;
+  const activeDaysCur=aliDaySum.length; // días con actividad transcurridos en el período actual
+  let prevTotM=null,prevRendM=null,prevTpM=null,prevDiasM=null,prevTotMSame=null,prevActiveDaysUsed=0;
   {const fromDate=aliPD(document.getElementById('ali-dfrom').value);
   if(fromDate){const prevEnd=new Date(fromDate.getFullYear(),fromDate.getMonth(),0);
     const prevStart=new Date(prevEnd.getFullYear(),prevEnd.getMonth(),1);
     const marca2=document.getElementById('ali-smarca').value,op2=document.getElementById('ali-sop').value,clrs2=aliGetClrs();
     const prevData=aliAll.filter(r=>{if(!r._fin)return false;if(marca2&&r._marca!==marca2)return false;if(op2&&r._op!==op2)return false;if(clrs2.length&&!clrs2.includes(r._clr))return false;return r._fin>=prevStart&&r._fin<=new Date(prevEnd.getFullYear(),prevEnd.getMonth(),prevEnd.getDate(),23,59,59);});
-    if(prevData.length){prevTotM=prevData.length;const prevHD=aliWD(prevStart,prevEnd);const prevCap=prevHD*aliCD();prevRendM=prevCap>0?prevData.length/prevCap:0;const prevTs=prevData.map(r=>aliDB(r._arri,r._fin)).filter(t=>t!==null&&t>=0);prevTpM=prevTs.length?prevTs.reduce((a,b)=>a+b,0)/prevTs.length:null;const prevDM={};prevData.forEach(r=>{if(r._fin){const k2=aliYMD(r._fin);prevDM[k2]=(prevDM[k2]||0)+1;}});const prevDCount=Object.keys(prevDM).length;const prevCumplCount=Object.values(prevDM).filter(v=>v>=capD).length;prevDiasM=prevDCount>0?prevCumplCount/prevDCount*100:null;}
+    if(prevData.length){prevTotM=prevData.length;const prevHD=aliWD(prevStart,prevEnd);const prevCap=prevHD*aliCD();prevRendM=prevCap>0?prevData.length/prevCap:0;const prevTs=prevData.map(r=>aliDB(r._arri,r._fin)).filter(t=>t!==null&&t>=0);prevTpM=prevTs.length?prevTs.reduce((a,b)=>a+b,0)/prevTs.length:null;
+      const prevDM={};prevData.forEach(r=>{if(r._fin){const k2=aliYMD(r._fin);prevDM[k2]=(prevDM[k2]||0)+1;}});
+      const prevDCount=Object.keys(prevDM).length;const prevCumplCount=Object.values(prevDM).filter(v=>v>=capD).length;prevDiasM=prevDCount>0?prevCumplCount/prevDCount*100:null;
+      // Total del mes anterior recortado al mismo Nº de días CON ACTIVIDAD que llevamos en el período actual
+      // (ej: si hoy es el día 10 con actividad del mes, comparamos contra los primeros 10 días con actividad del mes anterior)
+      if(activeDaysCur>0){const prevDaysSorted=Object.keys(prevDM).sort();const cutDays=prevDaysSorted.slice(0,activeDaysCur);prevActiveDaysUsed=cutDays.length;prevTotMSame=cutDays.reduce((a,k2)=>a+prevDM[k2],0);}
+    }
   }}
-  [['total',tot,prevTotM],['rend',rend,prevRendM]].forEach(([k,cur,prev])=>{const tr=momTrend(cur,prev);const el=document.getElementById('sp-ali-'+k+'-t');if(el){el.textContent=tr.txt;el.className=tr.cls;}});
-  // Diferencia absoluta de unidades en Total Alistajes
-  {const diffEl=document.getElementById('sp-ali-total-diff');if(diffEl){if(prevTotM!==null&&prevTotM!==undefined){const d=tot-prevTotM;const sign=d>=0?'+':'';diffEl.textContent=`· ${sign}${d} u`;diffEl.style.color=d>=0?'var(--green)':'var(--red)';}else{diffEl.textContent='';}}}
+  [['rend',rend,prevRendM]].forEach(([k,cur,prev])=>{const tr=momTrend(cur,prev);const el=document.getElementById('sp-ali-'+k+'-t');if(el){el.textContent=tr.txt;el.className=tr.cls;}});
+  // Total Alistajes: comparación "a igualdad de días con actividad" vs el mes anterior
+  {const tr=momTrend(tot,prevTotMSame);const el=document.getElementById('sp-ali-total-t');if(el){el.textContent=tr.txt;el.className=tr.cls;}}
+  // Diferencia absoluta de unidades en Total Alistajes (misma cantidad de días con actividad)
+  {const diffEl=document.getElementById('sp-ali-total-diff');if(diffEl){if(prevTotMSame!==null&&prevTotMSame!==undefined){const d=tot-prevTotMSame;const sign=d>=0?'+':'';diffEl.textContent=`· ${sign}${d} u`;diffEl.style.color=d>=0?'var(--green)':'var(--red)';}else{diffEl.textContent='';}}}
+  // Etiqueta dinámica: aclara contra qué se está comparando
+  {const lblEl=document.getElementById('sp-ali-total-label');if(lblEl){lblEl.textContent=activeDaysCur>0&&prevTotMSame!==null?` vs día ${prevActiveDaysUsed} c/act. (mes ant.)`:' vs período anterior';}}
   // Dias KPI sparkline: running total of days with ≥ cap
   const runCumpl=aliDaySum.map((d,i)=>{const sl=aliDaySum.slice(0,i+1);return Math.round(sl.filter(x=>x.total>=capD).length/sl.length*100);});
   setSpark('sp-ali-dias',runCumpl,'#3b82f6');const trD=momTrendAbsPp(cumplimientoPct,prevDiasM);const elD=document.getElementById('sp-ali-dias-t');if(elD){elD.textContent=trD.txt;elD.className=trD.cls;}
