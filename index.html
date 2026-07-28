@@ -4935,84 +4935,123 @@ function generarResumenDiario(){
   const doc=new jsPDF({unit:'mm',format:'a4'});
   const pageW=doc.internal.pageSize.getWidth();
   const margin=14;
-  let y=38;
+  const NAVY=[26,46,95],DARK=[30,41,59],MID=[100,116,139],LIGHT=[148,163,184],BORDER=[226,232,240],BG=[248,250,252];
+  let y=0;
 
-  doc.setFillColor(26,46,95);doc.rect(0,0,pageW,28,'F');
-  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(16);
-  doc.text('RESUMEN DIARIO · MOVIMIENTO 0KM',margin,13);
-  doc.setFont('helvetica','normal');doc.setFontSize(10);
-  doc.text('Cierre del '+rdFechaLarga(ymd),margin,21);
-  doc.setFontSize(8);doc.setTextColor(200,210,230);
-  doc.text('Generado el '+rdHoraGeneracion()+' hs',margin,25.5);
+  function drawHeader(){
+    doc.setFillColor(...NAVY);doc.rect(0,0,pageW,30,'F');
+    doc.setFillColor(37,99,235);doc.rect(0,30,pageW,1.4,'F'); // filete accent debajo del header
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(17);
+    doc.text('RESUMEN DIARIO',margin,13);
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(180,195,225);
+    doc.text('MOVIMIENTO 0KM · PREENTREGA',margin,18.5);
+    doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.setTextColor(255,255,255);
+    doc.text('Cierre del '+rdFechaLarga(ymd),margin,25.5);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(170,185,215);
+    doc.text('Generado el '+rdHoraGeneracion()+' hs',pageW-margin,25.5,{align:'right'});
+  }
+  drawHeader();
+  y=40;
 
-  function checkPageBreak(need){if(y+need>272){doc.addPage();y=20;}}
-  function sectionTitle(txt,color){
+  function checkPageBreak(need){if(y+need>274){doc.addPage();y=20;}}
+  function sectionHeader(txt,color){
+    checkPageBreak(15);
+    doc.setFillColor(...color);doc.roundedRect(margin,y-5.5,pageW-margin*2,8.5,1.5,1.5,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.setTextColor(255,255,255);
+    doc.text(txt,margin+5,y+0.2);
+    y+=10;
+  }
+  function kpiCard(x,cy,w,h,color,value,label,sub){
+    doc.setFillColor(...BG);doc.setDrawColor(...BORDER);doc.setLineWidth(.2);
+    doc.roundedRect(x,cy,w,h,1.8,1.8,'FD');
+    doc.setFillColor(...color);doc.roundedRect(x,cy,2.4,h,1.8,1.8,'F');doc.rect(x+1.2,cy,1.2,h,'F'); // barra de acento izquierda
+    doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(...DARK);
+    doc.text(String(value),x+6,cy+9.5);
+    doc.setFont('helvetica','bold');doc.setFontSize(7.3);doc.setTextColor(...MID);
+    const lbl=doc.splitTextToSize(label.toUpperCase(),w-9);
+    doc.text(lbl,x+6,cy+14.5);
+    if(sub){
+      doc.setFont('helvetica','normal');doc.setFontSize(6.6);doc.setTextColor(...LIGHT);
+      const sl=doc.splitTextToSize(sub,w-9);
+      doc.text(sl,x+6,cy+h-3);
+    }
+  }
+  function kpiRow(items){
+    const n=items.length,gap=4,h=24,totalW=pageW-margin*2,w=(totalW-gap*(n-1))/n;
+    checkPageBreak(h+6);
+    items.forEach((it,i)=>kpiCard(margin+i*(w+gap),y,w,h,it.color,it.value,it.label,it.sub));
+    y+=h+8;
+  }
+  function infoBox(msg){
+    checkPageBreak(13);
+    doc.setFillColor(...BG);doc.setDrawColor(...BORDER);doc.setLineWidth(.2);
+    const lines=doc.splitTextToSize(msg,pageW-margin*2-8);
+    const h=lines.length*4+5;
+    doc.roundedRect(margin,y,pageW-margin*2,h,1.8,1.8,'FD');
+    doc.setFont('helvetica','italic');doc.setFontSize(8.3);doc.setTextColor(...MID);
+    doc.text(lines,margin+4,y+5);
+    y+=h+7;
+  }
+  function dataTable(head,body,accent){
     checkPageBreak(16);
-    doc.setFillColor(...color);doc.rect(margin,y-4,3,6,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(30,41,59);
-    doc.text(txt,margin+6,y);y+=8;
-  }
-  function kpiLine(label,value,sub){
-    checkPageBreak(8);
-    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(30,41,59);
-    doc.text(String(value),margin,y);
-    const vw=doc.getTextWidth(String(value));
-    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(100,116,139);
-    doc.text(' '+label+(sub?' · '+sub:''),margin+vw,y);
-    y+=6;
-  }
-  function noData(msg){checkPageBreak(8);doc.setFont('helvetica','italic');doc.setFontSize(9);doc.setTextColor(148,163,184);doc.text(msg,margin,y);y+=8;}
-  function miniTable(head,body){
-    doc.autoTable({startY:y,margin:{left:margin,right:margin},head:[head],body,theme:'plain',styles:{fontSize:9,cellPadding:2,textColor:[30,41,59]},headStyles:{fillColor:[240,244,248],textColor:[100,116,139],fontStyle:'bold',fontSize:8},columnStyles:{0:{cellWidth:'auto'}}});
-    y=doc.lastAutoTable.finalY+8;
+    doc.autoTable({
+      startY:y,margin:{left:margin,right:margin},
+      head:[head],body,theme:'striped',
+      styles:{fontSize:8.5,cellPadding:{top:2.6,bottom:2.6,left:4,right:4},textColor:DARK,lineColor:BORDER,lineWidth:.1},
+      headStyles:{fillColor:accent,textColor:[255,255,255],fontStyle:'bold',fontSize:7.8},
+      alternateRowStyles:{fillColor:[248,250,252]}
+    });
+    y=doc.lastAutoTable.finalY+9;
   }
 
   const dCorta=rdFechaCorta(ymd);
 
   // ── ALISTAJE ──
-  sectionTitle('ALISTAJE',[34,197,94]);
+  sectionHeader('ALISTAJE',[34,197,94]);
   const ali=rdAlistaje(ymd);
-  if(!ali.hayDatos)noData('Sin datos cargados en el dashboard.');
+  if(!ali.hayDatos)infoBox('Sin datos cargados en el dashboard.');
+  else if(!ali.ops.length)infoBox('Sin autos alistados el '+dCorta+'.');
   else{
-    kpiLine('autos alistados el '+dCorta,ali.total,ali.ops.length?'capacidad teórica: '+ali.capTeorica+' ('+ali.ops.length+' operarios × '+ali.cap+'/día)':'sin actividad registrada');
-    if(ali.ops.length)miniTable(['Operario','Alistados','Capacidad','% cumplimiento'],ali.ops.map(([op,cnt])=>[op,cnt,ali.cap,((cnt/ali.cap)*100).toFixed(0)+'%']));
-    else{noData('Sin autos alistados el '+dCorta+'.');}
+    const pct=ali.capTeorica?((ali.total/ali.capTeorica)*100).toFixed(0)+'%':'—';
+    kpiRow([
+      {value:ali.total,label:'Alistados',sub:dCorta,color:[34,197,94]},
+      {value:ali.capTeorica,label:'Capacidad teórica',sub:ali.ops.length+' op. × '+ali.cap+'/día',color:[100,116,139]},
+      {value:pct,label:'Cumplimiento',sub:'sobre capacidad teórica',color:[37,99,235]}
+    ]);
+    dataTable(['Operario','Alistados','Capacidad','% cumplimiento'],ali.ops.map(([op,cnt])=>[op,cnt,ali.cap,((cnt/ali.cap)*100).toFixed(0)+'%']),[34,197,94]);
   }
 
   // ── AVERÍAS ──
-  sectionTitle('AVERÍAS',[239,68,68]);
+  sectionHeader('AVERÍAS',[239,68,68]);
   const avr=rdAverias(ymd);
-  if(!avr.hayDatos)noData('Sin datos cargados en el dashboard.');
+  if(!avr.hayDatos)infoBox('Sin datos cargados en el dashboard.');
   else{
-    kpiLine('averías reparadas el '+dCorta,avr.reparadasDelDia,'diferencia vs. el acumulado del día anterior');
-    kpiLine('total histórico reparadas',avr.totalCerradas,'acumulado a la fecha de este corte');
-    kpiLine('averías activas sin cierre',avr.activas,'pendientes al momento de este corte');
+    kpiRow([
+      {value:avr.reparadasDelDia,label:'Reparadas',sub:dCorta+' · vs. día anterior',color:[239,68,68]},
+      {value:avr.totalCerradas,label:'Total histórico',sub:'acumulado a este corte',color:[139,92,246]},
+      {value:avr.activas,label:'Activas sin cierre',sub:'pendientes',color:[245,158,11]}
+    ]);
   }
 
   // ── STOCK ──
-  sectionTitle('STOCK EN PREDIO',[6,182,212]);
+  sectionHeader('STOCK EN PREDIO',[6,182,212]);
   const stk=rdStock(ymd);
-  if(!stk.hayDatos)noData('Sin datos cargados en el dashboard.');
+  if(!stk.hayDatos)infoBox('Sin datos cargados en el dashboard.');
   else{
-    if(stk.historico){
-      kpiLine('unidades en predio al cierre del '+dCorta,stk.total,'según corte cargado en Historial Stock ('+stk.fechaCorte+')');
-      if(stk.porMarca.length)miniTable(['Marca','Unidades'],stk.porMarca.map(([m,c])=>[m,c]));
-    } else{
-      noData('No hay corte cargado en "Historial Stock" para el '+dCorta+'. Se muestra la foto actual del predio como referencia.');
-      kpiLine('unidades en predio ahora',stk.total,'foto en vivo, no necesariamente del '+dCorta);
-      if(stk.porMarca.length)miniTable(['Marca','Unidades','% del stock'],stk.porMarca.map(([m,c])=>[m,c,stk.total?((c/stk.total)*100).toFixed(1)+'%':'0%']));
-    }
-    if(typeof stk.liveTotal!=='undefined'){
-      kpiLine('unidades críticas ahora (+'+stk.crit+'d)',stk.nCrit,stk.nWarn+' en alerta · '+stk.nFP+' facturadas/patentadas pendientes · dato en vivo');
-    }
+    if(!stk.historico)infoBox('No hay corte cargado en "Historial Stock" para el '+dCorta+'. Se muestra la foto actual del predio como referencia.');
+    const cards=[{value:stk.total,label:'Unidades en predio',sub:stk.historico?('cierre '+stk.fechaCorte):'foto en vivo',color:[6,182,212]}];
+    if(typeof stk.liveTotal!=='undefined')cards.push({value:stk.nCrit,label:'Críticas ahora (+'+stk.crit+'d)',sub:stk.nWarn+' en alerta · dato en vivo',color:[239,68,68]},{value:stk.nFP,label:'Fact./Pat. pendientes',sub:'dato en vivo',color:[245,158,11]});
+    kpiRow(cards);
+    if(stk.porMarca.length)dataTable(stk.historico?['Marca','Unidades']:['Marca','Unidades','% del stock'],stk.porMarca.map(([m,c])=>stk.historico?[m,c]:[m,c,stk.total?((c/stk.total)*100).toFixed(1)+'%':'0%']),[6,182,212]);
   }
 
   const pages=doc.internal.getNumberOfPages();
   for(let i=1;i<=pages;i++){
     doc.setPage(i);
-    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(148,163,184);
-    doc.text('Movimiento 0km · Reporte generado automáticamente desde el dashboard',margin,290);
-    doc.text('Página '+i+' de '+pages,pageW-margin,290,{align:'right'});
+    doc.setDrawColor(...BORDER);doc.setLineWidth(.2);doc.line(margin,285,pageW-margin,285);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(...LIGHT);
+    doc.text('Movimiento 0km · Reporte generado automáticamente desde el dashboard',margin,289.5);
+    doc.text('Página '+i+' de '+pages,pageW-margin,289.5,{align:'right'});
   }
 
   doc.save('Resumen_0km_'+ymd.split('-').reverse().join('-')+'.pdf');
