@@ -4871,27 +4871,26 @@ function rdAlistaje(ymd){
   return{hayDatos:true,total:rows.length,cap,ops,capTeorica:ops.length*cap};
 }
 
-// ── AVERÍAS: la planilla acumula TOTAL DE REPARADAS (cerradas), no altas del día.
-// Para saber cuántas se repararon el día del cierre, hace falta la diferencia entre
-// el acumulado de ese día y el acumulado del día anterior. Como el dashboard no tiene
-// un historial propio para esto, se guarda cada acumulado en localStorage del navegador
-// la primera vez que se genera el resumen para esa fecha, y se compara contra el guardado
-// del día calendario inmediatamente anterior.
+// ── AVERÍAS: la planilla trae el histórico completo de reparadas (con su fecha de cierre
+// en "Fecha Ultimo Estado"), así que no hace falta guardar nada entre visitas: se cuenta
+// directamente cuántas estaban cerradas hasta la fecha del informe y hasta el día anterior,
+// y se resta. Ej.: 2450 acumuladas al día del informe − 2440 acumuladas al día anterior = 10 reparadas ese día.
 function rdAveriasDiaAnterior(ymd){const[y,m,d]=ymd.split('-').map(Number);const dt=new Date(y,m-1,d);dt.setDate(dt.getDate()-1);return rdYMD(dt);}
+function rdAveriasAcumHasta(ymd){
+  const[y,m,d]=ymd.split('-').map(Number);
+  const limite=new Date(y,m-1,d,23,59,59,999);
+  return avrRaw.filter(r=>{
+    if(!avrGV(r,'Tipo de Cierre','Tipo Cierre'))return false; // solo cerradas/reparadas
+    const f=avrPD(avrGV(r,'Fecha Ultimo Estado'));
+    return f&&f<=limite;
+  }).length;
+}
 function rdAverias(ymd){
   if(typeof avrRaw==='undefined'||!avrRaw.length)return{hayDatos:false};
-  const cerradas=avrRaw.filter(r=>avrGV(r,'Tipo de Cierre','Tipo Cierre'));
-  const totalCerradas=cerradas.length;
-  const activas=avrRaw.length-totalCerradas;
-  const key='rd_avr_cerradas_'+ymd,keyAyer='rd_avr_cerradas_'+rdAveriasDiaAnterior(ymd);
-  let prev=null;
-  try{
-    const prevStr=localStorage.getItem(keyAyer);
-    if(prevStr!==null)prev=parseInt(prevStr,10);
-    localStorage.setItem(key,String(totalCerradas)); // guarda el acumulado de este cierre para usarlo mañana
-  }catch(e){/* localStorage no disponible (modo privado, etc.) */}
-  const reparadasDelDia=(prev!==null&&!isNaN(prev))?(totalCerradas-prev):null;
-  return{hayDatos:true,totalCerradas,activas,reparadasDelDia};
+  const totalCerradas=rdAveriasAcumHasta(ymd);
+  const totalCerradasAyer=rdAveriasAcumHasta(rdAveriasDiaAnterior(ymd));
+  const activas=avrRaw.length-avrRaw.filter(r=>avrGV(r,'Tipo de Cierre','Tipo Cierre')).length;
+  return{hayDatos:true,totalCerradas,activas,reparadasDelDia:totalCerradas-totalCerradasAyer};
 }
 
 function rdStock(ymd){
@@ -4985,11 +4984,7 @@ function generarResumenDiario(){
   const avr=rdAverias(ymd);
   if(!avr.hayDatos)noData('Sin datos cargados en el dashboard.');
   else{
-    if(avr.reparadasDelDia!==null){
-      kpiLine('averías reparadas el '+dCorta,avr.reparadasDelDia,'diferencia vs. el acumulado del día anterior');
-    } else{
-      noData('Todavía no hay un acumulado guardado del día anterior para calcular las reparadas del '+dCorta+'. A partir del próximo resumen que generes ya va a poder comparar.');
-    }
+    kpiLine('averías reparadas el '+dCorta,avr.reparadasDelDia,'diferencia vs. el acumulado del día anterior');
     kpiLine('total histórico reparadas',avr.totalCerradas,'acumulado a la fecha de este corte');
     kpiLine('averías activas sin cierre',avr.activas,'pendientes al momento de este corte');
   }
