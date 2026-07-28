@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';document.head.appendChild(s);"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js';document.head.appendChild(s);"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ══ DESIGN SYSTEM ══ */
@@ -4904,7 +4904,17 @@ function rdStock(){
 }
 
 function generarResumenDiario(){
-  if(typeof window.jspdf==='undefined'){alert('No se pudo cargar el generador de PDF. Revisá tu conexión a internet e intentá de nuevo.');return;}
+  if(typeof window.jspdf==='undefined'){
+    // Puede que la librería todavía esté terminando de cargar (conexión lenta) o recién activó el respaldo de jsDelivr. Reintenta una vez antes de avisar.
+    setTimeout(()=>{
+      if(typeof window.jspdf==='undefined'){
+        alert('No se pudo cargar el generador de PDF (jsPDF). Puede ser que tu red esté bloqueando cdnjs.cloudflare.com o cdn.jsdelivr.net. Probá recargar la página o cambiar de red, y volvé a intentar.');
+      } else {
+        generarResumenDiario();
+      }
+    },1500);
+    return;
+  }
   const{jsPDF}=window.jspdf;
   const ymd=rdFechaSeleccionada();
   const doc=new jsPDF({unit:'mm',format:'a4'});
