@@ -4871,36 +4871,52 @@ function rdAlistaje(ymd){
   return{hayDatos:true,total:rows.length,cap,ops,capTeorica:ops.length*cap};
 }
 
+// ── AVERÍAS: la planilla acumula TOTAL DE REPARADAS (cerradas), no altas del día.
+// Para saber cuántas se repararon el día del cierre, hace falta la diferencia entre
+// el acumulado de ese día y el acumulado del día anterior. Como el dashboard no tiene
+// un historial propio para esto, se guarda cada acumulado en localStorage del navegador
+// la primera vez que se genera el resumen para esa fecha, y se compara contra el guardado
+// del día calendario inmediatamente anterior.
+function rdAveriasDiaAnterior(ymd){const[y,m,d]=ymd.split('-').map(Number);const dt=new Date(y,m-1,d);dt.setDate(dt.getDate()-1);return rdYMD(dt);}
 function rdAverias(ymd){
   if(typeof avrRaw==='undefined'||!avrRaw.length)return{hayDatos:false};
-  const delDia=avrRaw.filter(r=>{const f=avrPD(avrGV(r,'Fecha de Carga','Fecha Carga'));return f&&avrTD2(f)===ymd;});
-  const activas=avrRaw.filter(r=>!avrGV(r,'Tipo de Cierre','Tipo Cierre'));
-  const top=obj=>{const e=Object.entries(obj).sort((a,b)=>b[1]-a[1]);return e.length?e[0]:null;};
-  const gC={};delDia.forEach(r=>{const g=avrGV(r,'Grado de Complejidad','Grado');if(g)gC[g]=(gC[g]||0)+1;});
-  const mC={};delDia.forEach(r=>{const m=avrGV(r,'Marca');if(m)mC[m]=(mC[m]||0)+1;});
-  const tC={};delDia.forEach(r=>{const t=avrGV(r,'Desc. del Problema','Desc del Problema','Descripcion');if(t)tC[t]=(tC[t]||0)+1;});
-  return{hayDatos:true,total:delDia.length,activas:activas.length,topGrado:top(gC),topMarca:top(mC),topTipo:top(tC)};
+  const cerradas=avrRaw.filter(r=>avrGV(r,'Tipo de Cierre','Tipo Cierre'));
+  const totalCerradas=cerradas.length;
+  const activas=avrRaw.length-totalCerradas;
+  const key='rd_avr_cerradas_'+ymd,keyAyer='rd_avr_cerradas_'+rdAveriasDiaAnterior(ymd);
+  let prev=null;
+  try{
+    const prevStr=localStorage.getItem(keyAyer);
+    if(prevStr!==null)prev=parseInt(prevStr,10);
+    localStorage.setItem(key,String(totalCerradas)); // guarda el acumulado de este cierre para usarlo mañana
+  }catch(e){/* localStorage no disponible (modo privado, etc.) */}
+  const reparadasDelDia=(prev!==null&&!isNaN(prev))?(totalCerradas-prev):null;
+  return{hayDatos:true,totalCerradas,activas,reparadasDelDia};
 }
 
-function rdMovimientos(ymd){
-  const c=window._movCols;
-  if(!c||typeof movSynRows==='undefined'||!movSynRows.length)return{hayDatos:false};
-  const delDia=movSynRows.filter(r=>{if(r._synthetic)return false;const d=movParseDate(r[c.fechaPedido]);return d&&movToDate(d)===ymd;});
-  let km0=0,usados=0;const mC={};
-  delDia.forEach(r=>{if(movEsUsado(r,c))usados++;else km0++;const mo=r[c.motivo]||'Sin motivo';mC[mo]=(mC[mo]||0)+1;});
-  const me=Object.entries(mC).sort((a,b)=>b[1]-a[1]);
-  return{hayDatos:true,total:delDia.length,km0,usados,topMotivo:me.length?me[0]:null};
-}
-
-function rdStock(){
-  if(typeof stkAll==='undefined'||!stkAll.length)return{hayDatos:false};
-  const rows=stkAll,total=rows.length,cap=getCap(),crit=getCrit();
-  const nCrit=rows.filter(r=>r.ageClass==='crit').length,nWarn=rows.filter(r=>r.ageClass==='warn').length;
-  const estUp=s=>(s||'').toUpperCase().trim();
-  const nFP=rows.filter(r=>['FACTURADO','PATENTADO'].includes(estUp(r.estado))).length;
-  const mCnt={};rows.forEach(r=>mCnt[r.marcaNorm]=(mCnt[r.marcaNorm]||0)+1);
-  const porMarca=Object.entries(mCnt).sort((a,b)=>b[1]-a[1]);
-  return{hayDatos:true,total,cap,crit,ocup:cap?(total/cap*100):0,nCrit,nWarn,nFP,porMarca};
+function rdStock(ymd){
+  const histEntry=(typeof histRows!=='undefined'&&histRows.length)?histRows.find(r=>r.date&&rdYMD(r.date)===ymd):null;
+  const live=(typeof stkAll!=='undefined'&&stkAll.length)?stkAll:null;
+  if(!histEntry&&!live)return{hayDatos:false};
+  const out={hayDatos:true,historico:!!histEntry};
+  if(histEntry){
+    out.total=histEntry.total;
+    out.fechaCorte=histEntry.dateStr;
+    out.porMarca=Object.entries(histEntry.brands).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  }
+  if(live){
+    const total=live.length,cap=getCap(),crit=getCrit();
+    const nCrit=live.filter(r=>r.ageClass==='crit').length,nWarn=live.filter(r=>r.ageClass==='warn').length;
+    const estUp=s=>(s||'').toUpperCase().trim();
+    const nFP=live.filter(r=>['FACTURADO','PATENTADO'].includes(estUp(r.estado))).length;
+    out.liveTotal=total;out.cap=cap;out.crit=crit;out.ocup=cap?(total/cap*100):0;out.nCrit=nCrit;out.nWarn=nWarn;out.nFP=nFP;
+    if(!histEntry){
+      out.total=total;
+      const mCnt={};live.forEach(r=>mCnt[r.marcaNorm]=(mCnt[r.marcaNorm]||0)+1);
+      out.porMarca=Object.entries(mCnt).sort((a,b)=>b[1]-a[1]);
+    }
+  }
+  return out;
 }
 
 function generarResumenDiario(){
@@ -4969,35 +4985,31 @@ function generarResumenDiario(){
   const avr=rdAverias(ymd);
   if(!avr.hayDatos)noData('Sin datos cargados en el dashboard.');
   else{
-    kpiLine('averías nuevas cargadas el '+dCorta,avr.total,avr.total>0&&avr.topMarca?'marca más frecuente: '+avr.topMarca[0]:'');
-    kpiLine('averías activas sin cierre',avr.activas,'acumulado histórico a la fecha, no exclusivo del '+dCorta);
-    if(avr.total>0){
-      const rowsAvr=[];
-      if(avr.topGrado)rowsAvr.push(['Grado más frecuente ese día',avr.topGrado[0],avr.topGrado[1]]);
-      if(avr.topTipo)rowsAvr.push(['Problema más frecuente ese día',avr.topTipo[0],avr.topTipo[1]]);
-      if(rowsAvr.length)miniTable(['Detalle','Valor','Cant.'],rowsAvr);
-    } else{noData('Sin averías nuevas cargadas el '+dCorta+'.');}
-  }
-
-  // ── MOVIMIENTOS ──
-  sectionTitle('MOVIMIENTOS',[139,92,246]);
-  const mov=rdMovimientos(ymd);
-  if(!mov.hayDatos)noData('Sin datos cargados en el dashboard.');
-  else{
-    kpiLine('movimientos registrados el '+dCorta,mov.total,mov.total>0?mov.km0+' 0km · '+mov.usados+' usados':'');
-    if(mov.topMotivo)miniTable(['Motivo más frecuente ese día','Cant.'],[[mov.topMotivo[0],mov.topMotivo[1]]]);
-    else{noData('Sin movimientos registrados el '+dCorta+'.');}
+    if(avr.reparadasDelDia!==null){
+      kpiLine('averías reparadas el '+dCorta,avr.reparadasDelDia,'diferencia vs. el acumulado del día anterior');
+    } else{
+      noData('Todavía no hay un acumulado guardado del día anterior para calcular las reparadas del '+dCorta+'. A partir del próximo resumen que generes ya va a poder comparar.');
+    }
+    kpiLine('total histórico reparadas',avr.totalCerradas,'acumulado a la fecha de este corte');
+    kpiLine('averías activas sin cierre',avr.activas,'pendientes al momento de este corte');
   }
 
   // ── STOCK ──
   sectionTitle('STOCK EN PREDIO',[6,182,212]);
-  const stk=rdStock();
+  const stk=rdStock(ymd);
   if(!stk.hayDatos)noData('Sin datos cargados en el dashboard.');
   else{
-    noData('Foto del predio al momento de generar el PDF (no del '+dCorta+'), porque el dashboard no guarda historial diario de stock.');
-    kpiLine('unidades en predio ahora',stk.total,'ocupación: '+stk.ocup.toFixed(1)+'% de '+stk.cap.toLocaleString('es-AR'));
-    kpiLine('unidades críticas (+'+stk.crit+'d)',stk.nCrit,stk.nWarn+' en alerta · '+stk.nFP+' facturadas/patentadas pendientes de entrega');
-    if(stk.porMarca.length)miniTable(['Marca','Unidades','% del stock'],stk.porMarca.map(([m,c])=>[m,c,stk.total?((c/stk.total)*100).toFixed(1)+'%':'0%']));
+    if(stk.historico){
+      kpiLine('unidades en predio al cierre del '+dCorta,stk.total,'según corte cargado en Historial Stock ('+stk.fechaCorte+')');
+      if(stk.porMarca.length)miniTable(['Marca','Unidades'],stk.porMarca.map(([m,c])=>[m,c]));
+    } else{
+      noData('No hay corte cargado en "Historial Stock" para el '+dCorta+'. Se muestra la foto actual del predio como referencia.');
+      kpiLine('unidades en predio ahora',stk.total,'foto en vivo, no necesariamente del '+dCorta);
+      if(stk.porMarca.length)miniTable(['Marca','Unidades','% del stock'],stk.porMarca.map(([m,c])=>[m,c,stk.total?((c/stk.total)*100).toFixed(1)+'%':'0%']));
+    }
+    if(typeof stk.liveTotal!=='undefined'){
+      kpiLine('unidades críticas ahora (+'+stk.crit+'d)',stk.nCrit,stk.nWarn+' en alerta · '+stk.nFP+' facturadas/patentadas pendientes · dato en vivo');
+    }
   }
 
   const pages=doc.internal.getNumberOfPages();
