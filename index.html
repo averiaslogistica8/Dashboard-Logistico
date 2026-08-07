@@ -2694,11 +2694,12 @@ function movProcess(data){
       const key=r[cols.interno];if(!key)return;
       const mot=(r[cols.motivo]||'').toUpperCase().trim();
       const fecha=movParseDate(r[cols.fechaEstado]);
-      if(!map[key])map[key]={id:key,marca:r[cols.marca],modelo:r[cols.modelo],ultArribo:null,entregado:false};
+      if(!map[key])map[key]={id:key,marca:r[cols.marca],modelo:r[cols.modelo],ultArribo:null,entregado:false,esUsado:false};
       if(mot==='ARRIBO DE UNIDAD'&&fecha){if(!map[key].ultArribo||fecha>map[key].ultArribo)map[key].ultArribo=fecha;}
       if(SALIDA.has(mot))map[key].entregado=true;
+      if(!map[key].esUsado&&movEsUsado(r,cols))map[key].esUsado=true;
     });
-    return Object.values(map).filter(u=>u.ultArribo&&!u.entregado).map(u=>({...u,dias:Math.floor((today-u.ultArribo)/86400000),arriboFmt:movFmtDate(u.ultArribo)})).filter(u=>u.dias>=0).sort((a,b)=>b.dias-a.dias);
+    return Object.values(map).filter(u=>u.ultArribo&&!u.entregado&&!u.esUsado).map(u=>({...u,dias:Math.floor((today-u.ultArribo)/86400000),arriboFmt:movFmtDate(u.ultArribo)})).filter(u=>u.dias>=0).sort((a,b)=>b.dias-a.dias);
   })();
 
   // Poblar selectores de filtro
@@ -2726,9 +2727,7 @@ function movProcess(data){
 // registrado, o -reingreso- la columna SITUACION indica "USADOS" (mismo interno reingresado como usado).
 function movEsUsado(r,c){
   if(!r[c.interno]||r._sinArribo)return true;
-  const sit=(r[c.situacion]||'').toUpperCase().trim();
-  if(sit.includes('USADO'))return true;
-  return false;
+  return Object.values(r).some(v=>typeof v==='string'&&/usados?/i.test(v));
 }
 function movGetFiltered({exDate=false,exMotivo=false,exDest=false}={}){
   const c=window._movCols;if(!c)return[];
