@@ -3060,15 +3060,32 @@ function fmtNow() {
   return new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 }
 
+// Encabezados repetidos (ej. dos columnas "Estado"): PapaParse 5.4.1 los renombra mal y corre las columnas.
+function gsDedupeHeader(text, delim) {
+  const nl = text.indexOf('\n');
+  if (nl < 1) return text;
+  const hdr = Papa.parse(text.slice(0, nl), { delimiter: delim }).data[0] || [];
+  const seen = {};
+  let dup = false;
+  const out = hdr.map(h => {
+    const k = (h || '').trim();
+    seen[k] = (seen[k] || 0) + 1;
+    if (seen[k] > 1) { dup = true; return k + ' (' + seen[k] + ')'; }
+    return h;
+  });
+  return dup ? Papa.unparse([out], { delimiter: delim }) + text.slice(nl) : text;
+}
+
 async function loadSheet(key) {
   const url = GS_URLS[key];
   gsSetStatus(key, 'loading', 'Cargando...');
   try {
     const resp = await fetch(url);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const text = await resp.text();
+    let text = await resp.text();
     if (!text || text.trim().length < 10) throw new Error('Sin datos');
     const delim = detectDelim(text);
+    text = gsDedupeHeader(text, delim);
     const parsed = Papa.parse(text, {
       header: true,
       delimiter: delim,
