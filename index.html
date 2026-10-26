@@ -604,6 +604,11 @@ tbody tr:hover td{background:var(--surface2);}
       <div class="sb-filter-item"><span>Período</span><span class="sb-filter-val" id="sb-periodo">—</span></div>
       <div class="sb-filter-item"><span>Marca</span><span class="sb-filter-val" id="sb-marca">Todas</span></div>
     </div>
+    <div class="sb-upload-area" id="sb-upload-rpt">
+      <input type="file" id="rpt-files" accept=".csv" multiple style="display:none" onchange="rptHandle(this.files);this.value=''">
+      <button class="sb-upload-btn" style="background:#2563eb" onclick="document.getElementById('rpt-files').click()" id="btn-rpt">⬆ Cargar reportes</button>
+      <div class="sb-file-info"><div class="sb-file-dot" id="fd-rpt"></div><div class="sb-file-name" id="fn-rpt">Elegí los CSV en bruto</div></div>
+    </div>
     <div class="sb-upload-area" id="sb-upload-avr">
       <button class="sb-upload-btn" onclick="loadSheet('avr')" id="btn-avr">↻ Actualizar Averías</button>
       <div class="sb-file-info"><div class="sb-file-dot" id="fd-avr"></div><div class="sb-file-name" id="fn-avr">Esperando...</div></div>
@@ -3022,14 +3027,16 @@ function movUpdateRankings(){
 // ══════════════════════════════════════════════════════════════
 // AUTO-LOAD DESDE GOOGLE SHEETS
 // ══════════════════════════════════════════════════════════════
+// URL de la implementación de Apps Script (pegar acá la URL que termina en /exec)
+const APPS_URL = 'https://script.google.com/macros/s/AKfycbx2qSi_QIL5Jo17d5O2eaRs6pr_iaEGrPPArcl_n9oe_R2t8zdDGbYrLtYfRZUmfX1B/exec';
 const GS_URLS = {
-  avr: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRajCdRSVbHrwPCJEc8r_HP2tXw93X-2yHNpWHykbkoDwsaRh1GLilPK_3uB6YqOyArCpScOkpNkePx/pub?output=csv',
-  ali: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4SHTzQiqQOjLYcGErelIRGlnml9cPzgoXi5M0LAdmmqGLgk8kxMG1_SlC7DdBBt_f6bJkyPkPC9wX/pub?output=csv&gid=127628867',
+  avr:   APPS_URL + '?tab=avr',
+  ali:   APPS_URL + '?tab=ali',
   mov: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtC2eRdTMsJV50O6rDDEB4Pdn8NZPJSWvJIYGSnRh9Luu5FNxK5e0aQIfvltTUpy0_in80shzsSUdm/pub?output=csv&gid=1181695820',
-  stk: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRjQGle2dKSwMjCj3Cg4pDKkjAfemWZZhZs4QzExJeqAYU5m_fj0_yZ3I9Yq70-v7oTAzhKd7QMFDb3/pub?gid=0&single=true&output=csv',
-  hist: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRjQGle2dKSwMjCj3Cg4pDKkjAfemWZZhZs4QzExJeqAYU5m_fj0_yZ3I9Yq70-v7oTAzhKd7QMFDb3/pub?gid=712301170&single=true&output=csv',
-  moto: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSedxwtoLHdrCupzZEftZzJOIUu7IoUWGOga4wBdWC3po0j5XB_lvHRY0Xizlz0vwAzRDz1DRV1p9Yc/pub?gid=0&single=true&output=csv',
-  smoto: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRH2TXdNpbnrVZn566Wy4FEL0T9ORpAE7GVowKno6qu2gHho4m7T0PXWsqFIt42d7XnXM1wnkuOmqa7/pub?gid=0&single=true&output=csv'
+  stk:   APPS_URL + '?tab=stk',
+  hist:  APPS_URL + '?tab=hist',
+  moto:  APPS_URL + '?tab=moto',
+  smoto: APPS_URL + '?tab=smoto'
 };
 
 function gsSetStatus(key, state, msg) {
@@ -3108,6 +3115,93 @@ window.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => loadSheet('moto'), 2400);
   setTimeout(() => loadSheet('smoto'), 3000);
 });
+
+// ══ CARGA DE REPORTES (CSV en bruto → planilla) ══
+const RPT_AUTOS = ['AUDI','VOLKSWAGEN','FORD','CHEVROLET'];
+
+function rptDecode(buf) {
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+  catch (e) { return new TextDecoder('windows-1252').decode(buf); }
+}
+
+function rptParse(text) {
+  const r = Papa.parse(text.replace(/^﻿/, ''), { delimiter: ';', skipEmptyLines: true });
+  const head = r.data[0].map(h => (h || '').trim());
+  while (head.length && !head[head.length - 1]) head.pop();
+  const n = head.length;
+  return { head, rows: r.data.slice(1).map(x => x.slice(0, n).map(v => (v || '').trim())) };
+}
+
+function rptKind(h) {
+  if (h.includes('Tipo de Problema') && h.includes('Desc. del Problema')) return 'avr';
+  if (h.includes('Tipo Trabajo') && h.includes('Operario')) return 'ali';
+  if (h.includes('Catalogo') && h.includes('Situacion')) return 'stk';
+  return null;
+}
+
+// Devuelve [{ key, head, rows }] según el tipo de reporte
+function rptProcess(kind, head, rows) {
+  const iM = head.indexOf('Marca');
+  const isAuto = r => RPT_AUTOS.includes((r[iM] || '').toUpperCase());
+  if (kind === 'avr') return [{ key: 'avr', head, rows }];
+  if (kind === 'ali') {
+    return [
+      { key: 'ali',  head, rows: rows.filter(isAuto) },
+      { key: 'moto', head, rows: rows.filter(r => !isAuto(r)) }
+    ];
+  }
+  const iI = head.indexOf('Interno'), iF = head.indexOf('Fecha Arribo');
+  const sinPatente = r => !/[A-Za-z]/.test(r[iI] || '');
+  const y1 = new Date().getFullYear(), y0 = y1 - 1;
+  const anioOk = r => { const y = +((r[iF] || '').split(' ')[0].split('/')[2]); return y === y0 || y === y1; };
+  return [
+    { key: 'stk',   head, rows: rows.filter(r => isAuto(r) && sinPatente(r) && anioOk(r)) },
+    { key: 'smoto', head, rows: rows.filter(r => !isAuto(r) && sinPatente(r)) }
+  ];
+}
+
+function rptHistRow(stkRows, head) {
+  const iM = head.indexOf('Marca');
+  const counts = {}; RPT_AUTOS.forEach(m => counts[m] = 0);
+  stkRows.forEach(r => counts[(r[iM] || '').toUpperCase()]++);
+  const d = new Date();
+  return { tab: 'hist', fecha: d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear(),
+           counts, total: stkRows.length };
+}
+
+async function rptSend(payload) {
+  const resp = await fetch(APPS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+  const j = await resp.json();
+  if (!j.ok) throw new Error(j.error || 'Error al guardar');
+  return j;
+}
+
+async function rptHandle(files) {
+  if (!files || !files.length) return;
+  gsSetStatus('rpt', 'loading', 'Procesando...');
+  const done = [], skipped = [];
+  try {
+    for (const f of files) {
+      const { head, rows } = rptParse(rptDecode(await f.arrayBuffer()));
+      const kind = rptKind(head);
+      if (!kind) { skipped.push(f.name); continue; }
+      const parts = rptProcess(kind, head, rows);
+      for (const p of parts) {
+        gsSetStatus('rpt', 'loading', 'Subiendo ' + p.key + ' (' + p.rows.length + ')...');
+        await rptSend({ tab: p.key, head: p.head, rows: p.rows });
+        done.push(p.key);
+      }
+      if (kind === 'stk') { await rptSend(rptHistRow(parts[0].rows, head)); done.push('hist'); }
+    }
+    for (const k of done) if (k !== 'hist') loadSheet(k);
+    if (done.includes('hist')) loadSheet('hist');
+    gsSetStatus('rpt', skipped.length ? 'err' : 'ok',
+      skipped.length ? 'No reconocido: ' + skipped.join(', ') : 'Cargado ' + fmtNow());
+  } catch (err) {
+    gsSetStatus('rpt', 'err', 'Error: ' + err.message);
+    console.error('[rptHandle]', err);
+  }
+}
 
 // ══ SPLASH ══
 function entrarDashboard(){
