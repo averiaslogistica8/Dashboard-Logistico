@@ -480,6 +480,9 @@ tbody tr:hover td{background:var(--surface2);}
     <button class="nav-item" id="nav-moto" onclick="switchTab('moto')"><span class="ni">🔧</span> Alistaje</button>
     <button class="nav-item" id="nav-smoto" onclick="switchTab('smoto')"><span class="ni">🏭</span> Stock</button>
     <div class="nav-sep"></div>
+    <div style="padding:4px 18px 2px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.28)">📑 Contable</div>
+    <button class="nav-item" id="nav-sc" onclick="switchTab('sc')"><span class="ni">🧾</span> Stock contable</button>
+    <div class="nav-sep"></div>
     <!-- Params Averías -->
     <div id="sb-p-avr" style="padding:8px 18px 4px">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--sb-txt);margin-bottom:8px">Parámetros</div>
@@ -1691,6 +1694,22 @@ tbody tr:hover td{background:var(--surface2);}
     </div>
   </div>
 </div><!-- /tab-smoto -->
+<div id="tab-sc" style="display:none">
+  <div class="pw">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;max-width:960px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px">Cruce de stock contable</div>
+      <div style="font-size:12px;color:var(--text-mid);margin-bottom:14px">Subí los 3 brutos por marca (Ford, Chevrolet, VW) y el unificado anterior ya verificado. Se descarga el nuevo unificado con las fechas de último cambio arrastradas.</div>
+      <input type="file" id="sc-in" accept=".xlsx,.xls" multiple style="display:none" onchange="scAddFiles(Array.from(this.files));this.value=''">
+      <button class="sb-upload-btn" style="background:#2563eb;width:auto;padding:8px 18px" onclick="document.getElementById('sc-in').click()">⬆ Cargar archivos</button>
+      <div id="sc-files" style="margin:10px 0"></div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);margin:12px 0 4px">Ubicaciones que NO van al unificado (separadas por coma)</div>
+      <input id="sc-excl" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:12px">
+      <div style="display:flex;align-items:center;gap:12px;margin-top:12px"><button id="sc-go" class="sb-upload-btn" style="background:#1a2e5f;width:auto;padding:8px 18px" onclick="scProcess()" disabled>▶ Procesar cruce</button><span id="sc-hint" style="font-size:12px;color:var(--text-mid)"></span></div>
+      <div id="sc-result"></div>
+    </div>
+  </div>
+</div><!-- /tab-sc -->
+
 </div><!-- /main-wrap -->
 
 <!-- Slide panel -->
@@ -1732,7 +1751,7 @@ tbody tr:hover td{background:var(--surface2);}
 const COLORS=['#2563eb','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16'];
 let AC={};
 function switchTab(t){
-  ['avr','ali','mov','stk','moto','smoto'].forEach(id=>{
+  ['avr','ali','mov','stk','moto','smoto','sc'].forEach(id=>{
     const tab=document.getElementById('tab-'+id);if(tab)tab.style.display=id===t?'':'none';
     const nav=document.getElementById('nav-'+id);if(nav)nav.classList.toggle('active',id===t);
     const sbp=document.getElementById('sb-p-'+id);if(sbp)sbp.style.display=id===t?'':'none';
@@ -1743,7 +1762,7 @@ function switchTab(t){
     if(t!=='moto')motoFbar.style.display='none';
     else if(typeof mtAll!=='undefined'&&mtAll.length)motoFbar.style.display='flex';
   }
-  const titles={avr:'Dashboard Averías',ali:'Dashboard Alistaje',mov:'Dashboard Movimientos',stk:'Stock Predio',moto:'Dashboard Alistaje Motos',smoto:'Stock Motos'};
+  const titles={avr:'Dashboard Averías',ali:'Dashboard Alistaje',mov:'Dashboard Movimientos',stk:'Stock Predio',moto:'Dashboard Alistaje Motos',smoto:'Stock Motos',sc:'Stock Contable'};
   document.getElementById('hdr-sub').textContent=titles[t]||'';
 }
 document.getElementById('sb-p-ali').style.display='none';
@@ -5510,6 +5529,148 @@ function generarResumenDiario(){
   doc.save('Resumen_0km_'+ymd.split('-').reverse().join('-')+'.pdf');
 }
 
+// ══ STOCK CONTABLE · núcleo ══
+const SC_EXCL_DEF='PRE-ENTREGA, VENTAS, SABATTINI, COLON, TALLER, MAIPU, JESUS MARIA, NUEVO CENTRO, MURUA';
+function scKey(h){return String(h==null?'':h).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+function scNorm(s){return String(s==null?'':s).replace(/\s+/g,' ').trim().toUpperCase();}
+function scSerial(v){
+  if(v==null||v==='')return null;
+  if(typeof v==='number')return Math.floor(v);
+  if(v instanceof Date)return Math.floor(Date.UTC(v.getFullYear(),v.getMonth(),v.getDate())/864e5)+25569;
+  const m=String(v).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  return m?Math.floor(Date.UTC(+m[3],+m[2]-1,+m[1])/864e5)+25569:null;
+}
+function scTodaySerial(){const d=new Date();return Math.floor(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5)+25569;}
+// sheets: [{name, aoa}] -> {kind, rows}
+function scParseBook(sheets){
+  let kind='?';const rows=[];
+  sheets.forEach(sh=>{
+    const aoa=sh.aoa;if(!aoa||!aoa.length)return;
+    const keys=aoa[0].map(scKey);
+    const isRaw=keys.includes('dominio')&&keys.includes('chasis');
+    const isPrev=keys.includes('fechaultcambio');
+    if(!isRaw&&!isPrev)return;
+    kind=isPrev?'prev':(kind==='prev'?'prev':'raw');
+    for(let i=1;i<aoa.length;i++){
+      const o={};keys.forEach((k,j)=>{if(k&&!(k in o))o[k]=aoa[i][j];});
+      if(o.interno==null||o.interno==='')continue;
+      rows.push(o);
+    }
+  });
+  return {kind,rows};
+}
+function scBuild(raw,prev,exclTxt,hoy){
+  const excl=String(exclTxt||'').split(',').map(scNorm).filter(Boolean);
+  const pm=new Map();
+  prev.forEach((r,ix)=>{
+    const id=Number(r.interno);const f=scSerial(r.fechaultcambio);
+    const e={ub:scNorm(r.ultimaubicacion),f,obs:r.observaciones==null||r.observaciones===''?null:String(r.observaciones),ord:ix};
+    const o=pm.get(id);if(!o||(f||0)>(o.f||0))pm.set(id,e);
+  });
+  const seen=new Set(),out=[],excluidas={},incluidas={};let sinUb=0;
+  raw.forEach(r=>{
+    const id=Number(r.interno);if(seen.has(id))return;seen.add(id);
+    const ub=scNorm(r.ultimaubicacion);
+    if(!ub){sinUb++;return;}
+    if(excl.some(x=>ub.includes(x))){excluidas[ub]=(excluidas[ub]||0)+1;return;}
+    incluidas[ub]=(incluidas[ub]||0)+1;
+    const p=pm.get(id);const same=p&&p.ub===ub;
+    out.push({marca:String(r.marca||'').trim(),interno:id,ub:String(r.ultimaubicacion||'').trim(),est:r.estadoultubi,modelo:r.modelo,
+      fc:scSerial(r.fechacompra),fa:scSerial(r.fechaarribo),ue:r.ultimoestado,f:same?p.f:null,obs:same?p.obs:null,
+      nuevo:!p,cambio:!!p&&!same,ord:p?p.ord:1e9+out.length});
+  });
+  out.sort((a,b)=>(a.f==null)-(b.f==null)||(a.f||0)-(b.f||0)||a.ord-b.ord);
+  const outIds=new Set(out.map(x=>x.interno));
+  const bajas=[...pm.keys()].filter(id=>!outIds.has(id));
+  const marcas={};out.forEach(x=>marcas[x.marca]=(marcas[x.marca]||0)+1);
+  return {sinUb,out,bajas,excluidas,incluidas,marcas,nuevos:out.filter(x=>x.nuevo).length,cambios:out.filter(x=>x.cambio).length,sinFecha:out.filter(x=>x.f==null).length,prevN:pm.size};
+}
+function scWrite(X,out,hoy){
+  const H=['Marca','Interno','Ultima Ubicación','Estado Ult. Ubi.','Modelo','Fecha Compra','Fecha Arribo','Ultimo Estado','Dif fecha de arribo','Dif Fecha Compra','Fecha Ult Cambio','Dias en Rvta','Observaciones'];
+  const bd={style:'thin',color:{rgb:'000000'}},B={top:bd,bottom:bd,left:bd,right:bd};
+  const ws={};const put=(r,c,cell)=>{ws[X.utils.encode_cell({r,c})]=cell;};
+  H.forEach((h,c)=>put(0,c,{t:'s',v:h,s:{font:{name:'Calibri',sz:10,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'999999'}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:B}}));
+  put(0,14,{t:'s',v:'Hoy',s:{font:{name:'Calibri',sz:11}}});
+  put(0,15,{t:'n',v:hoy,f:'+TODAY()',z:'dd/mm/yyyy',s:{font:{name:'Calibri',sz:11},numFmt:'dd/mm/yyyy'}});
+  const base=(al)=>({font:{name:'Calibri',sz:9},border:B,alignment:{horizontal:al,vertical:'center'}});
+  out.forEach((x,i)=>{
+    const r=i+1,R=r+1;
+    const S=(al,z)=>{const s=base(al);if(z)s.numFmt=z;return s;};
+    const txt=(c,v,al)=>put(r,c,v==null||v===''?{t:'z',s:S(al)}:{t:'s',v:String(v),s:S(al)});
+    const dt=(c,v)=>put(r,c,v==null?{t:'z',s:S('center')}:{t:'n',v,z:'dd/mm/yyyy',s:S('center','dd/mm/yyyy')});
+    txt(0,x.marca,'left');
+    put(r,1,{t:'n',v:x.interno,s:S('center')});
+    txt(2,x.ub,'center');txt(3,x.est,'center');txt(4,x.modelo,'center');
+    dt(5,x.fc);dt(6,x.fa);txt(7,x.ue,'center');
+    put(r,8,{t:'n',v:x.fa==null?0:hoy-x.fa,f:`+$P$1-G${R}`,s:S('center')});
+    put(r,9,{t:'n',v:x.fc==null?0:hoy-x.fc,f:`+$P$1-F${R}`,s:S('center')});
+    dt(10,x.f);
+    const d=x.f==null?null:hoy-x.f;
+    const col=d==null?null:d>=30?'FF0000':d>=19?'FFFF00':'81D41A';
+    const ls=S('center');ls.font={name:'Calibri',sz:9,bold:true};if(col)ls.fill={patternType:'solid',fgColor:{rgb:col}};
+    put(r,11,d==null?{t:'z',s:ls}:{t:'n',v:d,f:`+$P$1-K${R}`,s:ls});
+    txt(12,x.obs,'left');
+  });
+  const n=out.length;
+  ws['!ref']=`A1:P${n+1}`;ws['!autofilter']={ref:`A1:M${n+1}`};
+  ws['!rows']=[{hpt:30}];
+  ws['!cols']=[{wch:12},{wch:8.2},{wch:30},{wch:12},{wch:16},{wch:10},{wch:10},{wch:24},{wch:10.7},{wch:10},{wch:10.7},{wch:10.9},{wch:34},{wch:3},{wch:5},{wch:11.5}];
+  const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,'Stock');
+  return wb;
+}
+// ══ STOCK CONTABLE · interfaz ══
+let scBooks=[],scRes=null,scXS=null;
+function scLoadStyle(){
+  return new Promise((res,rej)=>{
+    if(scXS)return res(scXS);
+    const orig=window.XLSX,s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+    s.onload=()=>{scXS=window.XLSX;window.XLSX=orig;res(scXS);};
+    s.onerror=()=>rej(new Error('No se pudo cargar la librería de Excel (¿la red bloquea cdn.jsdelivr.net?)'));
+    document.head.appendChild(s);
+  });
+}
+async function scAddFiles(files){
+  for(const f of files){
+    try{
+      const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+      const b=scParseBook(wb.SheetNames.map(n=>({name:n,aoa:XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null})})));
+      scBooks=scBooks.filter(x=>x.name!==f.name);
+      scBooks.push({name:f.name,kind:b.kind,rows:b.rows});
+    }catch(e){scBooks.push({name:f.name,kind:'?',rows:[]});}
+  }
+  scRes=null;scRender();
+}
+function scRemove(i){scBooks.splice(i,1);scRes=null;scRender();}
+function scRender(){
+  const kl={raw:['Bruto','#2563eb'],prev:['Anterior verificado','#16a34a'],'?':['No reconocido','#ef4444']};
+  document.getElementById('sc-files').innerHTML=scBooks.map((b,i)=>{const k=kl[b.kind]||kl['?'];
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><span style="background:${k[1]};color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px">${k[0]}</span><span style="flex:1;font-size:12px">${b.name}</span><span style="font-size:11px;color:var(--text-mid)">${b.rows.length} filas</span><button onclick="scRemove(${i})" style="border:0;background:none;cursor:pointer;color:var(--text-dim)">✕</button></div>`;}).join('');
+  const nr=scBooks.filter(b=>b.kind==='raw').length,np=scBooks.filter(b=>b.kind==='prev').length;
+  document.getElementById('sc-go').disabled=!nr;
+  document.getElementById('sc-hint').textContent=nr?`${nr} bruto(s) · ${np?'archivo anterior cargado':'sin archivo anterior (las fechas quedarán en blanco)'}`:'Cargá los brutos por marca y el archivo anterior verificado.';
+  const r=document.getElementById('sc-result');
+  if(!scRes){r.innerHTML='';return;}
+  const s=scRes,chip=(t,c)=>`<span style="display:inline-block;margin:2px;padding:2px 8px;border-radius:10px;font-size:11px;background:${c};color:#fff">${t}</span>`;
+  const kp=(l,v)=>`<div style="flex:1;min-width:110px;padding:10px 12px;background:var(--surface2);border-radius:8px"><div style="font-size:11px;color:var(--text-mid)">${l}</div><div style="font-size:20px;font-weight:700">${v}</div></div>`;
+  r.innerHTML=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">${kp('Unidades',s.out.length)}${Object.entries(s.marcas).map(([m,n])=>kp(m,n)).join('')}${kp('Nuevas (sin fecha)',s.nuevos)}${kp('Cambiaron de ubicación',s.cambios)}${kp('Salieron del listado',s.bajas.length)}</div>
+  <div style="font-size:12px;margin:6px 0"><b>Ubicaciones incluidas:</b> ${Object.entries(s.incluidas).map(([u,n])=>chip(u+' · '+n,'#2563eb')).join('')}</div>
+  <div style="font-size:12px;margin:6px 0"><b>Excluidas:</b> ${Object.entries(s.excluidas).map(([u,n])=>chip(u+' · '+n,'#64748b')).join('')}${s.sinUb?chip('sin ubicación (no arribados) · '+s.sinUb,'#64748b'):''}</div>
+  ${s.bajas.length?`<div style="font-size:12px;margin:6px 0;color:var(--text-mid)">Salieron (estaban en el anterior y ya no figuran): ${s.bajas.join(', ')}</div>`:''}
+  <button class="sb-upload-btn" style="background:#16a34a;width:auto;padding:8px 18px;margin-top:10px" onclick="scDownload()">⬇ Descargar Stock_Contable_${scName()}.xlsx</button>`;
+}
+function scName(){const d=new Date();return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0');}
+function scProcess(){
+  const raw=[].concat(...scBooks.filter(b=>b.kind==='raw').map(b=>b.rows));
+  const prev=[].concat(...scBooks.filter(b=>b.kind==='prev').map(b=>b.rows));
+  scRes=scBuild(raw,prev,document.getElementById('sc-excl').value,scTodaySerial());scRender();
+}
+async function scDownload(){
+  const btn=document.querySelector('#sc-result button');
+  try{const X=await scLoadStyle();X.writeFile(scWrite(X,scRes.out,scTodaySerial()),'Stock_Contable_'+scName()+'.xlsx');}
+  catch(e){alert(e.message);}
+}
+document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementById('sc-excl');if(e)e.value=SC_EXCL_DEF;});
 </script>
 <!-- ══ STOCK: VEHICLE DETAIL PANEL ══ -->
 <div class="overlay" id="stk-overlay" onclick="stkCloseVehicle()"></div>
