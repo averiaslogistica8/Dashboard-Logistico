@@ -3128,10 +3128,13 @@ function gsMovKey(r) {
   return [(r['Interno'] || '').trim(), (r['Motivo de Cambio de Ubicacion'] || '').trim().toUpperCase(), t].join('|');
 }
 function gsMergeMov(base, extra) {
-  const m = new Map();
-  base.forEach(r => m.set(gsMovKey(r), r));
-  extra.forEach(r => m.set(gsMovKey(r), r)); // el acumulado diario pisa a la hoja mensual (estado más reciente)
-  return [...m.values()];
+  // La hoja mensual se respeta tal cual (no se quita ninguna fila, aunque haya repetidas): el acumulado diario
+  // solo reemplaza a su fila equivalente (estado más reciente) o agrega las que faltan.
+  const idx = new Map();
+  base.forEach((r, i) => { const k = gsMovKey(r); if (!idx.has(k)) idx.set(k, i); });
+  const out = base.slice(), add = new Map();
+  extra.forEach(r => { const k = gsMovKey(r); if (idx.has(k)) out[idx.get(k)] = r; else add.set(k, r); });
+  return out.concat([...add.values()]);
 }
 
 async function loadSheet(key) {
