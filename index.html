@@ -419,6 +419,35 @@ tbody tr:hover td{background:var(--surface2);}
 .rp-brand-cnt{font-size:13px;font-weight:800;color:var(--text);}
 #stk-kpi-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:400;background:var(--surface);border:1px solid var(--border);border-radius:10px;min-width:230px;box-shadow:var(--shadow-md);padding:6px 0;}
 #stk-kpi-menu.open{display:block;}
+/* Movimientos diarios */
+.mvd-step{background:var(--surface2);border:1px solid var(--border);color:var(--text);width:30px;height:30px;border-radius:8px;font-size:16px;cursor:pointer;line-height:1;}
+.mvd-step:hover{border-color:var(--accent);color:var(--accent);}
+.mvd-hero{display:flex;align-items:center;gap:24px;flex-wrap:wrap;padding:22px 28px;border-radius:var(--radius);background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);color:#fff;margin-bottom:16px;box-shadow:var(--shadow);}
+.mvd-hdate{font-size:24px;font-weight:800;letter-spacing:-.01em;}
+.mvd-hsub{font-size:12px;opacity:.8;margin-top:4px;}
+.mvd-delta{font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;background:rgba(255,255,255,.16);}
+.mvd-htotal{margin-left:auto;text-align:right;display:flex;flex-direction:column;align-items:flex-end;}
+.mvd-htotal span{font-size:56px;font-weight:800;line-height:1;letter-spacing:-.03em;}
+.mvd-htotal small{font-size:11px;text-transform:uppercase;letter-spacing:.1em;opacity:.8;margin-top:4px;}
+.mvd-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;}
+.mvd-tile{text-align:left;font-family:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px 14px 20px;cursor:pointer;position:relative;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px;transition:transform .12s,border-color .12s;}
+.mvd-tile::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c);}
+.mvd-tile:hover{transform:translateY(-2px);border-color:var(--c);}
+.mvd-tile.active{border-color:var(--c);box-shadow:0 0 0 2px color-mix(in srgb,var(--c) 30%,transparent);}
+.mvd-ti{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;background:color-mix(in srgb,var(--c) 14%,transparent);}
+.mvd-tn{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--text-dim);}
+.mvd-tv{font-size:32px;font-weight:800;line-height:1;color:var(--c);letter-spacing:-.02em;}
+.mvd-bar{height:5px;border-radius:3px;background:var(--surface2);overflow:hidden;}
+.mvd-bar i{display:block;height:100%;background:var(--c);border-radius:3px;}
+.mvd-tm{display:flex;justify-content:space-between;gap:6px;font-size:11px;color:var(--text-dim);}
+.mvd-tm .up{color:var(--green);font-weight:700;}.mvd-tm .dn{color:var(--red);font-weight:700;}
+@media (max-width:900px){.mvd-hero{padding:18px;}.mvd-htotal{margin-left:0;}#mvd-wrap .crow{grid-template-columns:1fr!important;}}
+.mov-viewbar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 28px;display:flex;align-items:center;gap:12px;}
+.mov-seg{display:inline-flex;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px;}
+.mov-seg button{border:0;background:transparent;color:var(--text-mid);font-family:inherit;font-size:12px;font-weight:600;padding:6px 16px;border-radius:7px;cursor:pointer;}
+.mov-seg button.active{background:var(--accent);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+#tab-mov.view-diario #mov-fbar,#tab-mov.view-diario>.pw{display:none!important;}
+#tab-mov:not(.view-diario) #mvd-wrap{display:none;}
 </style>
 </head>
 <body>
@@ -1729,6 +1758,7 @@ function toggleTheme(){
   if(avrRaw.length)avrRecalc();
   if(aliFiltered.length){aliUpdateKPIs();aliUpdateCharts();}
   if(movAllRows.length)movRedrawCharts();
+  if(typeof mvdAll!=='undefined'&&mvdAll.length)mvdRender();
   if(stkAll&&stkAll.length)stkRedrawCharts();
   if(typeof histRows!=='undefined'&&histRows.length)histRender();
   if(typeof mtFiltered!=='undefined'&&mtFiltered.length){mtUpdateKPIs();mtUpdateCharts();}
@@ -2676,11 +2706,12 @@ function movBuildSynRows(rows,cols){
 function movProcess(data){
   movAllRows=data.map(r=>{const o={};Object.keys(r).forEach(k=>o[k.trim()]=(r[k]||'').toString().trim());return o;});
   const keys=Object.keys(movAllRows[0]||{});
+  const kn=(n,i)=>keys.find(k=>k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ')===n)||keys[i];
   const cols={
-    marca:keys[0],interno:keys[1],dominio:keys[2],modelo:keys[3],
-    color:keys[4],situacion:keys[5],fechaCarga:keys[6],solicitante:keys[7],
-    fechaPedido:keys[8],motivo:keys[9],ubOrigen:keys[10],ubDestino:keys[11],
-    estado:keys[15]||keys.find(k=>k.toLowerCase().includes('estado'))||''
+    marca:kn('marca',0),interno:kn('interno',1),dominio:kn('dominio',2),modelo:kn('modelo',3),
+    color:kn('color',4),situacion:kn('situacion',5),fechaCarga:kn('fecha de carga',6),solicitante:kn('solicitante',7),
+    fechaPedido:kn('fecha de pedido',8),motivo:keys[9],ubOrigen:kn('ubicacion origen',10),ubDestino:kn('ubicacion',11),
+    estado:kn('estado',15)||keys.find(k=>k.toLowerCase().includes('estado'))||''
   };
   cols.motivo=keys.find(k=>k.toLowerCase().includes('motivo'))||keys[9];
   cols.situacion=keys.find(k=>k.toLowerCase().replace(/[óo]/g,'o').includes('situacion'))||keys[5];
@@ -3028,7 +3059,7 @@ function movUpdateRankings(){
 // AUTO-LOAD DESDE GOOGLE SHEETS
 // ══════════════════════════════════════════════════════════════
 // URL de la implementación de Apps Script (pegar acá la URL que termina en /exec)
-const APPS_URL = 'https://script.google.com/macros/s/AKfycbx2qSi_QIL5Jo17d5O2eaRs6pr_iaEGrPPArcl_n9oe_R2t8zdDGbYrLtYfRZUmfX1B/exec';
+const APPS_URL = 'https://script.google.com/macros/s/AKfycbzpOgRrlUYxiOuC8I90wIptrQlrx4oVoD55SeFIXXEVwrd7wvlx96jS78GEXKTKMCwA/exec';
 const GS_URLS = {
   avr:   APPS_URL + '?tab=avr',
   ali:   APPS_URL + '?tab=ali',
@@ -3036,7 +3067,8 @@ const GS_URLS = {
   stk:   APPS_URL + '?tab=stk',
   hist:  APPS_URL + '?tab=hist',
   moto:  APPS_URL + '?tab=moto',
-  smoto: APPS_URL + '?tab=smoto'
+  smoto: APPS_URL + '?tab=smoto',
+  mvd:   APPS_URL + '?tab=mvd'   // movimientos acumulados día a día (se suman a la hoja mensual)
 };
 
 function gsSetStatus(key, state, msg) {
@@ -3076,6 +3108,32 @@ function gsDedupeHeader(text, delim) {
   return dup ? Papa.unparse([out], { delimiter: delim }) + text.slice(nl) : text;
 }
 
+async function gsFetchRows(key) {
+  const resp = await fetch(GS_URLS[key]);
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  let text = await resp.text();
+  if (!text || text.trim().length < 10) return [];
+  const delim = detectDelim(text);
+  text = gsDedupeHeader(text, delim);
+  return Papa.parse(text, { header: true, delimiter: delim, skipEmptyLines: true, transformHeader: h => h.trim() }).data;
+}
+
+// Un movimiento se identifica por Interno + Motivo + Fecha de Carga (al minuto), igual en la hoja mensual y en el acumulado diario.
+function gsMovKey(r) {
+  const f = (r['Fecha de Carga'] || '').trim();
+  let t = f;
+  let m = f.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2}))?/);
+  if (m) t = [m[3], m[2].padStart(2, '0'), m[1].padStart(2, '0'), (m[4] || '0').padStart(2, '0'), m[5] || '00'].join('');
+  else if ((m = f.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2}))?/))) t = [m[1], m[2], m[3], (m[4] || '0').padStart(2, '0'), m[5] || '00'].join('');
+  return [(r['Interno'] || '').trim(), (r['Motivo de Cambio de Ubicacion'] || '').trim().toUpperCase(), t].join('|');
+}
+function gsMergeMov(base, extra) {
+  const m = new Map();
+  base.forEach(r => m.set(gsMovKey(r), r));
+  extra.forEach(r => m.set(gsMovKey(r), r)); // el acumulado diario pisa a la hoja mensual (estado más reciente)
+  return [...m.values()];
+}
+
 async function loadSheet(key) {
   const url = GS_URLS[key];
   gsSetStatus(key, 'loading', 'Cargando...');
@@ -3101,7 +3159,11 @@ async function loadSheet(key) {
     } else if (key === 'ali') {
       aliProcess(parsed.data);
     } else if (key === 'mov') {
-      movProcess(parsed.data);
+      let rows = parsed.data;
+      try { const x = await gsFetchRows('mvd'); if (x.length) rows = gsMergeMov(rows, x); }
+      catch (e) { console.warn('[mov] acumulado diario no disponible', e); }
+      movProcess(rows);
+      mvdProcess(rows);
     } else if (key === 'stk') {
       stkProcess(parsed.data);
     } else if (key === 'hist') {
@@ -3153,6 +3215,7 @@ function rptKind(h) {
   if (h.includes('Tipo de Problema') && h.includes('Desc. del Problema')) return 'avr';
   if (h.includes('Tipo Trabajo') && h.includes('Operario')) return 'ali';
   if (h.includes('Catalogo') && h.includes('Situacion')) return 'stk';
+  if (h.includes('Motivo de Cambio de Ubicacion') && h.includes('Fecha En Transito') && h.includes('Id')) return 'mvd';
   return null;
 }
 
@@ -3161,6 +3224,11 @@ function rptProcess(kind, head, rows) {
   const iM = head.indexOf('Marca');
   const isAuto = r => RPT_AUTOS.includes((r[iM] || '').toUpperCase());
   if (kind === 'avr') return [{ key: 'avr', head, rows }];
+  if (kind === 'mvd') {
+    const ix = MVD_COLS.map(c => head.indexOf(c));
+    if (ix.includes(-1)) throw new Error('Faltan columnas en el reporte de movimientos');
+    return [{ key: 'mvd', head: MVD_COLS, mode: 'upsert', rows: rows.map(r => ix.map(i => r[i] || '')).filter(r => r[0]) }];
+  }
   if (kind === 'ali') {
     return [
       { key: 'ali',  head, rows: rows.filter(isAuto) },
@@ -3205,12 +3273,12 @@ async function rptHandle(files) {
       const parts = rptProcess(kind, head, rows);
       for (const p of parts) {
         gsSetStatus('rpt', 'loading', 'Subiendo ' + p.key + ' (' + p.rows.length + ')...');
-        await rptSend({ tab: p.key, head: p.head, rows: p.rows });
+        await rptSend({ tab: p.key, head: p.head, rows: p.rows, mode: p.mode });
         done.push(p.key);
       }
       if (kind === 'stk') { await rptSend(rptHistRow(parts[0].rows, head)); done.push('hist'); }
     }
-    for (const k of done) if (k !== 'hist') loadSheet(k);
+    for (const k of [...new Set(done.map(k => k === 'mvd' ? 'mov' : k))]) if (k !== 'hist') loadSheet(k);
     if (done.includes('hist')) loadSheet('hist');
     gsSetStatus('rpt', skipped.length ? 'err' : 'ok',
       skipped.length ? 'No reconocido: ' + skipped.join(', ') : 'Cargado ' + fmtNow());
@@ -3219,6 +3287,269 @@ async function rptHandle(files) {
     console.error('[rptHandle]', err);
   }
 }
+
+// ══════════ MOVIMIENTOS DIARIOS ══════════
+const MVD_COLS = ['Id','Marca','Interno','Dominio','Modelo','Situacion','Fecha de Carga','Fecha de Pedido','Motivo de Cambio de Ubicacion','Ubicacion Origen','Ubicacion','Estado','Fecha de Estado'];
+// Clasificación de motivos en categorías. Para mover un motivo de categoría, editar solo esta lista.
+const MVD_CATS = [
+  { k:'tras',  n:'Traslados',  ico:'🚚', c:'#3b82f6', mot:['TRASLADO'] },
+  { k:'entr',  n:'Pre entrega',ico:'✅', c:'#22c55e', mot:['ENTREGA CON UNIDAD FACTURADA'] },
+  { k:'ingr',  n:'Ingresos',   ico:'📥', c:'#8b5cf6', mot:['ARRIBO DE UNIDAD','REINGRESO A PRE-ENTREGA'] },
+  { k:'aver',  n:'Averías',    ico:'🔧', c:'#ef4444', mot:['REPARACIONES'] },
+  { k:'acc',   n:'Accesorios', ico:'🧩', c:'#f59e0b', mot:['ACCESORIO'] },
+  { k:'otros', n:'Otros',      ico:'📋', c:'#64748b', mot:null }
+];
+const MVD_DOW = ['D','L','M','M','J','V','S'];
+const MVD_DOWF = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const MVD_MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const MVD_BRAND = { VOLKSWAGEN:'#1e3a8a', FORD:'#3b82f6', CHEVROLET:'#f59e0b', AUDI:'#ef4444' };
+let mvdAll = [], mvdDays = [], mvdDay = '', mvdTipo = 'todos', mvdCat = '';
+
+(function () {
+  const host = document.getElementById('tab-mov');
+  const bar = document.createElement('div');
+  bar.className = 'mov-viewbar';
+  bar.innerHTML = `<div class="mov-seg"><button id="mvv-mensual" class="active" onclick="movSetView('mensual')">📊 Mensual</button><button id="mvv-diario" onclick="movSetView('diario')">📅 Diario</button></div>`;
+  host.insertBefore(bar, host.firstChild);
+  const div = document.createElement('div');
+  div.id = 'mvd-wrap';
+  div.innerHTML = `
+  <div class="fbar" id="mvd-fbar" style="display:none">
+    <div class="fgroup"><div class="flbl">Día</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="mvd-step" onclick="mvdStep(-1)" title="Día anterior">‹</button>
+        <input type="date" id="mvd-date" onchange="mvdSetDay(this.value)">
+        <button class="mvd-step" onclick="mvdStep(1)" title="Día siguiente">›</button>
+      </div>
+    </div>
+    <div class="fdiv"></div>
+    <div class="fgroup"><div class="flbl">Tipo</div>
+      <div style="display:flex;gap:6px">
+        <button class="mov-chip active" data-t="todos" onclick="mvdSetTipo('todos',this)">Todos</button>
+        <button class="mov-chip" data-t="0km" onclick="mvdSetTipo('0km',this)">0km</button>
+        <button class="mov-chip" data-t="usados" onclick="mvdSetTipo('usados',this)">Usados</button>
+      </div>
+    </div>
+    <div class="fgroup"><div class="flbl">Marca</div><select id="mvd-marca" onchange="mvdRender()"><option value="">Todas</option></select></div>
+    <span class="chart-chip" id="mvd-catchip" onclick="mvdPickCat('')" style="display:none;align-self:flex-end;margin-bottom:6px"></span>
+    <button class="clrbtn" onclick="mvdClear()" style="margin-left:auto;align-self:flex-end">↺ Limpiar</button>
+  </div>
+  <div class="pw">
+    <div class="empty-st" id="mvd-empty">
+      <div class="ei">📅</div><div class="et">Sin movimientos diarios cargados</div>
+      <div class="es">Subí el reporte del día anterior con "Cargar reportes"; los días se suman solos al cierre mensual.</div>
+    </div>
+    <div id="mvd-dash" style="display:none">
+      <div class="mvd-hero">
+        <div><div class="mvd-hdate" id="mvd-hdate">—</div><div class="mvd-hsub" id="mvd-hsub"></div></div>
+        <div class="mvd-delta" id="mvd-delta"></div>
+        <div class="mvd-htotal"><span id="mvd-total">0</span><small>movimientos</small></div>
+      </div>
+      <div class="mvd-tiles" id="mvd-tiles"></div>
+      <div class="crow" style="grid-template-columns:3fr 2fr">
+        <div class="cc"><div class="ctitle">Últimos 14 días · clic en una barra para ver ese día</div><div class="ch300"><canvas id="mvd-c-trend"></canvas></div></div>
+        <div class="cc"><div class="ctitle">Ritmo del día por hora <span id="mvd-nohora" style="font-weight:400;text-transform:none;letter-spacing:0"></span></div><div class="ch300"><canvas id="mvd-c-hour"></canvas></div></div>
+      </div>
+      <div class="crow c2">
+        <div class="cc"><div class="ctitle">Por marca</div><div class="ch260"><canvas id="mvd-c-marca"></canvas></div></div>
+        <div class="cc"><div class="ctitle">Destinos principales</div><div class="ch260"><canvas id="mvd-c-dest"></canvas></div></div>
+      </div>
+      <div class="cc" style="margin-bottom:28px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap">
+          <div class="ctitle" style="margin:0">Movimientos del día <span id="mvd-cnt" style="font-weight:400"></span></div>
+          <input type="text" id="mvd-search" placeholder="Buscar interno, dominio, modelo, destino…" oninput="mvdTable()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-size:12px;min-width:260px;outline:none">
+        </div>
+        <div class="twrap" style="max-height:420px;overflow-y:auto"><table><thead><tr><th>Hora</th><th>Interno</th><th>Unidad</th><th>Motivo</th><th>Origen → Destino</th><th>Estado</th></tr></thead><tbody id="mvd-tbody"></tbody></table></div>
+      </div>
+    </div>
+  </div>`;
+  host.appendChild(div);
+})();
+
+function mvdEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c])); }
+function mvdYMD(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function mvdD(ymd) { const [y, m, d] = ymd.split('-').map(Number); return new Date(y, m - 1, d); }
+function mvdCatOf(mot) { const m = (mot || '').toUpperCase().trim(); const c = MVD_CATS.find(x => x.mot && x.mot.includes(m)); return c ? c.k : 'otros'; }
+function mvdShort(ymd) { const d = mvdD(ymd); return MVD_DOW[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1); }
+
+function mvdProcess(raw) {
+  const rows = [];
+  (raw || []).forEach(r0 => {
+    const r = {}; Object.keys(r0).forEach(k => r[k.replace(/^﻿/, '').trim()] = (r0[k] == null ? '' : String(r0[k])).trim());
+    if (!/^(confirmado|en transito|en tr[aá]nsito)$/i.test(r['Estado'] || '')) return; // pendientes y anulados no son movimientos hechos
+    const m = (r['Fecha de Estado'] || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+    let fe = m ? new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0)) : movParseDate(r['Fecha de Estado']);
+    if (!fe) return;
+    const mot = r['Motivo de Cambio de Ubicacion'] || '';
+    const marca = (r['Marca'] || '').toUpperCase();
+    rows.push({
+      id: r['Id'], marca, interno: r['Interno'], dominio: r['Dominio'], modelo: r['Modelo'], mot,
+      orig: (r['Ubicacion Origen'] || '').replace(/[!\s]+$/, ''), dest: (r['Ubicacion'] || '').replace(/[!\s]+$/, ''),
+      est: r['Estado'], fe, day: mvdYMD(fe), hour: m && m[4] != null ? +m[4] : null, cat: mvdCatOf(mot),
+      usado: (r['Situacion'] || '').toUpperCase() === 'USADOS' || /USADO/i.test(mot) || /USADOS/.test(marca)
+    });
+  });
+  mvdAll = rows;
+  mvdDays = [...new Set(rows.map(r => r.day))].sort();
+  const e = document.getElementById('mvd-empty'), d = document.getElementById('mvd-dash'), f = document.getElementById('mvd-fbar');
+  if (!rows.length) { e.style.display = ''; d.style.display = 'none'; f.style.display = 'none'; return; }
+  e.style.display = 'none'; d.style.display = 'block'; f.style.display = 'flex';
+  const sel = document.getElementById('mvd-marca'), cur = sel.value;
+  const marcas = [...new Set(rows.map(r => r.marca).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Todas</option>' + marcas.map(m => `<option value="${mvdEsc(m)}">${mvdEsc(m)}</option>`).join('');
+  if (marcas.includes(cur)) sel.value = cur;
+  const di = document.getElementById('mvd-date'); di.min = mvdDays[0]; di.max = mvdDays[mvdDays.length - 1];
+  if (!mvdDays.includes(mvdDay)) mvdDay = mvdDefaultDay();
+  mvdRender();
+}
+
+// El reporte se sube a la mañana siguiente: por defecto se muestra el último día cerrado (anterior a hoy).
+function mvdDefaultDay() { const hoy = mvdYMD(new Date()); return [...mvdDays].reverse().find(d => d < hoy) || mvdDays[mvdDays.length - 1]; }
+function mvdSetDay(v) { if (!v) return; mvdDay = v; mvdRender(); }
+function mvdStep(dir) {
+  const i = mvdDays.indexOf(mvdDay);
+  if (i >= 0) { const j = i + dir; if (j >= 0 && j < mvdDays.length) { mvdDay = mvdDays[j]; mvdRender(); } return; }
+  const c = dir > 0 ? mvdDays.find(d => d > mvdDay) : [...mvdDays].reverse().find(d => d < mvdDay);
+  if (c) { mvdDay = c; mvdRender(); }
+}
+function mvdSetTipo(t, btn) { mvdTipo = t; document.querySelectorAll('#mvd-fbar .mov-chip').forEach(b => b.classList.toggle('active', b === btn)); mvdRender(); }
+function mvdPickCat(k) { mvdCat = (mvdCat === k) ? '' : k; mvdRender(); }
+function mvdClear() {
+  mvdTipo = 'todos'; mvdCat = ''; document.getElementById('mvd-marca').value = ''; document.getElementById('mvd-search').value = '';
+  document.querySelectorAll('#mvd-fbar .mov-chip').forEach(b => b.classList.toggle('active', b.dataset.t === 'todos'));
+  if (mvdDays.length) mvdDay = mvdDefaultDay();
+  mvdRender();
+}
+
+function mvdBase() {
+  const m = document.getElementById('mvd-marca').value;
+  return mvdAll.filter(r => (mvdTipo === 'todos' || (mvdTipo === 'usados' ? r.usado : !r.usado)) && (!m || r.marca === m));
+}
+function mvdDelta(n, p) { const d = n - p; return d === 0 ? '= igual' : (d > 0 ? '▲ +' : '▼ ') + d; }
+
+function mvdRender() {
+  if (!mvdAll.length) return;
+  const base = mvdBase(), byDay = {};
+  base.forEach(r => (byDay[r.day] = byDay[r.day] || []).push(r));
+  const rows = byDay[mvdDay] || [];
+  const i = mvdDays.indexOf(mvdDay);
+  const prevDay = i > 0 ? mvdDays[i - 1] : [...mvdDays].reverse().find(d => d < mvdDay);
+  const prev = prevDay ? (byDay[prevDay] || []) : [];
+  document.getElementById('mvd-date').value = mvdDay;
+  const dt = mvdD(mvdDay);
+  const ht = MVD_DOWF[dt.getDay()] + ' ' + dt.getDate() + ' de ' + MVD_MES[dt.getMonth()];
+  ST('mvd-hdate', ht.charAt(0).toUpperCase() + ht.slice(1));
+  const units = new Set(rows.map(r => r.interno)).size;
+  const enTr = rows.filter(r => !/^confirmado$/i.test(r.est)).length;
+  ST('mvd-hsub', rows.length ? units + ' unidades distintas' + (enTr ? ' · ' + enTr + ' en tránsito' : '') : 'Sin movimientos cargados para este día');
+  ST('mvd-total', rows.length);
+  const dEl = document.getElementById('mvd-delta');
+  dEl.textContent = prevDay ? mvdDelta(rows.length, prev.length) + ' vs ' + mvdShort(prevDay) : '';
+  dEl.style.display = prevDay ? '' : 'none';
+  // tiles
+  document.getElementById('mvd-tiles').innerHTML = MVD_CATS.map(c => {
+    const n = rows.filter(r => r.cat === c.k).length, p = prev.filter(r => r.cat === c.k).length;
+    const pct = rows.length ? Math.round(n / rows.length * 100) : 0;
+    const dl = mvdDelta(n, p), cls = n > p ? 'up' : n < p ? 'dn' : '';
+    return `<button class="mvd-tile${mvdCat === c.k ? ' active' : ''}" style="--c:${c.c}" onclick="mvdPickCat('${c.k}')">
+      <div style="display:flex;align-items:center;gap:10px"><span class="mvd-ti">${c.ico}</span><span class="mvd-tn">${c.n}</span></div>
+      <div class="mvd-tv">${n}</div>
+      <div class="mvd-bar"><i style="width:${pct}%"></i></div>
+      <div class="mvd-tm"><span>${pct}% del día</span>${prevDay ? `<span class="${cls}">${dl}</span>` : ''}</div></button>`;
+  }).join('');
+  const chip = document.getElementById('mvd-catchip');
+  if (mvdCat) { const c = MVD_CATS.find(x => x.k === mvdCat); chip.textContent = 'Filtrando: ' + c.n + ' ✕'; chip.style.display = 'inline-flex'; } else chip.style.display = 'none';
+  mvdCharts(byDay, rows);
+  mvdTable();
+}
+
+function mvdEndLabels(fmt) {
+  return { id: 'mvdEnd', afterDatasetsDraw(ch) {
+    const ctx = ch.ctx, meta = ch.getDatasetMeta(0); ctx.save(); ctx.font = '600 11px sans-serif'; ctx.fillStyle = gc().lbl; ctx.textBaseline = 'middle';
+    meta.data.forEach((b, k) => { ctx.fillText(ch.data.datasets[0].data[k], b.x + 6, b.y); }); ctx.restore();
+  } };
+}
+
+function mvdCharts(byDay, rows) {
+  const g = gc(), cats = mvdCat ? MVD_CATS.filter(c => c.k === mvdCat) : MVD_CATS;
+  const rowsF = mvdCat ? rows.filter(r => r.cat === mvdCat) : rows;
+  const common = { responsive: true, maintainAspectRatio: false };
+  // ── tendencia 14 días
+  DC('mvd-c-trend');
+  const n = mvdDays.length, i = mvdDays.indexOf(mvdDay);
+  const end = i >= 0 && i < n - 14 ? i : n - 1;
+  const win = mvdDays.slice(Math.max(0, end - 13), end + 1);
+  const totals = win.map(d => (byDay[d] || []).filter(r => !mvdCat || r.cat === mvdCat).length);
+  const tEl = document.getElementById('mvd-c-trend');
+  if (tEl) AC['mvd-c-trend'] = new Chart(tEl, {
+    type: 'bar',
+    data: { labels: win.map(d => { const x = mvdD(d); return [MVD_DOW[x.getDay()], x.getDate() + '/' + (x.getMonth() + 1)]; }),
+      datasets: cats.map(c => ({ label: c.n, data: win.map(d => (byDay[d] || []).filter(r => r.cat === c.k).length),
+        backgroundColor: win.map(d => d === mvdDay ? c.c : c.c + '77'), borderRadius: 3, borderSkipped: false })) },
+    options: { ...common, layout: { padding: { top: 16 } },
+      scales: { x: { stacked: true, grid: { display: false }, ticks: { color: g.lbl, font: { size: 10 } } }, y: { stacked: true, beginAtZero: true, grid: { color: g.grid }, ticks: { color: g.lbl, precision: 0 } } },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12, font: { size: 11 }, color: g.lbl } }, tooltip: { mode: 'index', intersect: false } },
+      onClick(e, els) { if (els.length) mvdSetDay(win[els[0].index]); } },
+    plugins: [{ id: 'mvdTot', afterDatasetsDraw(ch) {
+      const ctx = ch.ctx, x = ch.scales.x, y = ch.scales.y; ctx.save(); ctx.font = '700 10px sans-serif'; ctx.fillStyle = gc().lbl; ctx.textAlign = 'center';
+      totals.forEach((t, k) => { if (t) ctx.fillText(t, x.getPixelForValue(k), y.getPixelForValue(t) - 5); }); ctx.restore(); } }]
+  });
+  // ── por hora
+  DC('mvd-c-hour');
+  const conHora = rowsF.filter(r => r.hour != null && !(r.hour === 0 && r.fe.getMinutes() === 0));
+  ST('mvd-nohora', rowsF.length - conHora.length ? '· ' + (rowsF.length - conHora.length) + ' sin hora' : '');
+  const hEl = document.getElementById('mvd-c-hour');
+  if (hEl && conHora.length) {
+    const hs = conHora.map(r => r.hour), h0 = Math.min(...hs), h1 = Math.max(...hs), labs = [];
+    for (let h = h0; h <= h1; h++) labs.push(h);
+    AC['mvd-c-hour'] = new Chart(hEl, {
+      type: 'bar',
+      data: { labels: labs.map(h => h + 'h'), datasets: cats.map(c => ({ label: c.n, data: labs.map(h => conHora.filter(r => r.hour === h && r.cat === c.k).length), backgroundColor: c.c, borderRadius: 2, borderSkipped: false })) },
+      options: { ...common, scales: { x: { stacked: true, grid: { display: false }, ticks: { color: g.lbl, font: { size: 10 } } }, y: { stacked: true, beginAtZero: true, grid: { color: g.grid }, ticks: { color: g.lbl, precision: 0 } } },
+        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } } }
+    });
+  }
+  // ── por marca y destino (horizontal)
+  const top = (key, k) => { const m = {}; rowsF.forEach(r => { const v = r[key]; if (v) m[v] = (m[v] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, k); };
+  const hbar = (id, data, colorFn) => {
+    DC(id); const el = document.getElementById(id); if (!el || !data.length) return;
+    AC[id] = new Chart(el, { type: 'bar',
+      data: { labels: data.map(d => d[0]), datasets: [{ data: data.map(d => d[1]), backgroundColor: data.map(d => colorFn(d[0])), borderRadius: 4, borderSkipped: false, barThickness: 16 }] },
+      options: { ...common, indexAxis: 'y', layout: { padding: { right: 28 } },
+        scales: { x: { display: false, beginAtZero: true }, y: { grid: { display: false }, ticks: { color: g.lbl, font: { size: 11 } } } },
+        plugins: { legend: { display: false } } },
+      plugins: [mvdEndLabels()] });
+  };
+  hbar('mvd-c-marca', top('marca', 8), m => MVD_BRAND[m] || '#94a3b8');
+  hbar('mvd-c-dest', top('dest', 8), () => '#2563eb');
+}
+
+function mvdTable() {
+  const q = (document.getElementById('mvd-search').value || '').toLowerCase().trim();
+  let rows = mvdBase().filter(r => r.day === mvdDay && (!mvdCat || r.cat === mvdCat));
+  if (q) rows = rows.filter(r => [r.interno, r.dominio, r.modelo, r.marca, r.mot, r.orig, r.dest].join(' ').toLowerCase().includes(q));
+  rows.sort((a, b) => b.fe - a.fe);
+  ST('mvd-cnt', '(' + rows.length + ')');
+  const col = Object.fromEntries(MVD_CATS.map(c => [c.k, c.c]));
+  document.getElementById('mvd-tbody').innerHTML = rows.slice(0, 300).map(r => {
+    const hh = r.hour != null && !(r.hour === 0 && r.fe.getMinutes() === 0) ? String(r.hour).padStart(2, '0') + ':' + String(r.fe.getMinutes()).padStart(2, '0') : '—';
+    return `<tr><td style="color:var(--text-dim)">${hh}</td><td><b>${mvdEsc(r.interno)}</b><div style="font-size:11px;color:var(--text-dim)">${mvdEsc(r.dominio)}</div></td>
+      <td>${mvdEsc(r.marca)}<div style="font-size:11px;color:var(--text-dim)">${mvdEsc(r.modelo)}</div></td>
+      <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${col[r.cat]};margin-right:7px"></span>${mvdEsc(r.mot)}</td>
+      <td style="font-size:12px">${mvdEsc(r.orig)} <span style="color:var(--text-dim)">→</span> ${mvdEsc(r.dest)}</td>
+      <td style="font-size:12px;color:var(--text-dim)">${mvdEsc(r.est)}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px">Sin movimientos</td></tr>';
+}
+
+function movSetView(v) {
+  const t = document.getElementById('tab-mov'); if (!t) return;
+  t.classList.toggle('view-diario', v === 'diario');
+  document.getElementById('mvv-mensual').classList.toggle('active', v !== 'diario');
+  document.getElementById('mvv-diario').classList.toggle('active', v === 'diario');
+  try { localStorage.setItem('movView', v); } catch (e) {}
+  if (v === 'diario') { if (mvdAll.length) mvdRender(); } else { try { movRedrawCharts(); } catch (e) {} }
+}
+(function () { let v = 'mensual'; try { v = localStorage.getItem('movView') || 'mensual'; } catch (e) {} movSetView(v); })();
 
 // ══ SPLASH ══
 function entrarDashboard(){
