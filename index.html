@@ -3118,22 +3118,26 @@ async function gsFetchRows(key) {
   return Papa.parse(text, { header: true, delimiter: delim, skipEmptyLines: true, transformHeader: h => h.trim() }).data;
 }
 
-// Un movimiento se identifica por Interno + Motivo + Fecha de Carga (al minuto), igual en la hoja mensual y en el acumulado diario.
-function gsMovKey(r) {
+// Un movimiento se identifica por su Id (el mismo en la hoja mensual y en el reporte diario). Si la fila vieja no tiene Id,
+// se identifica por Interno + Motivo + día de carga (la hoja mensual guarda la fecha sin hora).
+function gsMovKeys(r) {
+  const id = (r['Id'] || '').trim();
   const f = (r['Fecha de Carga'] || '').trim();
-  let t = f;
-  let m = f.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2}))?/);
-  if (m) t = [m[3], m[2].padStart(2, '0'), m[1].padStart(2, '0'), (m[4] || '0').padStart(2, '0'), m[5] || '00'].join('');
-  else if ((m = f.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2}))?/))) t = [m[1], m[2], m[3], (m[4] || '0').padStart(2, '0'), m[5] || '00'].join('');
-  return [(r['Interno'] || '').trim(), (r['Motivo de Cambio de Ubicacion'] || '').trim().toUpperCase(), t].join('|');
+  const m = f.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  const dia = m ? [m[3], m[2].padStart(2, '0'), m[1].padStart(2, '0')].join('') : f;
+  return { id: id ? 'i' + id : null, c: 'c|' + (r['Interno'] || '').trim() + '|' + (r['Motivo de Cambio de Ubicacion'] || '').trim().toUpperCase() + '|' + dia };
 }
 function gsMergeMov(base, extra) {
   // La hoja mensual se respeta tal cual (no se quita ninguna fila, aunque haya repetidas): el acumulado diario
   // solo reemplaza a su fila equivalente (estado más reciente) o agrega las que faltan.
   const idx = new Map();
-  base.forEach((r, i) => { const k = gsMovKey(r); if (!idx.has(k)) idx.set(k, i); });
+  base.forEach((r, i) => { const k = gsMovKeys(r), key = k.id || k.c; if (!idx.has(key)) idx.set(key, i); });
   const out = base.slice(), add = new Map();
-  extra.forEach(r => { const k = gsMovKey(r); if (idx.has(k)) out[idx.get(k)] = r; else add.set(k, r); });
+  extra.forEach(r => {
+    const k = gsMovKeys(r);
+    const j = k.id && idx.has(k.id) ? idx.get(k.id) : idx.has(k.c) ? idx.get(k.c) : -1;
+    if (j >= 0) out[j] = r; else add.set(k.id || k.c, r);
+  });
   return out.concat([...add.values()]);
 }
 
@@ -3163,7 +3167,7 @@ async function loadSheet(key) {
       aliProcess(parsed.data);
     } else if (key === 'mov') {
       let rows = parsed.data;
-      try { const x = await gsFetchRows('mvd'); if (x.length) rows = gsMergeMov(rows, x); }
+      try { const x = (await gsFetchRows('mvd')).filter(r => !MOV_MOTO_MARCAS.includes((r['Marca'] || '').toUpperCase().trim())); if (x.length) rows = gsMergeMov(rows, x); }
       catch (e) { console.warn('[mov] acumulado diario no disponible', e); }
       movProcess(rows);
       mvdProcess(rows);
@@ -3200,6 +3204,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // ══ CARGA DE REPORTES (CSV en bruto → planilla) ══
 const RPT_AUTOS = ['AUDI','VOLKSWAGEN','FORD','CHEVROLET'];
+// Marcas de motos: no se cuentan en los movimientos. Cualquier otra marca (Renault, Fiat, etc.) cuenta como usado.
+const MOV_MOTO_MARCAS = ['SUZUKI','KOVE','BENELLI','MORBIDELLI','DUCATI','MOTOMEL','S Y M','KEEWAY','BENDA'];
 
 function rptDecode(buf) {
   try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
@@ -3230,7 +3236,7 @@ function rptProcess(kind, head, rows) {
   if (kind === 'mvd') {
     const ix = MVD_COLS.map(c => head.indexOf(c));
     if (ix.includes(-1)) throw new Error('Faltan columnas en el reporte de movimientos');
-    return [{ key: 'mvd', head: MVD_COLS, mode: 'upsert', rows: rows.map(r => ix.map(i => r[i] || '')).filter(r => r[0]) }];
+    return [{ key: 'mvd', head: MVD_COLS, mode: 'upsert', rows: rows.filter(r => !MOV_MOTO_MARCAS.includes((r[iM] || '').toUpperCase().trim())).map(r => ix.map(i => r[i] || '')).filter(r => r[0]) }]; // sin motos
   }
   if (kind === 'ali') {
     return [
