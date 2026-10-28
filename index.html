@@ -3374,6 +3374,9 @@ function mvdShort(ymd) { const d = mvdD(ymd); return MVD_DOW[d.getDay()] + ' ' +
 
 function mvdProcess(raw) {
   const rows = [];
+  // Mismo criterio que Movimientos mensual (movEsUsado): es usado si no tiene interno, si nunca tuvo un
+  // "ARRIBO DE UNIDAD" en todo el historial, o si algún dato de la fila dice "usado(s)".
+  const conArribo = new Set((raw || []).filter(x => String(x['Motivo de Cambio de Ubicacion'] || '').toUpperCase().trim() === 'ARRIBO DE UNIDAD' && x['Interno']).map(x => String(x['Interno']).trim()));
   (raw || []).forEach(r0 => {
     const r = {}; Object.keys(r0).forEach(k => r[k.replace(/^﻿/, '').trim()] = (r0[k] == null ? '' : String(r0[k])).trim());
     if (!/^(confirmado|en transito|en tr[aá]nsito)$/i.test(r['Estado'] || '')) return; // pendientes y anulados no son movimientos hechos
@@ -3386,7 +3389,7 @@ function mvdProcess(raw) {
       id: r['Id'], marca, interno: r['Interno'], dominio: r['Dominio'], modelo: r['Modelo'], mot,
       orig: (r['Ubicacion Origen'] || '').replace(/[!\s]+$/, ''), dest: (r['Ubicacion'] || '').replace(/[!\s]+$/, ''),
       est: r['Estado'], fe, day: mvdYMD(fe), hour: m && m[4] != null ? +m[4] : null, cat: mvdCatOf(mot),
-      usado: (r['Situacion'] || '').toUpperCase() === 'USADOS' || /USADO/i.test(mot) || /USADOS/.test(marca)
+      usado: !r['Interno'] || !conArribo.has(r['Interno']) || Object.values(r).some(v => typeof v === 'string' && /usados?/i.test(v))
     });
   });
   mvdAll = rows;
