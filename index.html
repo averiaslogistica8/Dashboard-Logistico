@@ -2203,6 +2203,7 @@ function aliProcess(raw){
   function fc(...c){for(const x of c){const f=keys.find(k=>k.toLowerCase().includes(x.toLowerCase()));if(f)return f;}return'';}
   window._aC={marca:fc('marca'),op:fc('operario'),fin:fc('Fecha Finalizado','finalizado'),arri:fc('Fecha Arribo','arribo'),clr:fc('Color','color'),entrega:fc('turno entr','turno de entrega','entrega'),id:fc('interno','n° interno','dominio','patente'),modelo:fc('modelo','desc. modelo','descripcion')};
   aliAll=aliAll.filter(r=>MARCAS.includes((r[window._aC.marca]||'').toUpperCase()));
+  setTimeout(()=>{try{if(typeof mvdAll!=='undefined'&&mvdAll.length)mvdRender();}catch(e){}},0);
   aliAll.forEach(r=>{r._fin=aliPD(r[window._aC.fin]);r._arri=aliPD(r[window._aC.arri]);r._marca=(r[window._aC.marca]||'').toUpperCase();r._op=(r[window._aC.op]||'Sin operario').trim();r._clr=(r[window._aC.clr]||'').trim()||'Sin dato';r._entrega=aliPD(r[window._aC.entrega]);r._id=(window._aC.id?r[window._aC.id]||'':'').toString().trim();r._modelo=(window._aC.modelo?r[window._aC.modelo]||'':'').toString().trim();});
   // ── Build predio list: autos sin fecha de entrega, ordenados por días en predio ──
   window._aliPredioList=(()=>{
@@ -3321,8 +3322,9 @@ const MVD_COLS = ['Id','Marca','Interno','Dominio','Modelo','Situacion','Fecha d
 // Clasificación de motivos en categorías. Para mover un motivo de categoría, editar solo esta lista.
 const MVD_CATS = [
   { k:'tras',  n:'Traslados',  ico:'🚚', c:'#3b82f6', mot:['TRASLADO'] },
-  { k:'entr',  n:'Pre entrega',ico:'✅', c:'#22c55e', mot:['ENTREGA CON UNIDAD FACTURADA'] },
-  { k:'ingr',  n:'Ingresos',   ico:'📥', c:'#8b5cf6', mot:['ARRIBO DE UNIDAD','REINGRESO A PRE-ENTREGA'] },
+  { k:'pre',   n:'Pre entrega',ico:'✅', c:'#22c55e', mot:null, ali:true },                        // autos alistados en el día (sale del reporte de Alistaje)
+  { k:'ingr',  n:'Ingresos',   ico:'📥', c:'#8b5cf6', mot:['ARRIBO DE UNIDAD'] },
+  { k:'rein',  n:'Reingresos', ico:'🔄', c:'#14b8a6', mot:['REINGRESO A PRE-ENTREGA'] },
   { k:'aver',  n:'Averías',    ico:'🔧', c:'#ef4444', mot:['REPARACIONES'] },
   { k:'acc',   n:'Accesorios', ico:'🧩', c:'#f59e0b', mot:['ACCESORIO'] },
   { k:'otros', n:'Otros',      ico:'📋', c:'#64748b', mot:null }
@@ -3413,10 +3415,13 @@ function mvdProcess(raw) {
     if (!fe) return;
     const mot = r['Motivo de Cambio de Ubicacion'] || '';
     const marca = (r['Marca'] || '').toUpperCase();
+    // El día del movimiento es la Fecha de Pedido (se puede pedir un día y confirmar al siguiente); si falta, la de estado.
+    const mp = (r['Fecha de Pedido'] || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    const dayP = mp ? mvdYMD(new Date(+mp[3], +mp[2] - 1, +mp[1])) : mvdYMD(fe);
     rows.push({
       id: r['Id'], marca, interno: r['Interno'], dominio: r['Dominio'], modelo: r['Modelo'], mot,
       orig: (r['Ubicacion Origen'] || '').replace(/[!\s]+$/, ''), dest: (r['Ubicacion'] || '').replace(/[!\s]+$/, ''),
-      est: r['Estado'], fe, day: mvdYMD(fe), hour: m && m[4] != null ? +m[4] : null, cat: mvdCatOf(mot),
+      est: r['Estado'], fe, day: dayP, hour: m && m[4] != null ? +m[4] : null, cat: mvdCatOf(mot),
       usado: !r['Interno'] || !conArribo.has(r['Interno']) || Object.values(r).some(v => typeof v === 'string' && /usados?/i.test(v))
     });
   });
@@ -3452,9 +3457,19 @@ function mvdClear() {
   mvdRender();
 }
 
+// Pre entrega = autos alistados ese día (Fecha Finalizado del reporte de Alistaje). No son movimientos: no suman al total del día.
+let _mvdAliKey = -1, _mvdAliRows = [];
+function mvdAliRows() {
+  const a = (typeof aliAll !== 'undefined') ? aliAll : [];
+  if (_mvdAliKey === a.length) return _mvdAliRows;
+  _mvdAliKey = a.length;
+  _mvdAliRows = a.filter(r => r._fin).map((r, i) => ({ id: 'ali' + i, marca: r._marca, interno: r._id || '', dominio: '', modelo: r._modelo || '', mot: 'ALISTAJE', orig: '', dest: '',
+    est: 'Alistado', fe: r._fin, day: mvdYMD(r._fin), hour: null, cat: 'pre', usado: false, ali: true }));
+  return _mvdAliRows;
+}
 function mvdBase() {
   const m = document.getElementById('mvd-marca').value;
-  return mvdAll.filter(r => (mvdTipo === 'todos' || (mvdTipo === 'usados' ? r.usado : !r.usado)) && (!m || r.marca === m));
+  return mvdAll.concat(mvdAliRows()).filter(r => (mvdTipo === 'todos' || (mvdTipo === 'usados' ? r.usado : !r.usado)) && (!m || r.marca === m));
 }
 function mvdDelta(n, p) { const d = n - p; return d === 0 ? '= igual' : (d > 0 ? '▲ +' : '▼ ') + d; }
 
@@ -3462,10 +3477,10 @@ function mvdRender() {
   if (!mvdAll.length) return;
   const base = mvdBase(), byDay = {};
   base.forEach(r => (byDay[r.day] = byDay[r.day] || []).push(r));
-  const rows = byDay[mvdDay] || [];
+  const rowsAll = byDay[mvdDay] || [], rows = rowsAll.filter(r => !r.ali);
   const i = mvdDays.indexOf(mvdDay);
   const prevDay = i > 0 ? mvdDays[i - 1] : [...mvdDays].reverse().find(d => d < mvdDay);
-  const prev = prevDay ? (byDay[prevDay] || []) : [];
+  const prevAll = prevDay ? (byDay[prevDay] || []) : [], prev = prevAll.filter(r => !r.ali);
   document.getElementById('mvd-date').value = mvdDay;
   const dt = mvdD(mvdDay);
   const ht = MVD_DOWF[dt.getDay()] + ' ' + dt.getDate() + ' de ' + MVD_MES[dt.getMonth()];
@@ -3479,18 +3494,18 @@ function mvdRender() {
   dEl.style.display = prevDay ? '' : 'none';
   // tiles
   document.getElementById('mvd-tiles').innerHTML = MVD_CATS.map(c => {
-    const n = rows.filter(r => r.cat === c.k).length, p = prev.filter(r => r.cat === c.k).length;
-    const pct = rows.length ? Math.round(n / rows.length * 100) : 0;
+    const n = rowsAll.filter(r => r.cat === c.k).length, p = prevAll.filter(r => r.cat === c.k).length;
+    const pct = c.ali ? 0 : rows.length ? Math.round(n / rows.length * 100) : 0;
     const dl = mvdDelta(n, p), cls = n > p ? 'up' : n < p ? 'dn' : '';
     return `<button class="mvd-tile${mvdCat === c.k ? ' active' : ''}" style="--c:${c.c}" onclick="mvdPickCat('${c.k}')">
       <div style="display:flex;align-items:center;gap:10px"><span class="mvd-ti">${c.ico}</span><span class="mvd-tn">${c.n}</span></div>
       <div class="mvd-tv">${n}</div>
       <div class="mvd-bar"><i style="width:${pct}%"></i></div>
-      <div class="mvd-tm"><span>${pct}% del día</span>${prevDay ? `<span class="${cls}">${dl}</span>` : ''}</div></button>`;
+      <div class="mvd-tm"><span>${c.ali ? 'alistados en el día' : pct + '% del día'}</span>${prevDay ? `<span class="${cls}">${dl}</span>` : ''}</div></button>`;
   }).join('');
   const chip = document.getElementById('mvd-catchip');
   if (mvdCat) { const c = MVD_CATS.find(x => x.k === mvdCat); chip.textContent = 'Filtrando: ' + c.n + ' ✕'; chip.style.display = 'inline-flex'; } else chip.style.display = 'none';
-  mvdCharts(byDay, rows);
+  mvdCharts(byDay, rowsAll);
   mvdTable();
 }
 
@@ -3527,8 +3542,9 @@ function mvdCharts(byDay, rows) {
   });
   // ── por hora
   DC('mvd-c-hour');
-  const conHora = rowsF.filter(r => r.hour != null && !(r.hour === 0 && r.fe.getMinutes() === 0));
-  ST('mvd-nohora', rowsF.length - conHora.length ? '· ' + (rowsF.length - conHora.length) + ' sin hora' : '');
+  const conHora = rowsF.filter(r => !r.ali && r.hour != null && !(r.hour === 0 && r.fe.getMinutes() === 0));
+  const nF = rowsF.filter(r => !r.ali).length;
+  ST('mvd-nohora', nF - conHora.length ? '· ' + (nF - conHora.length) + ' sin hora' : '');
   const hEl = document.getElementById('mvd-c-hour');
   if (hEl && conHora.length) {
     const hs = conHora.map(r => r.hour), h0 = Math.min(...hs), h1 = Math.max(...hs), labs = [];
@@ -3541,7 +3557,7 @@ function mvdCharts(byDay, rows) {
     });
   }
   // ── por marca y destino (horizontal)
-  const top = (key, k) => { const m = {}; rowsF.forEach(r => { const v = r[key]; if (v) m[v] = (m[v] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, k); };
+  const top = (key, k) => { const m = {}; rowsF.filter(r => key !== 'dest' || !r.ali).forEach(r => { const v = r[key]; if (v) m[v] = (m[v] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, k); };
   const hbar = (id, data, colorFn) => {
     DC(id); const el = document.getElementById(id); if (!el || !data.length) return;
     AC[id] = new Chart(el, { type: 'bar',
