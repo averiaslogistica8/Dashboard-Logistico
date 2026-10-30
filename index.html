@@ -446,6 +446,9 @@ tbody tr:hover td{background:var(--surface2);}
 .mov-seg{display:inline-flex;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px;}
 .mov-seg button{border:0;background:transparent;color:var(--text-mid);font-family:inherit;font-size:12px;font-weight:600;padding:6px 16px;border-radius:7px;cursor:pointer;}
 .mov-seg button.active{background:var(--accent);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+#tab-avr.view-donantes>:not(.mov-viewbar):not(#dn-wrap){display:none!important;}
+#tab-avr:not(.view-donantes) #dn-wrap{display:none;}
+#dn-wrap select{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:12px;}
 #tab-mov.view-diario #mov-fbar,#tab-mov.view-diario>.pw{display:none!important;}
 #tab-mov:not(.view-diario) #mvd-wrap{display:none;}
 </style>
@@ -5707,6 +5710,109 @@ async function scDownload(){
   catch(e){alert(e.message);}
 }
 document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementById('sc-excl');if(e)e.value=SC_EXCL_DEF;});
+// ══ GESTIÓN DE DONANTES (pestaña Averías) ══
+// Un donante es una unidad del stock del mismo modelo. Lo mejor es que NO tenga ninguna operación activa
+// (libre), para no demorar entregas: después reservado, luego facturado y por último patentado.
+const DN_OP = {
+  libre:    { n:'Sin operación', c:'#16a34a', r:0 },
+  reservado:{ n:'Reservado',     c:'#f59e0b', r:1 },
+  facturado:{ n:'Facturado',     c:'#f97316', r:2 },
+  patentado:{ n:'Patentado',     c:'#ef4444', r:3 },
+  otro:     { n:'Otro estado',   c:'#64748b', r:4 }
+};
+let dnMarca = 'all', dnModelo = '', dnVer = '', dnSoloLibres = false, dnRows = [];
+function dnOpOf(est) {
+  const e = String(est || '').toUpperCase().trim();
+  if (e === 'ARRIBADO' || e === 'CON CERTIFICADO ARRIBADO' || e === 'DISPONIBLE' || e === 'PROPIO') return 'libre';
+  if (e === 'RESERVADO') return 'reservado';
+  if (e === 'FACTURADO') return 'facturado';
+  if (e === 'PATENTADO') return 'patentado';
+  return 'otro';
+}
+function dnNorm(s) { return String(s || '').toUpperCase().replace(/\.+(?=\s|$)/g, '').replace(/\s+/g, ' ').trim(); }
+function dnEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c])); }
+
+(function () {
+  const host = document.getElementById('tab-avr');
+  const bar = document.createElement('div');
+  bar.className = 'mov-viewbar';
+  bar.innerHTML = '<div class="mov-seg"><button id="dnv-avr" class="active" onclick="dnSetView(\'avr\')">🔧 Averías</button><button id="dnv-dn" onclick="dnSetView(\'donantes\')">🧩 Donantes</button></div>';
+  host.insertBefore(bar, host.firstChild);
+  const w = document.createElement('div');
+  w.id = 'dn-wrap';
+  w.innerHTML = `<div class="fbar" style="display:flex">
+      <div class="fgroup"><div class="flbl">Marca</div><select id="dn-marca" onchange="dnMarca=this.value;dnModelo='';dnVer='';dnRender()"><option value="all">Todas</option></select></div>
+      <div class="fdiv"></div>
+      <div class="fgroup"><div class="flbl">Modelo</div><select id="dn-modelo" onchange="dnModelo=this.value;dnVer='';dnRender()"><option value="">— Elegí un modelo —</option></select></div>
+      <div class="fdiv"></div>
+      <div class="fgroup"><div class="flbl">Versión</div><select id="dn-ver" onchange="dnVer=this.value;dnRender()"><option value="">Todas</option></select></div>
+      <div class="fdiv"></div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer"><input type="checkbox" id="dn-libres" onchange="dnSoloLibres=this.checked;dnRender()"> Solo sin operación</label>
+    </div>
+    <div class="pw">
+      <div class="empty-st" id="dn-empty"><div class="ei">🧩</div><div class="et">Elegí un modelo</div><div class="es">Se listan las unidades del stock del predio de ese modelo, primero las que no tienen ninguna operación activa.</div></div>
+      <div id="dn-body" style="display:none">
+        <div id="dn-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+        <div class="cc" style="padding:0;overflow:auto"><table class="mvd-table" style="width:100%"><thead><tr><th>#</th><th>Interno</th><th>Marca</th><th>Modelo / versión</th><th>Color</th><th>Estado</th><th>Operación</th><th>Ubicación</th><th>Días en predio</th></tr></thead><tbody id="dn-tbody"></tbody></table></div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Orden: sin operación → reservado → facturado → patentado; dentro de cada grupo, más días en predio primero.</div>
+      </div>
+    </div>`;
+  host.appendChild(w);
+})();
+
+function dnSetView(v) {
+  const t = document.getElementById('tab-avr');
+  t.classList.toggle('view-donantes', v === 'donantes');
+  document.getElementById('dnv-avr').classList.toggle('active', v !== 'donantes');
+  document.getElementById('dnv-dn').classList.toggle('active', v === 'donantes');
+  if (v === 'donantes') dnInit();
+}
+function dnInit() {
+  const all = (typeof stkAll !== 'undefined' && stkAll) ? stkAll : [];
+  const sel = document.getElementById('dn-marca'), cur = dnMarca;
+  const marcas = [...new Set(all.map(r => r.marcaNorm || r.marca).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="all">Todas</option>' + marcas.map(m => `<option value="${dnEsc(m)}">${dnEsc(m)}</option>`).join('');
+  sel.value = marcas.includes(cur) ? cur : 'all'; dnMarca = sel.value;
+  dnRender();
+}
+function dnBase() {
+  const all = (typeof stkAll !== 'undefined' && stkAll) ? stkAll : [];
+  return all.filter(r => dnMarca === 'all' || (r.marcaNorm || r.marca) === dnMarca);
+}
+function dnRender() {
+  const base = dnBase();
+  // modelos disponibles (sin duplicar por puntos/espacios)
+  const mm = {}; base.forEach(r => { const k = dnNorm(r.modelo); if (k) mm[k] = (mm[k] || 0) + 1; });
+  const ms = document.getElementById('dn-modelo');
+  ms.innerHTML = '<option value="">— Elegí un modelo —</option>' + Object.keys(mm).sort().map(k => `<option value="${dnEsc(k)}">${dnEsc(k)} (${mm[k]})</option>`).join('');
+  if (!mm[dnModelo]) dnModelo = ''; ms.value = dnModelo;
+  const empty = document.getElementById('dn-empty'), body = document.getElementById('dn-body');
+  if (!dnModelo) { empty.style.display = ''; body.style.display = 'none'; return; }
+  const ofModel = base.filter(r => dnNorm(r.modelo) === dnModelo);
+  const vs = {}; ofModel.forEach(r => { const v = dnNorm((r._raw || {})['Catalogo']); if (v) vs[v] = (vs[v] || 0) + 1; });
+  const vsel = document.getElementById('dn-ver');
+  vsel.innerHTML = '<option value="">Todas</option>' + Object.keys(vs).sort().map(k => `<option value="${dnEsc(k)}">${dnEsc(k)} (${vs[k]})</option>`).join('');
+  if (!vs[dnVer]) dnVer = ''; vsel.value = dnVer;
+  let rows = ofModel.filter(r => !dnVer || dnNorm((r._raw || {})['Catalogo']) === dnVer).map(r => {
+    const raw = r._raw || {}, op = dnOpOf(r.estado);
+    const ub = [raw['Nro Dique'] || raw['Nro dique'], raw['Fila'], raw['Columna']].filter(Boolean).join(' - ') || (r.ubicacion || '');
+    return { id: r.vin, marca: r.marcaNorm || r.marca, modelo: r.modelo, ver: raw['Catalogo'] || '', color: r.color, est: r.estado, op, tipoOp: raw['Tipo de Operacion'] || '', ub, dias: r.dias };
+  });
+  const counts = {}; rows.forEach(r => counts[r.op] = (counts[r.op] || 0) + 1);
+  if (dnSoloLibres) rows = rows.filter(r => r.op === 'libre');
+  rows.sort((a, b) => DN_OP[a.op].r - DN_OP[b.op].r || (b.dias || 0) - (a.dias || 0));
+  empty.style.display = 'none'; body.style.display = '';
+  document.getElementById('dn-chips').innerHTML = `<span style="padding:6px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--border);font-weight:700">${ofModel.length} unidades</span>` +
+    Object.keys(DN_OP).filter(k => counts[k]).map(k => `<span style="padding:6px 12px;border-radius:10px;background:${DN_OP[k].c}22;color:${DN_OP[k].c};font-weight:700">${DN_OP[k].n}: ${counts[k]}</span>`).join('');
+  document.getElementById('dn-tbody').innerHTML = rows.map((r, i) => {
+    const o = DN_OP[r.op];
+    return `<tr><td style="color:var(--text-dim)">${i + 1}</td><td><b>${dnEsc(r.id)}</b></td><td>${dnEsc(r.marca)}</td>
+      <td>${dnEsc(r.modelo)}<div style="font-size:11px;color:var(--text-dim)">${dnEsc(r.ver)}</div></td><td style="font-size:12px">${dnEsc(r.color)}</td>
+      <td style="font-size:12px">${dnEsc(r.est)}</td>
+      <td><span style="display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;background:${o.c}22;color:${o.c}">${o.n}</span>${r.tipoOp ? `<div style="font-size:11px;color:var(--text-dim)">${dnEsc(r.tipoOp)}</div>` : ''}</td>
+      <td style="font-size:12px">${dnEsc(r.ub)}</td><td>${r.dias == null ? '—' : r.dias}</td></tr>`;
+  }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:24px">Sin unidades para este filtro</td></tr>';
+}
 </script>
 <!-- ══ STOCK: VEHICLE DETAIL PANEL ══ -->
 <div class="overlay" id="stk-overlay" onclick="stkCloseVehicle()"></div>
