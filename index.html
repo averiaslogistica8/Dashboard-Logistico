@@ -5381,6 +5381,15 @@ function rdAverias(ymd){
   return{hayDatos:true,totalCerradas,activas,reparadasDelDia:totalCerradas-totalCerradasAyer};
 }
 
+// Movimientos del día (vista Diaria, solo 0km, por Fecha de Pedido): traslados e ingresos (arribos).
+function rdMovimientos(ymd){
+  if(typeof mvdAll==='undefined'||!mvdAll.length)return{hayDatos:false};
+  const rows=mvdAll.filter(r=>r.day===ymd&&!r.usado);
+  const marcas={};
+  rows.forEach(r=>{if(r.cat!=='tras'&&r.cat!=='ingr')return;const m=marcas[r.marca]=marcas[r.marca]||{tras:0,ingr:0};m[r.cat]++;});
+  const tras=rows.filter(r=>r.cat==='tras').length,ingr=rows.filter(r=>r.cat==='ingr').length;
+  return{hayDatos:true,tras,ingr,porMarca:Object.entries(marcas).sort((a,b)=>(b[1].tras+b[1].ingr)-(a[1].tras+a[1].ingr))};
+}
 function rdStock(ymd){
   const histEntry=(typeof histRows!=='undefined'&&histRows.length)?histRows.find(r=>r.date&&rdYMD(r.date)===ymd):null;
   const live=(typeof stkAll!=='undefined'&&stkAll.length)?stkAll:null;
@@ -5506,7 +5515,6 @@ function generarResumenDiario(){
       {value:ali.capTeorica,label:'Capacidad teórica',sub:ali.ops.length+' op. × '+ali.cap+'/día',color:[100,116,139]},
       {value:pct,label:'Cumplimiento',sub:'sobre capacidad teórica',color:[37,99,235]}
     ]);
-    dataTable(['Operario','Alistados','Capacidad','% cumplimiento'],ali.ops.map(([op,cnt])=>[op,cnt,ali.cap,((cnt/ali.cap)*100).toFixed(0)+'%']),[34,197,94]);
   }
 
   // ── AVERÍAS ──
@@ -5519,6 +5527,18 @@ function generarResumenDiario(){
       {value:avr.totalCerradas,label:'Total histórico',sub:'acumulado a este corte',color:[139,92,246]},
       {value:avr.activas,label:'Activas sin cierre',sub:'pendientes',color:[245,158,11]}
     ]);
+  }
+
+  // ── MOVIMIENTOS ──
+  sectionHeader('MOVIMIENTOS',[59,130,246]);
+  const mvr=rdMovimientos(ymd);
+  if(!mvr.hayDatos)infoBox('Sin movimientos diarios cargados en el dashboard.');
+  else{
+    kpiRow([
+      {value:mvr.tras,label:'Traslados',sub:dCorta+' · 0km',color:[59,130,246]},
+      {value:mvr.ingr,label:'Arribos / ingresos',sub:dCorta+' · 0km',color:[139,92,246]}
+    ]);
+    if(mvr.porMarca.length)dataTable(['Marca','Traslados','Arribos / ingresos'],mvr.porMarca.map(([m,c])=>[m,c.tras,c.ingr]),[59,130,246]);
   }
 
   // ── STOCK ──
