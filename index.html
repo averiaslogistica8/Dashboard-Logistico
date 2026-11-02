@@ -584,6 +584,36 @@ body.dark #dn-app{
 #dn-app .excl .chip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:1rem;line-height:1;padding:0 4px}
 #dn-app .btn2{font:600 .82rem var(--sans);border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:7px 14px;border-radius:8px;cursor:pointer;box-shadow:var(--shadow)}
 #dn-app .btn2:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#tab-inicio{padding:22px 28px 40px;}
+.ex-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.ex-h1{font-size:22px;font-weight:800;letter-spacing:-.02em;}
+.ex-sub{font-size:13px;color:var(--text-mid);margin-top:2px;}
+.ex-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:16px;margin-bottom:18px;}
+.ex-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 18px 14px;border-top:4px solid var(--c);display:flex;flex-direction:column;gap:6px;min-width:0;cursor:pointer;transition:transform .12s;}
+.ex-card:hover{transform:translateY(-2px);}
+.ex-ct{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid);}
+.ex-ct span{font-size:16px;}
+.ex-big{font-size:44px;font-weight:800;letter-spacing:-.03em;line-height:1.05;color:var(--text);font-variant-numeric:tabular-nums;}
+.ex-lbl{font-size:12px;color:var(--text-mid);margin-top:-2px;}
+.ex-spark{width:100%;height:46px;margin:4px 0 2px;}
+.ex-spark polyline{fill:none;stroke:var(--c);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;}
+.ex-spark path{fill:var(--c);opacity:.12;}
+.ex-spark circle{fill:var(--c);}
+.ex-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid var(--border);padding-top:10px;}
+.ex-stats div{min-width:0;}
+.ex-stats b{display:block;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;}
+.ex-stats small{font-size:11px;color:var(--text-mid);}
+.ex-chip{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:middle;}
+.ex-up{background:rgba(34,197,94,.14);color:#16a34a;}.ex-dn{background:rgba(239,68,68,.14);color:#dc2626;}.ex-eq{background:var(--surface2);color:var(--text-mid);}
+.ex-alerts{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;}
+.ex-alerts h3{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid);margin-bottom:10px;}
+.ex-al{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px;}
+.ex-al:first-of-type{border-top:0;}
+.ex-dot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex-shrink:0;}
+.ex-cap{font-size:11px;color:var(--text-dim);margin-top:-2px;}
+.ex-card:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+.ex-tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;min-width:68px;}
+.ex-foot{font-size:11px;color:var(--text-dim);margin-top:12px;}
 </style>
 </head>
 <body>
@@ -607,7 +637,8 @@ body.dark #dn-app{
   </div>
   <nav class="sb-nav">
     <div style="padding:4px 18px 2px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.28)">🚗 Autos</div>
-    <button class="nav-item active" id="nav-avr" onclick="switchTab('avr')"><span class="ni">🔧</span> Averías</button>
+    <button class="nav-item active" id="nav-inicio" onclick="switchTab('inicio')"><span class="ni">🏠</span> Inicio</button>
+    <button class="nav-item" id="nav-avr" onclick="switchTab('avr')"><span class="ni">🔧</span> Averías</button>
     <button class="nav-item" id="nav-ali" onclick="switchTab('ali')"><span class="ni">🚗</span> Alistaje</button>
     <button class="nav-item" id="nav-mov" onclick="switchTab('mov')"><span class="ni">📦</span> Movimientos</button>
     <button class="nav-item" id="nav-stk" onclick="switchTab('stk')"><span class="ni">🏭</span> Stock Predio</button>
@@ -820,6 +851,15 @@ body.dark #dn-app{
       <button class="hdr-btn" onclick="toggleTheme()" id="theme-btn">🌙 Modo oscuro</button>
     </div>
   </header>
+
+<div id="tab-inicio">
+  <div class="ex-head">
+    <div><div class="ex-h1">Resumen ejecutivo</div><div class="ex-sub" id="ex-sub">Cargando datos…</div></div>
+  </div>
+  <div class="ex-grid" id="ex-grid"></div>
+  <div class="ex-alerts"><h3>Puntos de atención</h3><div id="ex-alerts"></div></div>
+  <div class="ex-foot">Los números del día corresponden al cierre de la fecha elegida arriba (por defecto, ayer). Tocá una tarjeta para ir al detalle del área.</div>
+</div>
 
   <!-- ══ TAB AVERÍAS ══ -->
   <div id="tab-avr">
@@ -1887,7 +1927,7 @@ body.dark #dn-app{
 const COLORS=['#2563eb','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16'];
 let AC={};
 function switchTab(t){
-  ['avr','ali','mov','stk','moto','smoto','sc'].forEach(id=>{
+  ['inicio','avr','ali','mov','stk','moto','smoto','sc'].forEach(id=>{
     const tab=document.getElementById('tab-'+id);if(tab)tab.style.display=id===t?'':'none';
     const nav=document.getElementById('nav-'+id);if(nav)nav.classList.toggle('active',id===t);
     const sbp=document.getElementById('sb-p-'+id);if(sbp)sbp.style.display=id===t?'':'none';
@@ -1898,10 +1938,11 @@ function switchTab(t){
     if(t!=='moto')motoFbar.style.display='none';
     else if(typeof mtAll!=='undefined'&&mtAll.length)motoFbar.style.display='flex';
   }
-  const titles={avr:'Dashboard Averías',ali:'Dashboard Alistaje',mov:'Dashboard Movimientos',stk:'Stock Predio',moto:'Dashboard Alistaje Motos',smoto:'Stock Motos',sc:'Stock Contable'};
+  const titles={inicio:'Resumen ejecutivo',avr:'Dashboard Averías',ali:'Dashboard Alistaje',mov:'Dashboard Movimientos',stk:'Stock Predio',moto:'Dashboard Alistaje Motos',smoto:'Stock Motos',sc:'Stock Contable'};
   document.getElementById('hdr-sub').textContent=titles[t]||'';
 }
 document.getElementById('sb-p-ali').style.display='none';
+setTimeout(()=>switchTab('inicio'),0);
 document.getElementById('sb-p-mov').style.display='none';
 document.getElementById('sb-upload-ali').style.display='none';
 document.getElementById('sb-upload-mov').style.display='none';
@@ -5479,7 +5520,7 @@ function mtRenderOpHeatmap(){
 // Fecha del CIERRE que se está resumiendo (elegida en el selector #rd-fecha, default: ayer).
 // Distinta de la fecha de HOY, que es cuando se genera el PDF (ver rdInitFecha/rdHoraGeneracion).
 function rdFechaSeleccionada(){const v=document.getElementById('rd-fecha')?.value;return v||rdYMD(rdAyer());}
-function rdAyer(){const d=new Date();d.setDate(d.getDate()-1);return d;}
+function rdAyer(){const d=new Date();do{d.setDate(d.getDate()-1);}while(d.getDay()===0||d.getDay()===6);return d;}
 function rdYMD(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function rdInitFecha(){const el=document.getElementById('rd-fecha');if(el&&!el.value)el.value=rdYMD(rdAyer());}
 function rdFechaLarga(ymd){const[y,m,d]=ymd.split('-').map(Number);const dt=new Date(y,m-1,d);const s=dt.toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});return s.charAt(0).toUpperCase()+s.slice(1);}
@@ -6215,6 +6256,94 @@ window.dnOpen=function(){
 };
 window.dnRefresh=function(){if(started)render()};
 
+})();
+// ══ INICIO · RESUMEN EJECUTIVO ══
+(function () {
+  const $ = id => document.getElementById(id);
+  const ymdOf = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const fmt = n => Number(n).toLocaleString('es-AR');
+  const lastWeekdays = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); const out = []; const dt = new Date(y, m - 1, d); while (out.length < n) { if (dt.getDay() !== 0 && dt.getDay() !== 6) out.unshift(ymdOf(dt)); dt.setDate(dt.getDate() - 1); } return out; };
+  const spark = (vals, zero = true) => {
+    if (!vals || vals.length < 2) return '';
+    const w = 200, h = 44, mx = Math.max(...vals, 1), mn = zero ? Math.min(...vals, 0) : Math.min(...vals), rg = mx - mn || 1;
+    const pts = vals.map((v, i) => [i / (vals.length - 1) * w, h - 4 - (v - mn) / rg * (h - 10)]);
+    const line = pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const l = pts[pts.length - 1];
+    return `<svg class="ex-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="M0,${h} L${line.replace(/ /g, ' L')} L${w},${h} Z"/><polyline points="${line}"/><circle cx="${l[0]}" cy="${l[1]}" r="3"/></svg>`;
+  };
+  const chip = (cur, ref, unit) => { if (ref == null || !isFinite(ref) || (ref === 0 && cur === 0)) return ''; const d = cur - ref; if (Math.abs(d) < 0.5) return '<span class="ex-chip ex-eq">= prom.</span>'; return `<span class="ex-chip ${d > 0 ? 'ex-up' : 'ex-dn'}">${d > 0 ? '▲ +' : '▼ '}${Math.round(d)} vs prom.</span>`; };
+  const card = (c, ico, title, big, lbl, chipHtml, sp, stats, go) => `<div class="ex-card" style="--c:${c}" role="button" tabindex="0" aria-label="${title}: ${big} ${lbl}. Abrir detalle" onclick="switchTab('${go}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTab('${go}')}">
+    <div class="ex-ct"><span>${ico}</span>${title}</div><div class="ex-big">${big}${chipHtml || ''}</div><div class="ex-lbl">${lbl}</div>${sp}${sp?'<div class="ex-cap">últimos 14 días hábiles</div>':''}
+    <div class="ex-stats">${stats.map(s => `<div><b>${s[0]}</b><small>${s[1]}</small></div>`).join('')}</div></div>`;
+
+  function ymdSel() { return (typeof rdFechaSeleccionada === 'function') ? rdFechaSeleccionada() : ymdOf(new Date(Date.now() - 864e5)); }
+
+  window.exRender = function () {
+    const ymd = ymdSel(), mes = ymd.slice(0, 7), days = lastWeekdays(ymd, 14);
+    const prevM = (() => { const [y, m] = mes.split('-').map(Number); return ymdOf(new Date(y, m - 2, 1)).slice(0, 7); })();
+    const cards = [], alerts = [];
+    ST('ex-sub', (typeof rdFechaLarga === 'function' ? 'Cierre del ' + rdFechaLarga(ymd) : ymd) + ' · acumulados del mes hasta esa fecha');
+
+    // ── ALISTAJE
+    if (typeof aliAll !== 'undefined' && aliAll.length) {
+      const by = {}; aliAll.forEach(r => { if (r._fin) { const k = ymdOf(r._fin); by[k] = (by[k] || 0) + 1; } });
+      const day = by[ymd] || 0;
+      const md = Object.keys(by).filter(k => k.startsWith(mes) && k <= ymd), tot = md.reduce((s, k) => s + by[k], 0), avg = md.length ? tot / md.length : 0;
+      const pm = Object.keys(by).filter(k => k.startsWith(prevM)).reduce((s, k) => s + by[k], 0);
+      cards.push(card('#22c55e', '🚗', 'Alistaje', fmt(day), 'autos alistados en el día', chip(day, avg), spark(days.map(k => by[k] || 0)),
+        [[fmt(tot), 'en el mes'], [avg.toFixed(1), 'prom/día'], [fmt(pm), 'mes anterior']], 'ali'));
+      if (md.length >= 5 && day < avg * 0.75) alerts.push(['#f59e0b', `Alistaje del día (${day}) un ${Math.round((1 - day / avg) * 100)}% por debajo del promedio del mes (${avg.toFixed(1)}).`]);
+    } else cards.push(card('#22c55e', '🚗', 'Alistaje', '—', 'sin datos cargados', '', '', [], 'ali'));
+
+    // ── AVERÍAS
+    if (typeof avrRaw !== 'undefined' && avrRaw.length) {
+      const by = {}; let cerr = 0;
+      avrRaw.forEach(r => { if (!avrGV(r, 'Tipo de Cierre', 'Tipo Cierre')) return; cerr++; const d = avrPD(avrGV(r, 'Fecha Ultimo Estado')); if (d) { const k = ymdOf(d); by[k] = (by[k] || 0) + 1; } });
+      const day = by[ymd] || 0, md = Object.keys(by).filter(k => k.startsWith(mes) && k <= ymd), tot = md.reduce((s, k) => s + by[k], 0), avg = md.length ? tot / md.length : 0;
+      const activas = avrRaw.length - cerr;
+      cards.push(card('#ef4444', '🔧', 'Averías', fmt(day), 'reparadas en el día', chip(day, avg), spark(days.map(k => by[k] || 0)),
+        [[fmt(tot), 'reparadas en el mes'], [avg.toFixed(1), 'prom/día'], [fmt(activas), 'activas sin cierre']], 'avr'));
+      if (activas > 0) alerts.push(['#ef4444', `${fmt(activas)} avería${activas === 1 ? '' : 's'} activa${activas === 1 ? '' : 's'} sin cierre.`]);
+    } else cards.push(card('#ef4444', '🔧', 'Averías', '—', 'sin datos cargados', '', '', [], 'avr'));
+
+    // ── MOVIMIENTOS (0km, por fecha de pedido)
+    if (typeof mvdAll !== 'undefined' && mvdAll.length) {
+      const z = mvdAll.filter(r => !r.usado), by = {}, cat = {};
+      z.forEach(r => { by[r.day] = (by[r.day] || 0) + 1; if (r.day === ymd) cat[r.cat] = (cat[r.cat] || 0) + 1; });
+      const day = by[ymd] || 0, md = Object.keys(by).filter(k => k.startsWith(mes) && k <= ymd), tot = md.reduce((s, k) => s + by[k], 0), avg = md.length ? tot / md.length : 0;
+      cards.push(card('#8b5cf6', '📦', 'Movimientos 0km', fmt(day), 'movimientos del día', chip(day, avg), spark(days.map(k => by[k] || 0)),
+        [[fmt(cat.tras || 0), 'traslados'], [fmt(cat.ingr || 0), 'ingresos'], [fmt(cat.rein || 0), 'reingresos']], 'mov'));
+    } else cards.push(card('#8b5cf6', '📦', 'Movimientos 0km', '—', 'sin datos cargados', '', '', [], 'mov'));
+
+    // ── STOCK
+    const live = (typeof stkAll !== 'undefined' && stkAll.length) ? stkAll : null;
+    const hist = (typeof histRows !== 'undefined' && histRows.length) ? histRows.filter(r => r.date).map(r => [ymdOf(r.date), r.total]).sort() : [];
+    if (live || hist.length) {
+      const h = hist.filter(x => x[0] <= ymd), hv = h.length ? h[h.length - 1] : null;
+      const total = hv ? hv[1] : live.length;
+      const stats = [];
+      if (live) {
+        const cap = getCap(), crit = getCrit(), nCrit = live.filter(r => r.ageClass === 'crit').length;
+        const nFP = live.filter(r => ['FACTURADO', 'PATENTADO'].includes((r.estado || '').toUpperCase().trim())).length;
+        stats.push([cap ? Math.round(live.length / cap * 100) + '%' : '—', 'ocupación'], [fmt(nCrit), `críticas +${crit}d`], [fmt(nFP), 'fact./pat.']);
+        if (nCrit > 0) alerts.push(['#ef4444', `${fmt(nCrit)} unidad${nCrit === 1 ? '' : 'es'} con más de ${crit} días en el predio.`]);
+        if (cap && live.length / cap >= 0.9) alerts.push(['#f59e0b', `Ocupación del predio al ${Math.round(live.length / cap * 100)}% de la capacidad.`]);
+        if (nFP > 0) alerts.push(['#f59e0b', `${fmt(nFP)} unidad${nFP === 1 ? '' : 'es'} facturada${nFP === 1 ? '' : 's'} o patentada${nFP === 1 ? '' : 's'} todavía en el predio.`]);
+      }
+      const sp = h.slice(-14).map(x => x[1]);
+      cards.push(card('#06b6d4', '🏭', 'Stock en predio', fmt(total), hv ? 'unidades 0km · cierre ' + hv[0].split('-').reverse().join('/') : 'unidades 0km · foto actual', '', spark(sp, false), stats, 'stk'));
+    } else cards.push(card('#06b6d4', '🏭', 'Stock en predio', '—', 'sin datos cargados', '', '', [], 'stk'));
+
+    $('ex-grid').innerHTML = cards.join('');
+    $('ex-alerts').innerHTML = alerts.length ? alerts.slice(0, 5).map(a => `<div class="ex-al"><span class="ex-dot" style="background:${a[0]}"></span><span class="ex-tag">${a[0]==='#ef4444'?'Crítico':'Atención'}</span><span>${a[1]}</span></div>`).join('') : '<div class="ex-al"><span class="ex-dot" style="background:#22c55e"></span><span>Sin alertas para esta fecha.</span></div>';
+  };
+  let sig = '';
+  setInterval(() => {
+    const t = $('tab-inicio'); if (!t || t.style.display === 'none') return;
+    const s = [typeof aliAll !== 'undefined' ? aliAll.length : 0, typeof avrRaw !== 'undefined' ? avrRaw.length : 0, typeof stkAll !== 'undefined' ? stkAll.length : 0, typeof mvdAll !== 'undefined' ? mvdAll.length : 0, typeof histRows !== 'undefined' ? histRows.length : 0, ymdSel()].join('|');
+    if (s !== sig) { sig = s; try { exRender(); } catch (e) { console.error(e); } }
+  }, 1200);
+  document.addEventListener('DOMContentLoaded', () => { const f = $('rd-fecha'); if (f) f.addEventListener('change', () => { sig = ''; }); });
 })();
 </script>
 <!-- ══ STOCK: VEHICLE DETAIL PANEL ══ -->
