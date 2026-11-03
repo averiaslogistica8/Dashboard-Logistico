@@ -2753,6 +2753,7 @@ function aliClosePanel(){document.getElementById('ali-dpanel').classList.remove(
     <div class="fgroup"><div class="flbl">Desde</div><input type="date" id="mov-dfrom" onchange="movApplyFilters()"></div>
     <div class="fgroup"><div class="flbl">Hasta</div><input type="date" id="mov-dto" onchange="movApplyFilters()"></div>
     <button class="clrbtn" onclick="movClearFilters()" style="margin-left:auto;align-self:flex-end">↺ Limpiar</button>
+    <button class="clrbtn" onclick="movDownloadCSV()" style="align-self:flex-end">⬇ Descargar CSV</button>
   </div>
 
   <div class="pw">
@@ -2999,6 +3000,20 @@ function movApplyFilters(){
   movUpdateRankings();
 }
 
+function movDownloadCSV(){
+  const c=window._movCols;if(!c)return;
+  const rows=movGetFiltered();
+  if(!rows.length){alert('No hay movimientos para descargar con los filtros actuales.');return;}
+  if(!movSelDate&&!confirm('No hay un mes seleccionado ("Mes rápido" o clic en el gráfico). Se descargarán '+rows.length.toLocaleString('es-AR')+' filas. ¿Continuar?'))return;
+  const keys=Object.keys(rows[0]).filter(k=>!k.startsWith('_'));
+  const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const lines=[keys.concat(['Tipo','Sintetico']).map(esc).join(';')];
+  rows.forEach(r=>lines.push(keys.map(k=>esc(r[k])).concat([esc(movEsUsado(r,c)?'usado':'0km'),esc(r._synthetic?'SI':'NO')]).join(';')));
+  const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='Movimientos_'+(movSelDate||'todos')+(movFilterTipo!=='todos'?'_'+movFilterTipo:'')+'.csv';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
 function movClearFilters(){
   document.getElementById('mov-sel-motivo').value='';
   document.getElementById('mov-sel-estado').value='';
