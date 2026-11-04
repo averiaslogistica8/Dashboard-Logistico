@@ -587,14 +587,14 @@ body.dark #dn-app{
 #tab-inicio{padding:22px 28px 40px;}
 .ex-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
 .ex-h1{font-size:22px;font-weight:800;letter-spacing:-.02em;}
-.ex-sub{font-size:13px;color:var(--text-mid);margin-top:2px;}
+.ex-sub{font-size:13px;color:var(--ex-mid);margin-top:2px;}
 .ex-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:16px;margin-bottom:18px;}
 .ex-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 18px 14px;border-top:4px solid var(--c);display:flex;flex-direction:column;gap:6px;min-width:0;cursor:pointer;transition:transform .12s;}
 .ex-card:hover{transform:translateY(-2px);}
-.ex-ct{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid);}
+.ex-ct{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ex-mid);}
 .ex-ct span{font-size:16px;}
 .ex-big{font-size:44px;font-weight:800;letter-spacing:-.03em;line-height:1.05;color:var(--text);font-variant-numeric:tabular-nums;}
-.ex-lbl{font-size:12px;color:var(--text-mid);margin-top:-2px;}
+.ex-lbl{font-size:12px;color:var(--ex-mid);margin-top:-2px;}
 .ex-spark{width:100%;height:46px;margin:4px 0 2px;}
 .ex-spark polyline{fill:none;stroke:var(--c);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;}
 .ex-spark path{fill:var(--c);opacity:.12;}
@@ -602,18 +602,90 @@ body.dark #dn-app{
 .ex-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid var(--border);padding-top:10px;}
 .ex-stats div{min-width:0;}
 .ex-stats b{display:block;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;}
-.ex-stats small{font-size:11px;color:var(--text-mid);}
+.ex-stats small{font-size:11px;color:var(--ex-mid);}
 .ex-chip{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:middle;}
-.ex-up{background:rgba(34,197,94,.14);color:#16a34a;}.ex-dn{background:rgba(239,68,68,.14);color:#dc2626;}.ex-eq{background:var(--surface2);color:var(--text-mid);}
+.ex-up{background:rgba(34,197,94,.14);color:#16a34a;}.ex-dn{background:rgba(239,68,68,.14);color:#dc2626;}.ex-eq{background:var(--surface2);color:var(--ex-mid);}
 .ex-alerts{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;}
-.ex-alerts h3{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid);margin-bottom:10px;}
+.ex-alerts h3{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--ex-mid);margin-bottom:10px;}
 .ex-al{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px;}
 .ex-al:first-of-type{border-top:0;}
 .ex-dot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex-shrink:0;}
-.ex-cap{font-size:11px;color:var(--text-dim);margin-top:-2px;}
+.ex-cap{font-size:12px;color:var(--ex-dim);margin-top:-2px;}
 .ex-card:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
 .ex-tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;min-width:68px;}
-.ex-foot{font-size:11px;color:var(--text-dim);margin-top:12px;}
+.ex-foot{font-size:12px;color:var(--ex-dim);margin-top:12px;}
+.ex-note{font-size:12px;color:var(--ex-dim);line-height:1.35;margin-top:2px;}
+.ex-diag{margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;}
+.ex-diag summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--ex-mid);}
+.ex-diag summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+.ex-diag table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px;}
+.ex-diag th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ex-dim);padding:4px 8px;}
+.ex-diag td{padding:6px 8px;border-top:1px solid var(--border);}
+.ex-diag-n{font-size:12px;color:var(--ex-dim);margin-top:8px;}
+@media(max-width:700px){.ex-diag{overflow-x:auto}}
+.ex-upd{font-size:12px;color:var(--ex-dim);margin-top:4px;}
+.ex-hside{display:flex;flex-direction:column;align-items:flex-end;gap:8px;max-width:100%;}
+.ex-fr{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;}
+.ex-fchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:inherit;color:var(--ex-mid);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:4px 10px;cursor:pointer;}
+.ex-fchip:hover{background:var(--surface2);}
+.ex-fchip:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+.ex-fchip .ex-dot{margin-top:0;}
+.ex-meter{margin:2px 0 6px;}
+.ex-mt{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ex-mid);margin-bottom:4px;}
+.ex-mrow{display:grid;grid-template-columns:30px 1fr auto auto;align-items:center;gap:8px;font-size:12px;color:var(--ex-mid);padding:2px 0;}
+.ex-mrow b{color:var(--text);font-size:13px;font-variant-numeric:tabular-nums;}
+.ex-mrow small{color:var(--ex-dim);font-size:11px;min-width:42px;text-align:right;font-variant-numeric:tabular-nums;}
+.ex-bar{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;}
+.ex-bar i{display:block;height:100%;background:var(--c);border-radius:0 4px 4px 0;}
+#tab-inicio{--ex-mid:#475569;--ex-dim:#64748b;}
+.dark #tab-inicio{--ex-mid:#cbd5e1;--ex-dim:#94a3b8;}
+.ex-fchip,.ex-segb,.ex-mxb{min-height:28px;}
+.ex-mxb{padding:4px 0;}
+@media(prefers-reduced-motion:reduce){.ex-card{transition:none;}}
+.ex-fchip em{font-style:normal;color:var(--ex-dim);}
+.ex-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px;margin-bottom:18px;align-items:stretch;}
+@media(max-width:1279px){.ex-row{grid-template-columns:minmax(0,1fr);}}
+.ex-evo,.ex-mx,.ex-acc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;min-width:0;}
+.ex-mx h3,.ex-acc h3{margin:0 0 4px;font-size:15px;}
+.ex-mx-sub{font-size:12px;color:var(--ex-dim);line-height:1.35;margin-bottom:8px;}
+.ex-mx table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.ex-mx th{text-align:right;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ex-dim);padding:4px 4px;line-height:1.2;vertical-align:bottom;}
+.ex-mx th:first-child,.ex-mx td:first-child{text-align:left;padding-left:0;}
+.ex-mx td{padding:8px 4px;border-top:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;}
+.ex-mxb{font:inherit;font-weight:700;color:var(--text);background:none;border:0;padding:0;cursor:pointer;text-align:left;}
+.ex-mxb:hover{text-decoration:underline;}
+.ex-mxb:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+.ex-acc{margin-bottom:12px;}
+.ex-acc-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px;}
+.ex-accb{font:inherit;font-size:13px;font-weight:600;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-left:4px solid var(--c);border-radius:8px;padding:10px 12px;text-align:left;cursor:pointer;}
+.ex-accb:hover{background:var(--surface);box-shadow:var(--shadow);}
+.ex-accb:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+.ex-evo{margin-bottom:0;}
+.ex-evo-h{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:6px;}
+.ex-evo-h h3{margin:0 auto 0 0;font-size:15px;}
+.ex-seg{display:inline-flex;background:var(--surface2);border-radius:8px;padding:2px;gap:2px;flex-wrap:wrap;}
+.ex-segb{font:inherit;font-size:12px;font-weight:600;color:var(--ex-mid);background:transparent;border:0;border-radius:6px;padding:5px 11px;cursor:pointer;}
+.ex-segb.on{background:var(--surface);color:var(--text);box-shadow:var(--shadow);}
+.ex-segb:disabled{opacity:.4;cursor:not-allowed;}
+.ex-segb:focus-visible{outline:3px solid var(--accent);outline-offset:1px;}
+.ex-evo-sub{font-size:12px;color:var(--ex-dim);margin-bottom:8px;}
+.ex-evo-empty{font-size:13px;color:var(--ex-dim);padding:30px 0;text-align:center;}
+.ex-plot{position:relative;}
+.ex-svg{width:100%;height:auto;display:block;}
+.ex-gl{stroke:var(--border);stroke-width:1;}
+.ex-ax{font-size:12px;fill:var(--ex-dim);}
+.ex-pv{font-size:12px;font-weight:700;fill:var(--text);}
+.ex-tip{position:absolute;top:4px;transform:translateX(-50%);display:none;pointer-events:none;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);padding:6px 10px;font-size:12px;white-space:nowrap;z-index:2;}
+.ex-evo-tab{margin-top:8px;font-size:12px;}
+.ex-evo-tab summary{cursor:pointer;color:var(--ex-mid);font-weight:600;}
+.ex-evo-tab summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+.ex-evo-scroll{max-height:220px;overflow:auto;margin-top:6px;}
+.ex-evo-tab table{border-collapse:collapse;width:100%;max-width:340px;}
+.ex-evo-tab th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ex-dim);padding:4px 8px;}
+.ex-evo-tab td{padding:4px 8px;border-top:1px solid var(--border);font-variant-numeric:tabular-nums;}
+@media(max-width:1279px){.ex-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:560px){.ex-grid{grid-template-columns:minmax(0,1fr);}}
+@media(max-width:700px){.ex-hside{align-items:flex-start}.ex-fr{justify-content:flex-start}}
 </style>
 </head>
 <body>
@@ -854,11 +926,23 @@ body.dark #dn-app{
 
 <div id="tab-inicio">
   <div class="ex-head">
-    <div><div class="ex-h1">Resumen ejecutivo</div><div class="ex-sub" id="ex-sub">Cargando datos…</div></div>
+    <div><div class="ex-h1">Resumen ejecutivo</div><div class="ex-sub" id="ex-sub">Cargando datos…</div><div class="ex-upd" id="ex-upd"></div></div>
+    <div class="ex-hside"><div class="ex-fr" id="ex-fr" aria-label="Frescura por fuente de datos"></div></div>
   </div>
   <div class="ex-grid" id="ex-grid"></div>
+  <div class="ex-row"><div class="ex-evo" id="ex-evo"></div><div class="ex-mx" id="ex-mx"></div></div>
   <div class="ex-alerts"><h3>Puntos de atención</h3><div id="ex-alerts"></div></div>
+  <div class="ex-acc"><h3>Accesos</h3><div class="ex-acc-g">
+    <button type="button" class="ex-accb" style="--c:#22c55e" onclick="exIrA('ali')">🚗 Alistaje</button>
+    <button type="button" class="ex-accb" style="--c:#ef4444" onclick="exIrA('avr')">🔧 Averías</button>
+    <button type="button" class="ex-accb" style="--c:#8b5cf6" onclick="exIrA('mov')">📦 Movimientos</button>
+    <button type="button" class="ex-accb" style="--c:#06b6d4" onclick="exIrA('stk')">🏭 Stock predio</button>
+    <button type="button" class="ex-accb" style="--c:#0ea5e9" onclick="exIrA('sc')">📒 Stock contable</button>
+    <button type="button" class="ex-accb" style="--c:#f59e0b" onclick="exIrA('donantes')">🔩 Donantes</button>
+    <button type="button" class="ex-accb" style="--c:#64748b" onclick="generarResumenDiario()">📄 PDF diario</button>
+  </div></div>
   <div class="ex-foot">Los números del día corresponden al cierre de la fecha elegida arriba (por defecto, ayer). Tocá una tarjeta para ir al detalle del área.</div>
+  <details class="ex-diag" id="ex-diag"><summary>Estado de las fuentes de datos</summary><div id="ex-diag-body"></div></details>
 </div>
 
   <!-- ══ TAB AVERÍAS ══ -->
@@ -6273,10 +6357,16 @@ window.dnRefresh=function(){if(started)render()};
 
 })();
 // ══ INICIO · RESUMEN EJECUTIVO ══
+// Etapa 1 (base técnica): capa de datos separada del dibujo (exData / exMarca), registro y semáforo de frescura de
+// fuentes (SRC / exFresh), refresco por eventos de carga, navegación (exIrA) y panel de diagnóstico.
+// No modifica loadSheet, GS_URLS ni los módulos: sólo observa gsSetStatus y lee las variables ya cargadas en memoria.
 (function () {
   const $ = id => document.getElementById(id);
   const ymdOf = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const fmt = n => Number(n).toLocaleString('es-AR');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const parseYmd = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const dmy = s => s ? s.split('-').reverse().join('/') : '—';
   const lastWeekdays = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); const out = []; const dt = new Date(y, m - 1, d); while (out.length < n) { if (dt.getDay() !== 0 && dt.getDay() !== 6) out.unshift(ymdOf(dt)); dt.setDate(dt.getDate() - 1); } return out; };
   const spark = (vals, zero = true) => {
     if (!vals || vals.length < 2) return '';
@@ -6287,78 +6377,381 @@ window.dnRefresh=function(){if(started)render()};
     return `<svg class="ex-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="M0,${h} L${line.replace(/ /g, ' L')} L${w},${h} Z"/><polyline points="${line}"/><circle cx="${l[0]}" cy="${l[1]}" r="3"/></svg>`;
   };
   const chip = (cur, ref, unit) => { if (ref == null || !isFinite(ref) || (ref === 0 && cur === 0)) return ''; const d = cur - ref; if (Math.abs(d) < 0.5) return '<span class="ex-chip ex-eq">= prom.</span>'; return `<span class="ex-chip ${d > 0 ? 'ex-up' : 'ex-dn'}">${d > 0 ? '▲ +' : '▼ '}${Math.round(d)} vs prom.</span>`; };
-  const card = (c, ico, title, big, lbl, chipHtml, sp, stats, go) => `<div class="ex-card" style="--c:${c}" role="button" tabindex="0" aria-label="${title}: ${big} ${lbl}. Abrir detalle" onclick="switchTab('${go}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTab('${go}')}">
+  // note (opcional): línea chica de aclaración bajo las estadísticas. Sin note, el HTML es idéntico al original.
+  const card = (c, ico, title, big, lbl, chipHtml, sp, stats, go, note) => `<div class="ex-card" style="--c:${c}" role="button" tabindex="0" aria-label="${title}: ${big} ${lbl}. Abrir detalle" onclick="switchTab('${go}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTab('${go}')}">
     <div class="ex-ct"><span>${ico}</span>${title}</div><div class="ex-big">${big}${chipHtml || ''}</div><div class="ex-lbl">${lbl}</div>${sp}${sp?'<div class="ex-cap">últimos 14 días hábiles</div>':''}
-    <div class="ex-stats">${stats.map(s => `<div><b>${s[0]}</b><small>${s[1]}</small></div>`).join('')}</div></div>`;
+    <div class="ex-stats">${stats.map(s => `<div><b>${s[0]}</b><small>${s[1]}</small></div>`).join('')}</div>${note ? `<div class="ex-note">${note}</div>` : ''}</div>`;
 
   function ymdSel() { return (typeof rdFechaSeleccionada === 'function') ? rdFechaSeleccionada() : ymdOf(new Date(Date.now() - 864e5)); }
 
-  window.exRender = function () {
-    const ymd = ymdSel(), mes = ymd.slice(0, 7), days = lastWeekdays(ymd, 14);
+  // ════════════════════════════════════════════════════════════════
+  // CAPA DE DATOS — mismos cálculos y criterios que la portada original, pero devueltos como objeto (sin HTML)
+  // ════════════════════════════════════════════════════════════════
+  window.exData = function (ymd) {
+    ymd = ymd || ymdSel();
+    const mes = ymd.slice(0, 7), days = lastWeekdays(ymd, 14);
     const prevM = (() => { const [y, m] = mes.split('-').map(Number); return ymdOf(new Date(y, m - 2, 1)).slice(0, 7); })();
-    const cards = [], alerts = [];
-    ST('ex-sub', (typeof rdFechaLarga === 'function' ? 'Cierre del ' + rdFechaLarga(ymd) : ymd) + ' · acumulados del mes hasta esa fecha');
+    const out = { ymd, mes, prevM, days, ali: null, avr: null, mov: null, stk: null, alerts: [] };
+    const alerts = out.alerts;
 
-    // ── ALISTAJE
+    // ── ALISTAJE (por fecha de fin _fin)
     if (typeof aliAll !== 'undefined' && aliAll.length) {
       const by = {}; aliAll.forEach(r => { if (r._fin) { const k = ymdOf(r._fin); by[k] = (by[k] || 0) + 1; } });
       const day = by[ymd] || 0;
       const md = Object.keys(by).filter(k => k.startsWith(mes) && k <= ymd), tot = md.reduce((s, k) => s + by[k], 0), avg = md.length ? tot / md.length : 0;
       const pm = Object.keys(by).filter(k => k.startsWith(prevM)).reduce((s, k) => s + by[k], 0);
-      cards.push(card('#22c55e', '🚗', 'Alistaje', fmt(day), 'autos alistados en el día', chip(day, avg), spark(days.map(k => by[k] || 0)),
-        [[fmt(tot), 'en el mes'], [avg.toFixed(1), 'prom/día'], [fmt(pm), 'mes anterior']], 'ali'));
+      // Cumplimiento: mismo criterio que el módulo Alistaje (capacidad diaria = aliCD(); días hábiles del mes con aliWD, sin descontar feriados)
+      const cd = (typeof aliCD === 'function') ? aliCD() : 0, gp = (typeof aliGP === 'function') ? aliGP() : null;
+      const hd = (typeof aliWD === 'function') ? aliWD(parseYmd(mes + '-01'), parseYmd(ymd)) : 0, capMes = cd * hd;
+      out.ali = { by, day, tot, avg, pm, nDias: md.length, serie: days.map(k => by[k] || 0),
+        cd, ops: gp && gp.ops, capOp: gp && gp.cap, hd, capMes, cumplDia: cd ? day / cd : null, cumplMes: capMes ? tot / capMes : null };
       if (md.length >= 5 && day < avg * 0.75) alerts.push(['#f59e0b', `Alistaje del día (${day}) un ${Math.round((1 - day / avg) * 100)}% por debajo del promedio del mes (${avg.toFixed(1)}).`]);
-    } else cards.push(card('#22c55e', '🚗', 'Alistaje', '—', 'sin datos cargados', '', '', [], 'ali'));
+    }
 
-    // ── AVERÍAS
+    // ── AVERÍAS (reparadas = con Tipo de Cierre, por Fecha Ultimo Estado)
     if (typeof avrRaw !== 'undefined' && avrRaw.length) {
-      const by = {}; let cerr = 0;
-      avrRaw.forEach(r => { if (!avrGV(r, 'Tipo de Cierre', 'Tipo Cierre')) return; cerr++; const d = avrPD(avrGV(r, 'Fecha Ultimo Estado')); if (d) { const k = ymdOf(d); by[k] = (by[k] || 0) + 1; } });
+      const by = {};
+      avrRaw.forEach(r => { if (!avrGV(r, 'Tipo de Cierre', 'Tipo Cierre')) return; const d = avrPD(avrGV(r, 'Fecha Ultimo Estado')); if (d) { const k = ymdOf(d); by[k] = (by[k] || 0) + 1; } });
       const day = by[ymd] || 0, md = Object.keys(by).filter(k => k.startsWith(mes) && k <= ymd), tot = md.reduce((s, k) => s + by[k], 0), avg = md.length ? tot / md.length : 0;
-      const activas = avrRaw.length - cerr;
-      cards.push(card('#ef4444', '🔧', 'Averías', fmt(day), 'reparadas en el día', chip(day, avg), spark(days.map(k => by[k] || 0)),
-        [[fmt(tot), 'reparadas en el mes'], [avg.toFixed(1), 'prom/día'], [fmt(activas), 'activas sin cierre']], 'avr'));
-      if (activas > 0) alerts.push(['#ef4444', `${fmt(activas)} avería${activas === 1 ? '' : 's'} activa${activas === 1 ? '' : 's'} sin cierre.`]);
-    } else cards.push(card('#ef4444', '🔧', 'Averías', '—', 'sin datos cargados', '', '', [], 'avr'));
+      // "Activas sin cierre" se retiró: avrRaw.length - cerradas no es confiable. Se muestran sólo reparadas y su evolución.
+      const pm = Object.keys(by).filter(k => k.startsWith(prevM)).reduce((s, k) => s + by[k], 0);
+      out.avr = { by, day, tot, avg, pm, serie: days.map(k => by[k] || 0) };
+    }
 
-    // ── MOVIMIENTOS (0km, por fecha de pedido)
+    // ── MOVIMIENTOS 0km (por Fecha de Pedido, sin estimados)
     if (typeof mvdAll !== 'undefined' && mvdAll.length) {
       const z = mvdAll.filter(r => !r.usado), by = {}, cat = {};
       z.forEach(r => { by[r.day] = (by[r.day] || 0) + 1; if (r.day === ymd) cat[r.cat] = (cat[r.cat] || 0) + 1; });
       const day = by[ymd] || 0, md = Object.keys(by).filter(k => k.startsWith(mes) && k <= ymd), tot = md.reduce((s, k) => s + by[k], 0), avg = md.length ? tot / md.length : 0;
-      cards.push(card('#8b5cf6', '📦', 'Movimientos 0km', fmt(day), 'movimientos del día', chip(day, avg), spark(days.map(k => by[k] || 0)),
-        [[fmt(cat.tras || 0), 'traslados'], [fmt(cat.ingr || 0), 'ingresos'], [fmt(cat.rein || 0), 'reingresos']], 'mov'));
-    } else cards.push(card('#8b5cf6', '📦', 'Movimientos 0km', '—', 'sin datos cargados', '', '', [], 'mov'));
+      out.mov = { by, cat, day, tot, avg, serie: days.map(k => by[k] || 0) };
+    }
 
-    // ── STOCK
+    // ── STOCK: corte histórico (indicador principal) + foto actual (complemento, con su propia identificación)
     const live = (typeof stkAll !== 'undefined' && stkAll.length) ? stkAll : null;
     const hist = (typeof histRows !== 'undefined' && histRows.length) ? histRows.filter(r => r.date).map(r => [ymdOf(r.date), r.total]).sort() : [];
     if (live || hist.length) {
       const h = hist.filter(x => x[0] <= ymd), hv = h.length ? h[h.length - 1] : null;
-      const total = hv ? hv[1] : live.length;
-      const stats = [];
+      const st = { total: hv ? hv[1] : live.length, corte: hv ? hv[0] : null, serie: h.slice(-14).map(x => x[1]), live: null };
       if (live) {
         const cap = getCap(), crit = getCrit(), nCrit = live.filter(r => r.ageClass === 'crit').length;
         const nFP = live.filter(r => ['FACTURADO', 'PATENTADO'].includes((r.estado || '').toUpperCase().trim())).length;
-        stats.push([cap ? Math.round(live.length / cap * 100) + '%' : '—', 'ocupación'], [fmt(nCrit), `críticas +${crit}d`], [fmt(nFP), 'fact./pat.']);
+        st.live = { n: live.length, cap, crit, nCrit, nFP, ocup: cap ? Math.round(live.length / cap * 100) : null };
         if (nCrit > 0) alerts.push(['#ef4444', `${fmt(nCrit)} unidad${nCrit === 1 ? '' : 'es'} con más de ${crit} días en el predio.`]);
         if (cap && live.length / cap >= 0.9) alerts.push(['#f59e0b', `Ocupación del predio al ${Math.round(live.length / cap * 100)}% de la capacidad.`]);
         if (nFP > 0) alerts.push(['#f59e0b', `${fmt(nFP)} unidad${nFP === 1 ? '' : 'es'} facturada${nFP === 1 ? '' : 's'} o patentada${nFP === 1 ? '' : 's'} todavía en el predio.`]);
       }
-      const sp = h.slice(-14).map(x => x[1]);
-      cards.push(card('#06b6d4', '🏭', 'Stock en predio', fmt(total), hv ? 'unidades 0km · cierre ' + hv[0].split('-').reverse().join('/') : 'unidades 0km · foto actual', '', spark(sp, false), stats, 'stk'));
+      out.stk = st;
+    }
+    return out;
+  };
+
+  // Matriz por marca (insumo de la Etapa 4). Misma normalización que el resto del tablero (stkNormBrand).
+  // Averías = reparadas en el mes hasta la fecha elegida (mismo criterio que la tarjeta de Averías); no se agregan criterios nuevos.
+  window.exMarca = function (ymd) {
+    ymd = ymd || ymdSel();
+    const mes = ymd.slice(0, 7), M = ['Volkswagen', 'Ford', 'Chevrolet', 'Audi'];
+    const nb = raw => (typeof stkNormBrand === 'function') ? stkNormBrand(raw) : String(raw || '').trim();
+    const out = {}; M.forEach(m => out[m] = { stock: null, criticas: null, alistajesDia: null, alistajesMes: null, averiasMes: null });
+    const put = (raw, f) => { const m = nb(raw); if (out[m]) f(out[m]); };
+    if (typeof stkAll !== 'undefined' && stkAll.length) {
+      M.forEach(m => { out[m].stock = 0; out[m].criticas = 0; });
+      stkAll.forEach(r => put(r.marca, o => { o.stock++; if (r.ageClass === 'crit') o.criticas++; }));
+    }
+    if (typeof aliAll !== 'undefined' && aliAll.length) {
+      M.forEach(m => { out[m].alistajesDia = 0; out[m].alistajesMes = 0; });
+      aliAll.forEach(r => { if (!r._fin) return; const k = ymdOf(r._fin); put(r._marca, o => { if (k === ymd) o.alistajesDia++; if (k.startsWith(mes) && k <= ymd) o.alistajesMes++; }); });
+    }
+    if (typeof avrRaw !== 'undefined' && avrRaw.length) {
+      M.forEach(m => { out[m].averiasMes = 0; });
+      avrRaw.forEach(r => { if (!avrGV(r, 'Tipo de Cierre', 'Tipo Cierre')) return; const d = avrPD(avrGV(r, 'Fecha Ultimo Estado')); if (!d) return; const k = ymdOf(d); if (k.startsWith(mes) && k <= ymd) put(avrGV(r, 'Marca'), o => { o.averiasMes++; }); });
+    }
+    return out;
+  };
+
+  // ════════════════════════════════════════════════════════════════
+  // FUENTES Y FRESCURA
+  // Lo que se muestra de cada fuente se mantiene separado en tres datos distintos:
+  //   · Última descarga       → cuándo este navegador cargó la fuente (se registra al terminar la carga)
+  //   · Fecha del último reg. → el dato más reciente que trae la fuente (se calcula de lo cargado; null si no se puede)
+  //   · Estado de la carga    → ok / error / cargando / sin cargar (el que informa gsSetStatus)
+  // ════════════════════════════════════════════════════════════════
+  // PARÁMETROS DE LECTURA (declarados, configurables por fuente y a confirmar; no son reglas operativas del negocio):
+  //   cada      = frecuencia esperada de actualización, en días hábiles (1 = diaria). null = sin frecuencia → "no evaluable".
+  //   horaCarga = hora local (0-23) a partir de la cual se espera ya subido el reporte del último día hábil cerrado.
+  //               Antes de esa hora todavía no se exige ese día, para no alertar antes de la carga habitual.
+  //   amar/rojo = días hábiles de rezago (descontada la frecuencia) desde los que pasa a amarillo / rojo.
+  const SRC_CFG = {
+    ali:  { label: 'Alistaje',        cada: 1, horaCarga: 9, amar: 1, rojo: 3 },
+    avr:  { label: 'Averías',         cada: 1, horaCarga: 9, amar: 1, rojo: 3 },
+    mov:  { label: 'Movimientos',     cada: 1, horaCarga: 9, amar: 1, rojo: 3 },
+    hist: { label: 'Historial stock', nota: 'evalúa la fecha registrada en el archivo (día de subida); no garantiza la antigüedad real del corte', cada: 1, horaCarga: 9, amar: 1, rojo: 3 },
+    stk:  { label: 'Stock en predio', cada: null }   // foto del momento: no trae fecha propia
+  };
+  const SRC = {};  // key → { state, msg, at (ms, última transición), okAt (ms, última descarga correcta) }
+  Object.keys(SRC_CFG).forEach(k => SRC[k] = { state: 'idle', msg: '', at: null, okAt: null });
+
+  // Fecha (YYYY-MM-DD) del dato más reciente de cada fuente, a partir de lo que está en memoria. null = no determinable.
+  const RECORD = {
+    ali: () => { if (typeof aliAll === 'undefined' || !aliAll.length) return null; let m = null; aliAll.forEach(r => { if (r._fin) { const k = ymdOf(r._fin); if (!m || k > m) m = k; } }); return m; },
+    avr: () => { if (typeof avrRaw === 'undefined' || !avrRaw.length) return null; let m = null; avrRaw.forEach(r => { const d = avrPD(avrGV(r, 'Fecha Ultimo Estado')); if (d) { const k = ymdOf(d); if (!m || k > m) m = k; } }); return m; },
+    mov: () => { if (typeof mvdAll === 'undefined' || !mvdAll.length) return null; let m = null; mvdAll.forEach(r => { if (r.fe) { const k = ymdOf(r.fe); if (!m || k > m) m = k; } }); return m; },
+    hist: () => { if (typeof histRows === 'undefined' || !histRows.length) return null; let m = null; histRows.forEach(r => { if (r.date) { const k = ymdOf(r.date); if (!m || k > m) m = k; } }); return m; },
+    stk: () => null
+  };
+
+  const isBiz = d => d.getDay() !== 0 && d.getDay() !== 6 && !(typeof MOV_FERIADOS !== 'undefined' && MOV_FERIADOS.has(ymdOf(d)));
+  // Último día hábil estrictamente anterior a `hoy` (fines de semana y feriados de MOV_FERIADOS excluidos).
+  const ultHabilCerrado = hoy => { const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()); do { d.setDate(d.getDate() - 1); } while (!isBiz(d)); return ymdOf(d); };
+  // Días hábiles transcurridos entre `desde` (excluido) y `hasta` (incluido). 0 si desde >= hasta.
+  const rezagoHabiles = (desde, hasta) => { if (desde >= hasta) return 0; const d = parseYmd(desde), h = parseYmd(hasta); let n = 0; while (d < h) { d.setDate(d.getDate() + 1); if (isBiz(d)) n++; } return n; };
+
+  // Último día hábil cuyo reporte ya debería estar cargado en el momento `hoy`:
+  // si hoy es hábil y todavía no pasó la hora habitual de carga, aún no se exige el día hábil anterior.
+  const esperadoA = (hoy, horaCarga) => {
+    const cerrado = ultHabilCerrado(hoy);
+    if (isBiz(hoy) && hoy.getHours() < (horaCarga == null ? 0 : horaCarga)) return ultHabilCerrado(parseYmd(cerrado));
+    return cerrado;
+  };
+
+  // Semáforo de una fuente. color: verde | amarillo | rojo (evaluado) | gris (NO EVALUABLE, no es un error).
+  // Una fuente con error de carga es siempre rojo, aunque conserve datos de una carga anterior.
+  window.exFresh = function (key, hoy) {
+    hoy = hoy || new Date();
+    const cfg = SRC_CFG[key], s = SRC[key];
+    if (!cfg || !s) return { color: 'gris', texto: 'No evaluable: fuente no registrada', ultimoReg: null, esperado: null, rezago: null };
+    const reg = RECORD[key] ? RECORD[key]() : null;
+    const base = { ultimoReg: reg, esperado: null, rezago: null };
+    const nt = t => cfg.nota ? t + ' · ' + cfg.nota : t;
+    if (s.state === 'err') return Object.assign(base, { color: 'rojo', texto: 'Error de carga' + (s.okAt ? ' (se muestran datos de la última descarga correcta, ' + hhmm(s.okAt) + ')' : '') });
+    if (s.state === 'loading') return Object.assign(base, { color: 'gris', texto: 'No evaluable: cargando' });
+    if (s.state !== 'ok') return Object.assign(base, { color: 'gris', texto: 'No evaluable: todavía sin cargar' });
+    if (!cfg.cada) return Object.assign(base, { color: 'gris', texto: 'No evaluable: la descarga fue correcta, pero la frescura real de la información no se puede medir (la foto no trae fecha propia)' });
+    if (!reg) return Object.assign(base, { color: 'gris', texto: 'No evaluable: sin registros con fecha' });
+    const esp = esperadoA(hoy, cfg.horaCarga), bruto = rezagoHabiles(reg, esp), rz = Math.max(0, bruto - (cfg.cada - 1));
+    const r = Object.assign(base, { esperado: esp, rezago: rz });
+    if (rz >= cfg.rojo) return Object.assign(r, { color: 'rojo', texto: nt(`Desactualizada: ${rz} días hábiles de rezago`) });
+    if (rz >= cfg.amar) return Object.assign(r, { color: 'amarillo', texto: nt(`Con rezago: ${rz} día${rz === 1 ? '' : 's'} hábil${rz === 1 ? '' : 'es'}`) });
+    return Object.assign(r, { color: 'verde', texto: nt('Al día') });
+  };
+  window.exSources = function (hoy) { return Object.keys(SRC_CFG).map(k => Object.assign({ key: k, label: SRC_CFG[k].label, cada: SRC_CFG[k].cada, state: SRC[k].state, msg: SRC[k].msg, descarga: SRC[k].okAt }, { fresh: exFresh(k, hoy) })); };
+
+  // Se observa gsSetStatus (sin tocar loadSheet ni las URLs): cada vez que una fuente cambia de estado se registra y se refresca la portada.
+  const _gss = window.gsSetStatus;
+  if (typeof _gss === 'function') {
+    window.gsSetStatus = function (key, state, msg) {
+      const r = _gss.apply(this, arguments);
+      try {
+        if (SRC[key]) { SRC[key].state = state; SRC[key].msg = msg || ''; SRC[key].at = Date.now(); if (state === 'ok') SRC[key].okAt = Date.now(); }
+        if (key === 'mov' && state === 'ok') { /* mvd se carga dentro de mov */ }
+        refreshSoon();
+      } catch (e) { console.error(e); }
+      return r;
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // NAVEGACIÓN — hoy sólo aplica filtros que existen y están verificados; el resto abre el módulo.
+  // ════════════════════════════════════════════════════════════════
+  window.exIrA = function (modulo, filtros) {
+    if (modulo === 'donantes') { switchTab('avr'); if (typeof dnSetView === 'function') dnSetView('donantes'); return; }
+    switchTab(modulo);
+    filtros = filtros || {};
+    try {
+      if (modulo === 'stk' && filtros.marca && typeof stkSetBrand === 'function') stkSetBrand(filtros.marca);
+    } catch (e) { console.error('[exIrA]', e); }
+  };
+
+  // ════════════════════════════════════════════════════════════════
+  // DIBUJO
+  // ════════════════════════════════════════════════════════════════
+  const hhmm = ms => ms ? new Date(ms).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : null;
+
+  window.exRender = function () {
+    const D = exData(), ymd = D.ymd, cards = [];
+    ST('ex-sub', (typeof rdFechaLarga === 'function' ? 'Cierre del ' + rdFechaLarga(ymd) : ymd) + ' · acumulados del mes hasta esa fecha');
+
+    const pct = x => Math.round(x * 100) + '%';
+    if (D.ali) {
+      const A = D.ali;
+      // Cumplimiento = unidades ÷ capacidad vigente (dotación × capacidad por operario, carga manual del módulo). Sin capacidad cargada, sólo unidades.
+      const bar = (lbl, v, a, b) => `<div class="ex-mrow"><span>${lbl}</span><div class="ex-bar" role="img" aria-label="${lbl}: ${pct(v)} (${fmt(a)} de ${fmt(b)})"><i style="width:${Math.min(100, Math.round(v * 100))}%"></i></div><b>${pct(v)}</b><small>${fmt(a)}/${fmt(b)}</small></div>`;
+      const note = A.cd ? `<div class="ex-meter"><div class="ex-mt">Cumplimiento de capacidad</div>${bar('Día', A.cumplDia, A.day, A.cd)}${bar('Mes', A.cumplMes, A.tot, A.capMes)}</div>Dotación vigente ${A.ops} op × ${A.capOp} · ${A.hd} día${A.hd === 1 ? '' : 's'} hábil${A.hd === 1 ? '' : 'es'} del mes, sin descontar feriados (igual que el módulo).` : '';
+      cards.push(card('#22c55e', '🚗', 'Alistaje', fmt(A.day), 'autos alistados en el día', chip(A.day, A.avg), spark(A.serie),
+        [[fmt(A.tot), 'en el mes'], [A.avg.toFixed(1), 'prom/día'], [fmt(A.pm), 'mes anterior']], 'ali', note));
+    } else cards.push(card('#22c55e', '🚗', 'Alistaje', '—', 'sin datos cargados', '', '', [], 'ali'));
+
+    if (D.stk) {
+      const s = D.stk, L = s.live, stats = [];
+      let note = '';
+      if (L) {
+        stats.push([L.cap ? L.ocup + '%' : '—', 'ocupación'], [fmt(L.nCrit), `críticas +${L.crit}d`], [fmt(L.nFP), 'fact./pat.']);
+        const t = hhmm(SRC.stk.okAt);
+        // Lo de abajo es la foto actual; el número grande es el último corte histórico. Se aclara para no mezclarlos.
+        note = 'Ocupación, críticas y fact./pat.: foto actual de ' + fmt(L.n) + ' u.' + (t ? ' (descargada ' + t + ')' : '');
+      }
+      cards.push(card('#06b6d4', '🏭', 'Stock en predio', fmt(s.total), s.corte ? 'unidades 0km · cierre ' + dmy(s.corte) : 'unidades 0km · foto actual', '', spark(s.serie, false), stats, 'stk', (note ? note + '<br>' : '') + (s.corte ? 'La fecha del corte es la de subida del archivo, no necesariamente la del cierre real.' : '')));
     } else cards.push(card('#06b6d4', '🏭', 'Stock en predio', '—', 'sin datos cargados', '', '', [], 'stk'));
 
+    if (D.avr) cards.push(card('#ef4444', '🔧', 'Averías', fmt(D.avr.day), 'reparadas en el día', chip(D.avr.day, D.avr.avg), spark(D.avr.serie),
+      [[fmt(D.avr.tot), 'reparadas en el mes'], [D.avr.avg.toFixed(1), 'prom/día'], [fmt(D.avr.pm), 'mes anterior']], 'avr',
+      'Reparadas = con Tipo de Cierre · por Fecha Último Estado'));
+    else cards.push(card('#ef4444', '🔧', 'Averías', '—', 'sin datos cargados', '', '', [], 'avr'));
+
+    if (D.mov) cards.push(card('#8b5cf6', '📦', 'Movimientos 0km', fmt(D.mov.day), 'movimientos del día', chip(D.mov.day, D.mov.avg), spark(D.mov.serie),
+      [[fmt(D.mov.cat.tras || 0), 'traslados'], [fmt(D.mov.cat.ingr || 0), 'ingresos'], [fmt(D.mov.cat.rein || 0), 'reingresos']], 'mov',
+      'Criterio diario: Fecha de Pedido · sólo 0km · sin estimados'));
+    else cards.push(card('#8b5cf6', '📦', 'Movimientos 0km', '—', 'sin datos cargados', '', '', [], 'mov'));
+
     $('ex-grid').innerHTML = cards.join('');
-    $('ex-alerts').innerHTML = alerts.length ? alerts.slice(0, 5).map(a => `<div class="ex-al"><span class="ex-dot" style="background:${a[0]}"></span><span class="ex-tag">${a[0]==='#ef4444'?'Crítico':'Atención'}</span><span>${a[1]}</span></div>`).join('') : '<div class="ex-al"><span class="ex-dot" style="background:#22c55e"></span><span>Sin alertas para esta fecha.</span></div>';
+    // Atención (máx. 5), orden fijo por tipo: fuentes → alertas de la portada (alistaje, stock) → datos descriptivos. Sin umbrales nuevos.
+    const MK = exMarca(ymd), alerts = [];
+    exSources().forEach(s => { const f = s.fresh; if (f.color === 'rojo' || f.color === 'amarillo') alerts.push([f.color === 'rojo' ? '#ef4444' : '#f59e0b', `${esc(s.label)}: ${esc(f.texto.split(' · ')[0])}.`]); });
+    D.alerts.forEach(a => alerts.push(a));
+    if (D.mov && D.mov.avg > 0 && Math.abs(D.mov.day - D.mov.avg) >= 0.5) alerts.push(['#94a3b8', `Movimientos 0km del día (${fmt(D.mov.day)}) ${D.mov.day > D.mov.avg ? 'por encima' : 'por debajo'} del promedio diario del mes (${D.mov.avg.toFixed(1)}).`]);
+    const rep = Object.keys(MK).filter(m => MK[m].averiasMes != null), repTot = rep.reduce((s, m) => s + MK[m].averiasMes, 0);
+    if (repTot > 0) { const top = rep.sort((a, b) => MK[b].averiasMes - MK[a].averiasMes)[0]; alerts.push(['#94a3b8', `Reparadas del mes: ${top} concentra ${fmt(MK[top].averiasMes)} de ${fmt(repTot)} (${Math.round(MK[top].averiasMes / repTot * 100)}%).`]); }
+    const tag = c => c === '#ef4444' ? 'Crítico' : c === '#f59e0b' ? 'Atención' : 'Dato';
+    $('ex-alerts').innerHTML = alerts.length ? alerts.slice(0, 5).map(a => `<div class="ex-al"><span class="ex-dot" style="background:${a[0]}"></span><span class="ex-tag">${tag(a[0])}</span><span>${a[1]}</span></div>`).join('') : '<div class="ex-al"><span class="ex-dot" style="background:#22c55e"></span><span>Sin alertas para esta fecha.</span></div>';
+    exEvoRender(D);
+    exMxRender(MK);
+    exHeadRender(ymd);
+    exDiagRender();
   };
-  let sig = '';
-  setInterval(() => {
-    const t = $('tab-inicio'); if (!t || t.style.display === 'none') return;
-    const s = [typeof aliAll !== 'undefined' ? aliAll.length : 0, typeof avrRaw !== 'undefined' ? avrRaw.length : 0, typeof stkAll !== 'undefined' ? stkAll.length : 0, typeof mvdAll !== 'undefined' ? mvdAll.length : 0, typeof histRows !== 'undefined' ? histRows.length : 0, ymdSel()].join('|');
-    if (s !== sig) { sig = s; try { exRender(); } catch (e) { console.error(e); } }
-  }, 1200);
-  document.addEventListener('DOMContentLoaded', () => { const f = $('rd-fecha'); if (f) f.addEventListener('change', () => { sig = ''; }); });
+
+  const FR = { verde: ['#22c55e', 'Verde'], amarillo: ['#f59e0b', 'Amarillo'], rojo: ['#ef4444', 'Rojo'], gris: ['#94a3b8', 'No evaluable'] };
+  // Encabezado ejecutivo: fecha de los datos (la elegida) ≠ hora de actualización (última descarga correcta de cualquier fuente).
+  window.exHeadRender = function (ymd) {
+    const upd = $('ex-upd'), fr = $('ex-fr'); if (!upd || !fr) return;
+    const ult = Math.max(0, ...Object.keys(SRC).map(k => SRC[k].okAt || 0));
+    // La fecha de los datos ya está en el subtítulo (cierre elegido); acá sólo la hora de la última descarga correcta.
+    upd.textContent = ult ? 'Última actualización: ' + (ymdOf(new Date(ult)) === ymdOf(new Date()) ? 'hoy ' : dmy(ymdOf(new Date(ult))) + ' ') + hhmm(ult) : 'Sin actualizaciones en esta sesión';
+    // Estado en palabras además del color (no depende sólo del color)
+    const WORD = { verde: 'al día', amarillo: 'con rezago', rojo: 'desactualizada', gris: 'sin evaluar' };
+    fr.innerHTML = exSources().map(s => { const c = FR[s.fresh.color], w = s.state === 'err' ? 'error de carga' : WORD[s.fresh.color]; const tt = esc(s.label + ': ' + s.fresh.texto);
+      return `<button type="button" class="ex-fchip" title="${tt}" aria-label="${tt}" onclick="exAbrirDiag()"><span class="ex-dot" style="background:${c[0]}"></span>${esc(s.label)} <em>${w}</em></button>`; }).join('');
+  };
+  window.exAbrirDiag = function () { const d = $('ex-diag'); if (!d) return; d.open = true; d.scrollIntoView({ behavior: (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ? 'auto' : 'smooth', block: 'nearest' }); };
+
+  // ════════════════════════════════════════════════════════════════
+  // EVOLUCIÓN — serie (datos) separada del dibujo. Cada serie declara su criterio en `rot`; no se mezclan criterios.
+  // ════════════════════════════════════════════════════════════════
+  const MES_C = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  const EVO = { ali: ['#22c55e', 'Alistaje', 'autos'], avr: ['#ef4444', 'Averías reparadas', 'reparadas'], mov: ['#8b5cf6', 'Movimientos 0km', 'movimientos'], stk: ['#06b6d4', 'Stock', 'unidades'] };
+  const evo = { ind: 'ali', modo: 'dia', tabla: false, S: null };
+  const mesesAtras = (mes, n) => { const [y, m] = mes.split('-').map(Number); const o = []; for (let i = n - 1; i >= 0; i--) o.push(ymdOf(new Date(y, m - 1 - i, 1)).slice(0, 7)); return o; };
+  const porMes = (by, tope) => { const o = {}; Object.keys(by).forEach(k => { if (tope && k > tope) return; const m = k.slice(0, 7); o[m] = (o[m] || 0) + by[k]; }); return o; };
+
+  // modo: 'dia' (últimos 20 días hábiles) | 'mes' (últimos 12 meses). null = sin datos para esa serie.
+  window.exSerie = function (ind, modo, D) {
+    D = D || exData();
+    const ymd = D.ymd, unidad = EVO[ind][2];
+    if (ind === 'stk') {
+      const h = (typeof histRows !== 'undefined' && histRows.length) ? histRows.filter(r => r.date).map(r => [ymdOf(r.date), r.total]).sort().filter(x => x[0] <= ymd).slice(-24) : [];
+      if (!h.length) return null;
+      return { tipo: 'linea', unidad, rot: 'Stock 0km en predio · cortes del historial · la fecha es la de subida del archivo, no necesariamente la del cierre real · últimos 24 cortes',
+        pts: h.map((x, i) => ({ k: x[0], label: dmy(x[0]).slice(0, 5), tl: dmy(x[0]), v: x[1], sel: i === h.length - 1 })) };
+    }
+    let by = null, rot = '', corte = true;
+    if (ind === 'ali' && D.ali) { by = D.ali.by; rot = 'Autos alistados por ' + (modo === 'mes' ? 'mes' : 'día') + ' · fecha de fin'; }
+    if (ind === 'avr' && D.avr) { by = D.avr.by; rot = 'Averías reparadas (con Tipo de Cierre) por ' + (modo === 'mes' ? 'mes' : 'día') + ' · Fecha Último Estado'; }
+    if (ind === 'mov') {
+      if (modo === 'mes') {
+        // Criterio mensual (como el gráfico de meses del módulo): Fecha de Estado · incluye estimados · sin anulados. Se limita a 0km.
+        const c = window._movCols;
+        if (!c || typeof movSynRows === 'undefined' || !movSynRows.length) return null;
+        by = {}; corte = false;
+        movSynRows.forEach(r => { if ((r[c.estado] || '').toLowerCase() === 'anulado' || movEsUsado(r, c)) return; const d = movParseDate(r[c.fechaEstado]); if (!d) return; const k = ymdOf(d); by[k] = (by[k] || 0) + 1; });
+        rot = 'Movimientos 0km por mes · Fecha de Estado · incluye estimados · sin anulados';
+      } else if (D.mov) { by = D.mov.by; rot = 'Movimientos 0km por día · Fecha de Pedido · sin estimados'; }
+    }
+    if (!by) return null;
+    let pts;
+    if (modo === 'mes') {
+      const agg = porMes(by, corte ? ymd : null);
+      pts = mesesAtras(D.mes, 12).map(m => ({ k: m, label: MES_C[+m.slice(5) - 1] + ' ' + m.slice(2, 4), tl: MES_C[+m.slice(5) - 1] + ' ' + m.slice(0, 4), v: agg[m] || 0, parcial: m === D.mes, sel: m === D.mes }));
+      rot += ' · últimos 12 meses' + (corte ? ' (el mes en curso, hasta la fecha elegida)' : ' (el mes en curso, completo)');
+    } else {
+      pts = lastWeekdays(ymd, 20).map(k => ({ k, label: dmy(k).slice(0, 5), tl: dmy(k), v: by[k] || 0, sel: k === ymd }));
+      rot += ' · últimos 20 días hábiles';
+    }
+    return { tipo: 'barras', unidad, rot, pts };
+  };
+
+  const nice = m => { if (m <= 2) return 2; const p = Math.pow(10, Math.floor(Math.log10(m))), f = m / p; return p * (f <= 2 ? 2 : f <= 4 ? 4 : f <= 6 ? 6 : f <= 8 ? 8 : 10); };
+
+  window.exEvoRender = function (D) {
+    const el = $('ex-evo'); if (!el) return;
+    D = D || exData();
+    if (evo.ind === 'stk') evo.modo = 'dia';
+    const S = evo.S = exSerie(evo.ind, evo.modo, D), col = EVO[evo.ind][0];
+    const seg = (items, cur, fn) => items.map(([k, l, dis]) => `<button type="button" class="ex-segb${k === cur ? ' on' : ''}" aria-pressed="${k === cur}"${dis ? ' disabled title="Stock sólo tiene cortes puntuales"' : ''} onclick="${fn}('${k}')">${l}</button>`).join('');
+    let body = '<div class="ex-evo-empty">Sin datos cargados para esta serie.</div>';
+    if (S) {
+      const W = 720, H = 240, L = 40, R = 10, T = 16, B = 28, iw = W - L - R, ih = H - T - B, n = S.pts.length, slot = iw / n, vals = S.pts.map(p => p.v);
+      let lo = 0, hi = nice(Math.max(1, ...vals));
+      if (S.tipo === 'linea') { const mn = Math.min(...vals), mx = Math.max(...vals), sp = (mx - mn) || 1; lo = Math.floor(mn - sp * .15); hi = Math.ceil(mx + sp * .15); }
+      const y = v => T + ih - ((v - lo) / (hi - lo)) * ih, cx = i => L + slot * (i + .5);
+      const grid = [lo, Math.round((lo + hi) / 2), hi].map(g => `<line x1="${L}" x2="${W - R}" y1="${y(g)}" y2="${y(g)}" class="ex-gl"/><text x="${L - 6}" y="${y(g) + 4}" text-anchor="end" class="ex-ax">${fmt(g)}</text>`).join('');
+      const step = Math.ceil(n / 8);
+      const xl = S.pts.map((p, i) => (n - 1 - i) % step === 0 ? `<text x="${cx(i)}" y="${H - 8}" text-anchor="middle" class="ex-ax">${p.label}</text>` : '').join('');
+      let marks;
+      if (S.tipo === 'linea') {
+        marks = `<polyline points="${S.pts.map((p, i) => cx(i) + ',' + y(p.v)).join(' ')}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>` +
+          S.pts.map((p, i) => `<circle cx="${cx(i)}" cy="${y(p.v)}" r="${p.sel ? 5 : 3.5}" fill="${col}" stroke="var(--surface)" stroke-width="2"/>`).join('');
+      } else {
+        const bw = Math.min(30, slot * .62);
+        marks = S.pts.map((p, i) => p.v ? `<path d="M${cx(i) - bw / 2},${y(0)} V${y(p.v) + 3} Q${cx(i) - bw / 2},${y(p.v)} ${cx(i) - bw / 2 + 3},${y(p.v)} H${cx(i) + bw / 2 - 3} Q${cx(i) + bw / 2},${y(p.v)} ${cx(i) + bw / 2},${y(p.v) + 3} V${y(0)} Z" fill="${col}" opacity="${p.sel ? 1 : .55}"${p.parcial ? ` stroke="${col}" stroke-dasharray="3 2"` : ''}/>` : '').join('');
+      }
+      const si = S.pts.findIndex(p => p.sel), pv = si >= 0 ? `<text x="${cx(si)}" y="${y(S.pts[si].v) - 8}" text-anchor="middle" class="ex-pv">${fmt(S.pts[si].v)}</text>` : '';
+      const hits = S.pts.map((p, i) => `<rect x="${L + slot * i}" y="${T}" width="${slot}" height="${ih}" fill="transparent" data-i="${i}" data-x="${(cx(i) / W * 100).toFixed(2)}"/>`).join('');
+      const tabla = `<details class="ex-evo-tab"${evo.tabla ? ' open' : ''} ontoggle="exEvoTabla(this.open)"><summary>Ver como tabla</summary><div class="ex-evo-scroll"><table><thead><tr><th>Período</th><th>${esc(S.unidad)}</th></tr></thead><tbody>${S.pts.slice().reverse().map(p => `<tr><td>${esc(p.tl)}${p.parcial ? ' (en curso)' : ''}</td><td>${fmt(p.v)}</td></tr>`).join('')}</tbody></table></div></details>`;
+      body = `<div class="ex-evo-sub">${esc(S.rot)}</div><div class="ex-plot"><svg class="ex-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(EVO[evo.ind][1] + ': ' + S.rot)}" onpointermove="exEvoTip(event)" onpointerleave="exEvoTip(null)">${grid}${marks}${pv}${xl}${hits}</svg><div class="ex-tip" id="ex-tip" role="status"></div></div>${tabla}`;
+    }
+    el.innerHTML = `<div class="ex-evo-h"><h3>Evolución</h3><div class="ex-seg" role="group" aria-label="Indicador">${seg([['ali', 'Alistaje'], ['avr', 'Averías'], ['mov', 'Movimientos'], ['stk', 'Stock']], evo.ind, 'exEvoSet')}</div>
+      <div class="ex-seg" role="group" aria-label="Período">${seg([['dia', 'Diaria'], ['mes', 'Mensual', evo.ind === 'stk']], evo.modo, 'exEvoModo')}</div></div>${body}`;
+  };
+  // Matriz por marca (exMarca): stock y críticas son la foto actual; alistajes y averías reparadas, día/mes hasta la fecha elegida.
+  window.exMxRender = function (MK) {
+    const el = $('ex-mx'); if (!el) return;
+    const v = x => x == null ? '—' : fmt(x), t = hhmm(SRC.stk.okAt);
+    el.innerHTML = `<h3>Por marca</h3><div class="ex-mx-sub">Stock y críticas: foto actual${t ? ' (descargada ' + t + ')' : ''}. Alistajes y reparadas: día y mes hasta la fecha elegida. Sólo las 4 marcas.</div>
+      <table><thead><tr><th>Marca</th><th>Stock</th><th>Críticas</th><th>Alist. día</th><th>Alist. mes</th><th>Repar. mes</th></tr></thead><tbody>${Object.keys(MK).map(m => { const o = MK[m];
+        return `<tr><td><button type="button" class="ex-mxb" title="Abrir Stock filtrado por ${esc(m)}" onclick="exIrA('stk',{marca:'${esc(m)}'})">${esc(m)}</button></td><td>${v(o.stock)}</td><td>${v(o.criticas)}</td><td>${v(o.alistajesDia)}</td><td>${v(o.alistajesMes)}</td><td>${v(o.averiasMes)}</td></tr>`; }).join('')}</tbody></table>`;
+  };
+  window.exEvoSet = k => { evo.ind = k; exEvoRender(); };
+  window.exEvoModo = k => { evo.modo = k; exEvoRender(); };
+  window.exEvoTabla = o => { evo.tabla = o; };
+  window.exEvoTip = function (e) {
+    const tip = $('ex-tip'); if (!tip) return;
+    const i = e && e.target && e.target.dataset ? e.target.dataset.i : null, S = evo.S;
+    if (i == null || !S || !S.pts[i]) { tip.style.display = 'none'; return; }
+    const p = S.pts[i];
+    tip.innerHTML = `<b>${esc(p.tl)}${p.parcial ? ' (en curso)' : ''}</b><br>${fmt(p.v)} ${esc(S.unidad)}`;
+    tip.style.left = Math.min(88, Math.max(12, +e.target.dataset.x)) + '%'; tip.style.display = 'block';
+  };
+  window.exDiagRender = function () {
+    const body = $('ex-diag-body'); if (!body) return;
+    const rows = exSources().map(s => {
+      const f = s.fresh, c = FR[f.color];
+      const est = s.state === 'ok' ? 'Correcta' : s.state === 'err' ? esc(s.msg || 'Error') : s.state === 'loading' ? 'Cargando…' : 'Sin cargar';
+      const hoy = ymdOf(new Date());
+      const desc = s.descarga ? (ymdOf(new Date(s.descarga)) === hoy ? 'hoy ' : dmy(ymdOf(new Date(s.descarga))) + ' ') + hhmm(s.descarga) : '—';
+      return `<tr><td>${esc(s.label)}</td><td>${desc}</td><td>${f.ultimoReg ? dmy(f.ultimoReg) : 'no disponible'}</td><td>${est}</td><td><span class="ex-dot" style="background:${c[0]};display:inline-block;margin:0 6px 0 0"></span><b>${c[1]}</b> · ${esc(f.texto)}</td></tr>`;
+    }).join('');
+    body.innerHTML = `<table><thead><tr><th>Fuente</th><th>Última descarga</th><th>Fecha del último registro</th><th>Estado de la carga</th><th>Frescura</th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="ex-diag-n">La frescura se juzga por la frecuencia habitual de cada fuente (hipótesis inicial: carga diaria en días hábiles, feriados de la lista del tablero) y no exige el día anterior antes de la hora habitual de carga (hipótesis: 09:00). Amarillo desde 1 día hábil de rezago y rojo desde 3. Gris = no evaluable (sin fecha, sin frecuencia o sin cargar); no indica error. Rojo por error de carga se mantiene aunque queden datos de una descarga anterior. Parámetros por fuente en SRC_CFG. El semáforo del Historial de stock evalúa la fecha registrada en el archivo (día de subida) y no garantiza la antigüedad real del corte. En Stock en predio la descarga puede ser correcta aunque la frescura real no sea medible.</p>`;
+  };
+
+  // ════════════════════════════════════════════════════════════════
+  // REFRESCO — por eventos (carga de fuente, cambio de fecha) con el sondeo original como red de seguridad
+  // ════════════════════════════════════════════════════════════════
+  let sig = '', tmr = null;
+  const visible = () => { const t = $('tab-inicio'); return t && t.style.display !== 'none'; };
+  const signature = () => [typeof aliAll !== 'undefined' ? aliAll.length : 0, typeof avrRaw !== 'undefined' ? avrRaw.length : 0, typeof stkAll !== 'undefined' ? stkAll.length : 0, typeof mvdAll !== 'undefined' ? mvdAll.length : 0, typeof histRows !== 'undefined' ? histRows.length : 0, ymdSel(), Object.keys(SRC).map(k => SRC[k].state + SRC[k].at).join(','), Math.floor(Date.now() / 6e4)].join('|');
+  function refreshSoon() { clearTimeout(tmr); tmr = setTimeout(() => { sig = ''; if (visible()) tick(); }, 60); }
+  function tick() { const s = signature(); if (s !== sig) { sig = s; try { exRender(); } catch (e) { console.error(e); } } }
+  setInterval(() => { if (visible()) tick(); }, 1200);
+  document.addEventListener('DOMContentLoaded', () => { const f = $('rd-fecha'); if (f) f.addEventListener('change', () => { sig = ''; refreshSoon(); }); });
 })();
 </script>
 <!-- ══ STOCK: VEHICLE DETAIL PANEL ══ -->
