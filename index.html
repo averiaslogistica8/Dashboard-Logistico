@@ -2777,6 +2777,9 @@ function aliClearChartFilter(){
 }
 function aliGP(){return{ops:parseFloat(document.getElementById('ali-ops').value)||4,cap:parseInt(document.getElementById('ali-cap').value)||8};}
 function aliCD(){const p=aliGP();return p.ops*p.cap;}
+// Meta de un día para el cumplimiento: sábado y domingo se trabaja media jornada, así que la meta es la mitad. ymd = 'AAAA-MM-DD'.
+function aliEsFinde(ymd){const[y,m,d]=String(ymd).split('-').map(Number);const w=new Date(y,m-1,d).getDay();return w===0||w===6;}
+function aliMetaDia(ymd){const[y,m,d]=String(ymd).split('-').map(Number);const w=new Date(y,m-1,d).getDay();return(w===0||w===6)?aliCD()/2:aliCD();}
 function aliRecalc(){if(aliFiltered.length){aliUpdateKPIs();aliUpdateCharts();}}
 document.getElementById('ali-fi').addEventListener('change',function(e){
   const f=e.target.files[0];if(!f)return;ST('fn-ali',f.name);document.getElementById('fd-ali').classList.add('on');
@@ -2917,7 +2920,7 @@ function aliUpdateKPIs(){
   const ts=aliFiltered.map(r=>aliDB(r._arri,r._fin)).filter(t=>t!==null&&t>=0);
   const tp=ts.length?ts.reduce((a,b)=>a+b,0)/ts.length:null;
   // ── Cumplimiento objetivo diario (meta = capD) ──
-  const diasCumplieron=aliDaySum.filter(d=>d.total>=capD).length;
+  const diasCumplieron=aliDaySum.filter(d=>d.total>=aliMetaDia(d.dia)).length;
   const cumplimientoPct=aliDaySum.length>0?(diasCumplieron/aliDaySum.length)*100:0;
   // ── Balance de carga entre operarios ──
   const tots=aliOpSum.map(o=>o.total),totalAlistados=tots.reduce((a,b)=>a+b,0);
@@ -2942,7 +2945,7 @@ function aliUpdateKPIs(){
     prevRendM=prevCap>0?prevTotM/prevCap:0;
     prevTpM=prevPeriod.prevTs.length?prevPeriod.prevTs.reduce((a,b)=>a+b,0)/prevPeriod.prevTs.length:null;
     const prevDCount=prevPeriod.prevDaysSorted.length;
-    const prevCumplCount=prevPeriod.prevDaysSorted.filter(k=>prevPeriod.prevDM[k]>=capD).length;
+    const prevCumplCount=prevPeriod.prevDaysSorted.filter(k=>prevPeriod.prevDM[k]>=aliMetaDia(k)).length;
     prevDiasM=prevDCount>0?prevCumplCount/prevDCount*100:null;
     // Total del período anterior recortado al mismo Nº de días CON ACTIVIDAD que llevamos en el período actual
     // (ej: si hoy es el día 10 con actividad, comparamos contra los primeros 10 días con actividad del período anterior)
@@ -2956,7 +2959,7 @@ function aliUpdateKPIs(){
   // Etiqueta dinámica: aclara contra qué se está comparando
   {const lblEl=document.getElementById('sp-ali-total-label');if(lblEl){lblEl.textContent=activeDaysCur>0&&prevTotMSame!==null?` vs día ${prevActiveDaysUsed} c/act. (período ant.)`:' vs período anterior';}}
   // Dias KPI sparkline: running total of days with ≥ cap
-  const runCumpl=aliDaySum.map((d,i)=>{const sl=aliDaySum.slice(0,i+1);return Math.round(sl.filter(x=>x.total>=capD).length/sl.length*100);});
+  const runCumpl=aliDaySum.map((d,i)=>{const sl=aliDaySum.slice(0,i+1);return Math.round(sl.filter(x=>x.total>=aliMetaDia(x.dia)).length/sl.length*100);});
   setSpark('sp-ali-dias',runCumpl,'#3b82f6');const trD=momTrendAbsPp(cumplimientoPct,prevDiasM);const elD=document.getElementById('sp-ali-dias-t');if(elD){elD.textContent=trD.txt;elD.className=trD.cls;}
   // Tiempo sparkline: compare vs previous month
   // Sparkline tiempo: promedio diario de días de alistaje
@@ -2974,7 +2977,7 @@ function aliUpdateKPIs(){
   const cumplIco=cumplimientoPct>=80?'✅':cumplimientoPct>=60?'⚠':'⛔';
   document.getElementById('ali-ck-dias').style.setProperty('--kc',cumplColor);
   ST('ali-k-dias',cumplimientoPct.toFixed(0)+'%');
-  ST('ali-k-dias-s',`${diasCumplieron} de ${aliDaySum.length} días cumplieron la meta`);
+  ST('ali-k-dias-s',`${diasCumplieron} de ${aliDaySum.length} días cumplieron la meta (sáb. y dom.: media meta)`);
   document.getElementById('ali-k-dias-m').innerHTML=`<span class="kbadge ${cumplBadge}">${cumplIco} meta ≥ 80%</span>`;
   // Balance de carga
   const balColor=balanceDiff<20?'var(--green)':balanceDiff<40?'var(--orange)':'var(--red)';
@@ -3042,7 +3045,7 @@ function aliUpdateCharts(){
     ST('ali-cs-maxd',tots[tots.indexOf(Math.max(...tots))]||'—');ST('ali-cs-maxd-d',aliDaySumChart[tots.indexOf(Math.max(...tots))]?aliDaySumChart[tots.indexOf(Math.max(...tots))].dia.split('-').slice(1).reverse().join('/'):'');
     ST('ali-cs-mind',tots[tots.indexOf(Math.min(...tots))]||'—');ST('ali-cs-mind-d',aliDaySumChart[tots.indexOf(Math.min(...tots))]?aliDaySumChart[tots.indexOf(Math.min(...tots))].dia.split('-').slice(1).reverse().join('/'):'');
     const isFilteredDia=aliChartFilter.key==='dia';
-    const dBgColors=aliDaySumChart.map((d,i)=>{const baseColor=tots[i]>=capD?[34,197,94]:tots[i]>=capD*.75?[245,158,11]:[239,68,68];const alpha=isFilteredDia?(aliChartFilter.val===d.dia?.9:.2):.75;return`rgba(${baseColor.join(',')},${alpha})`;});
+    const dBgColors=aliDaySumChart.map((d,i)=>{const mD=aliMetaDia(d.dia);const baseColor=tots[i]>=mD?[34,197,94]:tots[i]>=mD*.75?[245,158,11]:[239,68,68];const alpha=isFilteredDia?(aliChartFilter.val===d.dia?.9:.2):.75;return`rgba(${baseColor.join(',')},${alpha})`;});
     AC['ali-c-daily-bars']=new Chart(db,{type:'bar',data:{labels:chartLabels,datasets:[{data:tots,backgroundColor:dBgColors,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},animation:{onComplete({chart:ch}){const{ctx:cx}=ch,{lbl:lc}=gc();cx.save();ch.data.datasets.forEach((ds,di)=>{ch.getDatasetMeta(di).data.forEach((bar,i)=>{const v=ds.data[i];if(!v)return;cx.fillStyle=lc;cx.font='600 11px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(v,bar.x,bar.y-3);});});cx.restore();}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} alistajes`}}},scales:{x:{grid:{color:grid},ticks:{color:lbl,maxTicksLimit:12,maxRotation:40,font:{size:10}}},y:{grid:{color:grid},ticks:{color:lbl}}},onClick(evt,els){if(!els.length)return;const d=aliDaySumChart[els[0].index];if(!d)return;const dia=d.dia;const diaDisp=dia.split('-').slice(1).reverse().join('/');if(aliChartFilter.key==='dia'&&aliChartFilter.val===dia)aliClearChartFilter();else aliSetChartFilter('dia',dia,diaDisp);},onHover(evt,els){evt.native.target.style.cursor=els.length?'pointer':'default';}}});
   }
   DC('ali-c-op');const opEl=document.getElementById('ali-c-op');
@@ -5757,8 +5760,10 @@ function mtUpdateKPIs(){
   const avgOp=(hd*p.ops)>0?mtFiltered.length/(hd*p.ops):0,rend=cap>0?tot/cap:0;
   const ts=mtFiltered.map(r=>mtDB(r._arri,r._fin)).filter(t=>t!==null&&t>=0);
   const tp=ts.length?ts.reduce((a,b)=>a+b,0)/ts.length:null;
-  const diasCumplieron=mtDaySum.filter(d=>d.total>=capD).length;
-  const cumplimientoPct=mtDaySum.length>0?(diasCumplieron/mtDaySum.length)*100:0;
+  // Cumplimiento: sólo días hábiles (en motos no se trabaja sábado ni domingo; si alguno trae datos, no se cuenta)
+  const mtHab=mtDaySum.filter(d=>!aliEsFinde(d.dia));
+  const diasCumplieron=mtHab.filter(d=>d.total>=capD).length;
+  const cumplimientoPct=mtHab.length>0?(diasCumplieron/mtHab.length)*100:0;
   // Cobertura: días con actividad registrada sobre días hábiles del período (no depende de a quién se le cargó el trabajo)
   const diasActivos=mtDaySum.length,coberturaPct=hd>0?(diasActivos/hd)*100:0;
   // Marca predominante del período
@@ -5775,11 +5780,11 @@ function mtUpdateKPIs(){
     const marca2=document.getElementById('mt-smarca').value,op2=document.getElementById('mt-sop').value;
     const clrs2=[...document.querySelectorAll('#mt-clr-checks input:checked')].map(i=>i.value);
     const prevData=mtAll.filter(r=>{if(!r._fin)return false;if(marca2&&r._marca!==marca2)return false;if(op2&&r._op!==op2)return false;if(clrs2.length&&!clrs2.includes(r._clr))return false;return r._fin>=prevStart&&r._fin<=new Date(prevEnd.getFullYear(),prevEnd.getMonth(),prevEnd.getDate(),23,59,59);});
-    if(prevData.length){const prevDedup=mtDedupe(prevData);prevTotM=prevDedup.unique.length;const prevHD=mtWD(prevStart,prevEnd);const prevCap=prevHD*mtCD();prevRendM=prevCap>0?prevTotM/prevCap:0;const prevTs=prevData.map(r=>mtDB(r._arri,r._fin)).filter(t=>t!==null&&t>=0);prevTpM=prevTs.length?prevTs.reduce((a,b)=>a+b,0)/prevTs.length:null;const prevDM={};prevData.forEach(r=>{if(r._fin){const k2=mtYMD(r._fin);prevDM[k2]=(prevDM[k2]||0)+1;}});const prevDCount=Object.keys(prevDM).length;const prevCumplCount=Object.values(prevDM).filter(v=>v>=capD).length;prevDiasM=prevDCount>0?prevCumplCount/prevDCount*100:null;}
+    if(prevData.length){const prevDedup=mtDedupe(prevData);prevTotM=prevDedup.unique.length;const prevHD=mtWD(prevStart,prevEnd);const prevCap=prevHD*mtCD();prevRendM=prevCap>0?prevTotM/prevCap:0;const prevTs=prevData.map(r=>mtDB(r._arri,r._fin)).filter(t=>t!==null&&t>=0);prevTpM=prevTs.length?prevTs.reduce((a,b)=>a+b,0)/prevTs.length:null;const prevDM={};prevData.forEach(r=>{if(r._fin){const k2=mtYMD(r._fin);if(aliEsFinde(k2))return;prevDM[k2]=(prevDM[k2]||0)+1;}});const prevDCount=Object.keys(prevDM).length;const prevCumplCount=Object.values(prevDM).filter(v=>v>=capD).length;prevDiasM=prevDCount>0?prevCumplCount/prevDCount*100:null;}
   }}
   [['total',tot,prevTotM],['rend',rend,prevRendM]].forEach(([k,cur,prev])=>{const tr=momTrend(cur,prev);const el=document.getElementById('sp-mt-'+k+'-t');if(el){el.textContent=tr.txt;el.className=tr.cls;}});
   {const diffEl=document.getElementById('sp-mt-total-diff');if(diffEl){if(prevTotM!==null&&prevTotM!==undefined){const d=tot-prevTotM;const sign=d>=0?'+':'';diffEl.textContent=`· ${sign}${d} u`;diffEl.style.color=d>=0?'var(--green)':'var(--red)';}else{diffEl.textContent='';}}}
-  const runCumpl=mtDaySum.map((d,i)=>{const sl=mtDaySum.slice(0,i+1);return Math.round(sl.filter(x=>x.total>=capD).length/sl.length*100);});
+  const runCumpl=mtHab.map((d,i)=>{const sl=mtHab.slice(0,i+1);return Math.round(sl.filter(x=>x.total>=capD).length/sl.length*100);});
   setSpark('sp-mt-dias',runCumpl,'#3b82f6');const trD=momTrendAbsPp(cumplimientoPct,prevDiasM);const elD=document.getElementById('sp-mt-dias-t');if(elD){elD.textContent=trD.txt;elD.className=trD.cls;}
   const dTpMap={};mtFiltered.forEach(r=>{if(!r._fin)return;const k=mtYMD(r._fin);const t=mtDB(r._arri,r._fin);if(t!==null&&t>=0){if(!dTpMap[k])dTpMap[k]=[];dTpMap[k].push(t);}});
   const dTpVals=mtDaySum.map(d=>{const a=dTpMap[d.dia];return a&&a.length?a.reduce((x,y)=>x+y,0)/a.length:null;}).filter(v=>v!==null);
@@ -5795,7 +5800,7 @@ function mtUpdateKPIs(){
   const cumplIco=cumplimientoPct>=80?'✅':cumplimientoPct>=60?'⚠':'⛔';
   document.getElementById('mt-ck-dias').style.setProperty('--kc',cumplColor);
   ST('mt-k-dias',cumplimientoPct.toFixed(0)+'%');
-  ST('mt-k-dias-s',`${diasCumplieron} de ${mtDaySum.length} días cumplieron la meta`);
+  ST('mt-k-dias-s',`${diasCumplieron} de ${mtHab.length} días hábiles cumplieron la meta`);
   document.getElementById('mt-k-dias-m').innerHTML=`<span class="kbadge ${cumplBadge}">${cumplIco} meta ≥ 80%</span>`;
   const cobColor=coberturaPct>=80?'var(--green)':coberturaPct>=50?'var(--orange)':'var(--red)';
   document.getElementById('mt-ck-cob').style.setProperty('--kc',cobColor);
