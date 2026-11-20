@@ -6828,9 +6828,18 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     aliAll.forEach(r => { if (!r._id || !r._fin) return; const c = m[r._id]; if (!c || r._fin > c) m[r._id] = r._fin; });
     return m;
   }
+  // Último cambio de ubicación por interno: la más reciente entre "Fecha Conf. Cambio Ub." del stock y los movimientos confirmados o en tránsito
+  function ubicMap() {
+    const m = {};
+    const put = (i, d) => { i = String(i || '').trim(); if (i && d && !isNaN(d) && (!m[i] || d > m[i])) m[i] = d; };
+    if (typeof stkAll !== 'undefined') stkAll.forEach(r => { const raw = r._raw || {}; const k = raw['Fecha Conf. Cambio Ub.'] !== undefined ? 'Fecha Conf. Cambio Ub.' : Object.keys(raw).find(x => /cambio/i.test(x)); if (k) put(raw['Interno'], pd(raw[k])); });
+    if (typeof mvdAll !== 'undefined') mvdAll.forEach(r => put(r.interno, r.fe));
+    return m;
+  }
+  function señal() { return [typeof aliAll === 'undefined' ? 0 : aliAll.length, typeof stkAll === 'undefined' ? 0 : stkAll.length, typeof mvdAll === 'undefined' ? 0 : mvdAll.length].join('|'); }
   function armar() {
     const rows = (AVA && AVA.rows) || [];
-    const al = aliMap();
+    const al = aliMap(), ub = ubicMap();
     const m = new Map();
     rows.forEach(r => {
       if (!r.chasis) return;
@@ -6844,8 +6853,8 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
       u.av.push({ desc: r.desc, grado: (r.grado || '').trim(), zona: (r.zona || '').trim(), obs: (r.obs || '').trim(), fcarga: pd(r.fcarga), est: r.est, demora: +r.demora || 0 });
     });
     units = [...m.values()];
-    units.forEach(u => { u.demora = Math.max.apply(null, u.av.map(a => a.demora)); u.falis = al[(u.interno || '').trim()] || null; calc(u); });
-    aliLen = typeof aliAll === 'undefined' ? 0 : aliAll.length;
+    units.forEach(u => { u.demora = Math.max.apply(null, u.av.map(a => a.demora)); u.falis = al[(u.interno || '').trim()] || null; u.fubic = ub[(u.interno || '').trim()] || null; calc(u); });
+    aliLen = señal();
   }
   function calc(u) {
     u.com = u.dominio ? 'Patentado' : u.ffact ? 'Facturado' : u.reserv ? 'Reservado' : 'Sin operación';
@@ -6878,7 +6887,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
       <button type="button" class="hdr-btn" id="ag-limp">Limpiar</button>
       <span class="ag-cnt" id="ag-cnt" role="status"></span>
     </div>
-    <div class="cc" id="ag-cc"><div class="twrap"><table><thead><tr><th>Interno</th><th>Estado</th><th>Averías que posee</th><th>Ubicación</th><th>Fecha de arribo</th><th>Fecha de alistaje</th><th>Gestión</th></tr></thead><tbody id="ag-tb"></tbody></table></div>
+    <div class="cc" id="ag-cc"><div class="twrap"><table><thead><tr><th>Interno</th><th>Estado</th><th>Averías que posee</th><th>Ubicación</th><th>Último cambio de ubicación</th><th>Fecha de arribo</th><th>Fecha de alistaje</th><th>Gestión</th></tr></thead><tbody id="ag-tb"></tbody></table></div>
       <div class="ag-emp" id="ag-emp" hidden></div></div>
   </div>`;
   host.appendChild(wrap);
@@ -6909,7 +6918,8 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     fill('ag-fUbic', [...new Set(units.map(u => u.ubic || 'Sin ubicación'))].sort());
     fill('ag-fEst', ESTADOS);
   }
-  function visibles() {
+  // Unidades que cumplen todos los filtros menos la tarjeta elegida: de acá salen las cifras de las tarjetas
+  function base() {
     const q = filtro.q.toLowerCase();
     return units.filter(u => {
       if (!filtro.res && u.gest === 'Resuelta') return false;
@@ -6919,12 +6929,23 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
       if (filtro.ali === 'si' && !u.falis) return false;
       if (filtro.ali === 'no' && u.falis) return false;
       if (q && ![u.chasis, u.interno, u.dominio, u.modelo].join(' ').toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }
+  function visibles() {
+    return base().filter(u => {
       if (filtro.kpi === 'sin' && u.gest !== 'Sin gestionar') return false;
       if (COM.indexOf(filtro.kpi) >= 0 && u.com !== filtro.kpi) return false;
       return true;
     }).sort((a, b) => a.rank - b.rank || b.demora - a.demora);
   }
+  function filtrado() { return !!(filtro.q || filtro.marca || filtro.ubic || filtro.est || filtro.ali); }
   function ubic(u) { const p = [u.dique && 'Dique ' + u.dique, u.fila && 'Fila ' + u.fila, u.col && 'Col. ' + u.col].filter(Boolean).join(' · '); return `<div>${esc(u.ubic || 'Sin ubicación')}</div>${p ? `<div class="ag-s">${esc(p)}</div>` : ''}`; }
+  function cambio(u) {
+    if (!u.fubic) return '<span class="ag-s" title="Sin movimiento ni cambio de ubicación registrado">Sin dato</span>';
+    const d = Math.max(0, Math.round((HOY - u.fubic) / 864e5));
+    return `${fd(u.fubic)}<div class="ag-s">${d === 0 ? 'Hoy' : 'Hace ' + d + ' d'}</div>`;
+  }
   function alis(u) { return u.falis ? fd(u.falis) : '<span class="ag-t ag-n">Sin alistar</span>'; }
   function gcl(g) { return g === 'Sin gestionar' ? 'ag-n' : /Resuelta|Listo/.test(g) ? 'ag-g' : 'ag-b'; }
   function render() {
@@ -6945,9 +6966,10 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     }
     document.querySelector('#ag-cc .twrap').style.display = '';
     $('ag-upd').textContent = (AVA && AVA.at ? 'Reporte del ' + new Date(AVA.at).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '') + (compartido === true ? ' · Compartido con el equipo' : compartido === false ? ' · Solo en este navegador' : '');
-    const act = units.filter(u => u.gest !== 'Resuelta');
-    const def = [['', 'Unidades con avería', act.length, 'ag-db'], ...COM.map(c => [c, c, act.filter(u => u.com === c).length, COMDOT[c]]), ['sin', 'Sin gestionar', act.filter(u => u.gest === 'Sin gestionar').length, 'ag-dn']];
-    $('ag-kpis').innerHTML = def.map(([k, l, n, d]) => `<button type="button" class="kcard ag-k" aria-pressed="${filtro.kpi === k}" data-k="${k}"><div class="klbl"><span class="ag-dot ${d}"></span>${l}</div><div class="kval lg">${n}</div></button>`).join('');
+    const act = base();
+    const nAv = act.reduce((s, u) => s + u.av.length, 0);
+    const def = [['', 'Unidades con avería', act.length, 'ag-db', nAv + ' averías' + (filtrado() ? ' con los filtros' : ' en total')], ...COM.map(c => [c, c, act.filter(u => u.com === c).length, COMDOT[c]]), ['sin', 'Sin gestionar', act.filter(u => u.gest === 'Sin gestionar').length, 'ag-dn']];
+    $('ag-kpis').innerHTML = def.map(([k, l, n, d, sub]) => `<button type="button" class="kcard ag-k" aria-pressed="${filtro.kpi === k}" data-k="${k}"><div class="klbl"><span class="ag-dot ${d}"></span>${l}</div><div class="kval lg">${n}</div>${sub ? `<div class="ag-s">${sub}</div>` : ''}</button>`).join('');
     const v = visibles();
     $('ag-cnt').textContent = v.length + ' de ' + units.filter(u => filtro.res || u.gest !== 'Resuelta').length + ' unidades';
     emp.hidden = v.length > 0;
@@ -6957,6 +6979,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
       <td><span class="ag-t ${COMCL[u.com]}">${u.com}</span></td>
       <td><b>${u.av.length}</b> ${u.av.length > 1 ? 'averías' : 'avería'}<div class="ag-s">${esc(u.av.slice(0, 3).map(a => a.desc).join(' · '))}${u.av.length > 3 ? ' …' : ''}</div></td>
       <td>${ubic(u)}</td>
+      <td>${cambio(u)}</td>
       <td>${fd(u.farribo)}<div class="ag-s">Avería: ${u.demora} d</div></td>
       <td>${alis(u)}</td>
       <td><span class="ag-t ${gcl(u.gest)}">${esc(u.gest)}</span>${u.vencida ? ' <span class="ag-t ag-r">Vencida</span>' : ''}<div class="ag-s">${esc([u.g.motivo, u.g.resp, u.fc ? 'hasta ' + fd(u.fc) : ''].filter(Boolean).join(' · '))}</div></td></tr>`).join('');
@@ -6980,7 +7003,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     const sel = (arr, val) => arr.map(o => `<option ${o === val ? 'selected' : ''}>${esc(o)}</option>`).join('');
     const nombres = [...new Set(Object.keys(G).map(k => G[k].resp).filter(Boolean))];
     $('ag-dr').innerHTML = `<div class="ag-dh"><div><h2>Interno ${esc(u.interno)}</h2><div>${esc(u.modelo)}</div><div class="ag-s">${esc(u.color)}${u.dominio ? ' · ' + esc(u.dominio) : ''} · ${esc(u.chasis)}</div></div><button type="button" class="hdr-btn" id="ag-cerrar" aria-label="Cerrar detalle">Cerrar</button></div>
-    <div class="ag-dg"><div><span class="ag-s">Estado</span><span class="ag-t ${COMCL[u.com]}">${u.com}</span></div><div><span class="ag-s">Ubicación</span>${ubic(u)}</div><div><span class="ag-s">Fecha de arribo</span>${fd(u.farribo)}</div><div><span class="ag-s">Fecha de alistaje</span>${alis(u)}</div></div>
+    <div class="ag-dg"><div><span class="ag-s">Estado</span><span class="ag-t ${COMCL[u.com]}">${u.com}</span></div><div><span class="ag-s">Ubicación</span>${ubic(u)}</div><div><span class="ag-s">Último cambio de ubicación</span>${cambio(u)}</div><div><span class="ag-s">Fecha de arribo</span>${fd(u.farribo)}</div><div><span class="ag-s">Fecha de alistaje</span>${alis(u)}</div></div>
     ${u.vend ? `<div class="ag-s">Vendedor: ${esc(u.vend)}</div>` : ''}
     <div class="ag-sub">Averías (${u.av.length})</div>
     ${u.av.map(a => `<div class="ag-av"><b>${esc(a.desc)}</b> · ${esc(a.zona)}<div class="ag-s">${esc(a.grado)}</div>${a.obs && a.obs !== '.' ? `<div class="ag-s">${esc(a.obs)}</div>` : ''}<div class="ag-s">Cargada ${fd(a.fcarga)} · ${a.demora} d · ${esc(a.est)}</div></div>`).join('')}
@@ -7025,7 +7048,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
   armar(); poblar(); render();
   cargarRemoto().then(poblar);
   // el alistaje llega más tarde que esta vista: se vuelve a cruzar cuando cambia
-  setInterval(() => { if (host.classList.contains('view-gestion') && typeof aliAll !== 'undefined' && aliAll.length !== aliLen && units.length) { armar(); render(); } }, 2500);
+  setInterval(() => { if (host.classList.contains('view-gestion') && units.length && señal() !== aliLen) { armar(); render(); } }, 2500);
   let v0 = 'ges'; try { v0 = localStorage.getItem('avr_vista') || 'ges'; } catch (e) { }
   setView(v0);
 })();
