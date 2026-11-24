@@ -6949,7 +6949,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
   }
   function pintarUbic() {
     // Cuenta por ubicación con el resto de los filtros aplicados (sin el de ubicación)
-    const c = {}; base('ubic').forEach(u => { const k = u.ubic || 'Sin ubicación'; c[k] = (c[k] || 0) + 1; });
+    const c = {}; conK('ubic').forEach(u => { const k = u.ubic || 'Sin ubicación'; c[k] = (c[k] || 0) + 1; });
     document.querySelectorAll('#ag-uList .ag-uc').forEach(e => { e.textContent = c[e.dataset.c] || 0; });
     document.querySelectorAll('#ag-uList input').forEach(i => { i.checked = filtro.ubics.indexOf(i.dataset.u) >= 0; });
     const n = filtro.ubics.length;
@@ -6975,22 +6975,25 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
       return true;
     });
   }
-  function visibles() {
-    return base().filter(u => {
+  // La tarjeta elegida (Patentado, Sin gestionar…) filtra la tabla y también los paneles y las cuentas de ubicación;
+  // sólo las tarjetas se cuentan sin ella, para poder compararlas entre sí.
+  function conK(skip) {
+    return base(skip).filter(u => {
       if (filtro.kpi === 'sin' && u.gest !== 'Sin gestionar') return false;
       if (COM.indexOf(filtro.kpi) >= 0 && u.com !== filtro.kpi) return false;
       return true;
-    }).sort((a, b) => a.rank - b.rank || b.demora - a.demora);
+    });
   }
+  function visibles() { return conK().sort((a, b) => a.rank - b.rank || b.demora - a.demora); }
   function filtrado() { return !!(filtro.q || filtro.marca || filtro.ubics.length || filtro.est || filtro.ali || filtro.edad !== '' || filtro.tipo); }
   // Paneles visuales: cada uno cuenta con los demás filtros, y tocar una barra o un dique filtra la tabla
   function pintarViz() {
     const mx = a => Math.max(1, ...a);
     // antigüedad
-    const b1 = base('edad'), ce = BINS.map(b => b1.filter(u => u.demora >= b[1] && u.demora <= b[2]).length), me = mx(ce);
+    const b1 = conK('edad'), ce = BINS.map(b => b1.filter(u => u.demora >= b[1] && u.demora <= b[2]).length), me = mx(ce);
     const pEdad = BINS.map((b, i) => `<button type="button" class="ag-vr" data-edad="${i}" aria-pressed="${filtro.edad === String(i)}"><span>${b[0]}</span><span class="ag-vb"><i style="width:${ce[i] ? Math.max(3, ce[i] / me * 100) : 0}%;background:${BINCOL[i]}"></i></span><span class="ag-vn">${ce[i]}</span></button>`).join('');
     // tipos
-    const b3 = base('tipo'), ct = {}; b3.forEach(u => u.av.forEach(a => { ct[a.desc] = (ct[a.desc] || 0) + 1; }));
+    const b3 = conK('tipo'), ct = {}; b3.forEach(u => u.av.forEach(a => { ct[a.desc] = (ct[a.desc] || 0) + 1; }));
     let top = Object.keys(ct).sort((a, b) => ct[b] - ct[a]).slice(0, 6); if (filtro.tipo && top.indexOf(filtro.tipo) < 0) { top.push(filtro.tipo); ct[filtro.tipo] = ct[filtro.tipo] || 0; }
     const mt = mx(top.map(k => ct[k]));
     const pTipo = top.map(k => `<button type="button" class="ag-vr" data-tipo="${esc(k)}" aria-pressed="${filtro.tipo === k}"><span title="${esc(k)}">${esc(k)}</span><span class="ag-vb"><i style="width:${ct[k] ? Math.max(3, ct[k] / mt * 100) : 0}%;background:var(--text-dim)"></i></span><span class="ag-vn">${ct[k]}</span></button>`).join('') || '<div class="ag-s">Sin datos</div>';
