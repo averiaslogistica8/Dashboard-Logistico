@@ -1048,6 +1048,20 @@ tr.ag-u{cursor:pointer}tr.ag-u:focus-visible{outline:2px solid var(--accent);out
 #ag-app .msdd .msopt{font-size:13px}
 #ag-app .msdd .msopt input{width:16px;height:16px}
 #ag-app .msb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Paneles visuales de Averías activas */
+.ag-viz{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.ag-vp{padding:16px 18px}
+.ag-vt{font-family:var(--font-display);font-size:18px;letter-spacing:.03em;text-transform:uppercase;color:var(--text);margin-bottom:2px}
+.ag-vp .ag-s{margin-bottom:10px}
+.ag-vr{display:grid;grid-template-columns:104px 1fr 34px;align-items:center;gap:8px;width:100%;background:none;border:1px solid transparent;border-radius:8px;padding:5px 6px;margin:1px 0;font:inherit;font-size:12px;color:var(--text-mid);cursor:pointer;text-align:left;transition:background-color .15s,border-color .15s}
+.ag-vr:hover{background:var(--surface2)}
+.ag-vr[aria-pressed=true]{border-color:var(--accent);background:var(--surface2);color:var(--text)}
+.ag-vr>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag-vb{display:block;height:14px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.ag-vb i{display:block;height:100%;border-radius:4px}
+.ag-vn{text-align:right;color:var(--text);font-variant-numeric:tabular-nums}
+.ag-vr:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:900px){.ag-viz{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -6787,7 +6801,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
   let AVA = null;               // { at, rows:[{marca,interno,...}] } — reporte de averías activas
   let G = {};                   // registros de gestión por chasis
   let units = [];
-  let filtro = { kpi: '', q: '', marca: '', ubics: [], est: '', ali: '', res: false };
+  let filtro = { kpi: '', q: '', marca: '', ubics: [], est: '', ali: '', res: false, edad: '', tipo: '' };
   let abierta = null, opener = null, compartido = null, aliLen = -1;
 
   // ── persistencia ──
@@ -6887,6 +6901,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
       <span class="ag-upd" id="ag-upd"></span>
       <label class="ag-nm">Tu nombre <input type="text" id="ag-quien" placeholder="Quién registra" autocomplete="off"></label></div>
     <div class="ag-kpis" id="ag-kpis"></div>
+    <div class="ag-viz" id="ag-viz"></div>
     <div class="ag-bar">
       <input type="search" id="ag-q" placeholder="Buscar interno, chasis, dominio o modelo" aria-label="Buscar">
       <select id="ag-fMarca" aria-label="Marca"><option value="">Todas las marcas</option></select>
@@ -6934,7 +6949,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
   }
   function pintarUbic() {
     // Cuenta por ubicación con el resto de los filtros aplicados (sin el de ubicación)
-    const c = {}; base(true).forEach(u => { const k = u.ubic || 'Sin ubicación'; c[k] = (c[k] || 0) + 1; });
+    const c = {}; base('ubic').forEach(u => { const k = u.ubic || 'Sin ubicación'; c[k] = (c[k] || 0) + 1; });
     document.querySelectorAll('#ag-uList .ag-uc').forEach(e => { e.textContent = c[e.dataset.c] || 0; });
     document.querySelectorAll('#ag-uList input').forEach(i => { i.checked = filtro.ubics.indexOf(i.dataset.u) >= 0; });
     const n = filtro.ubics.length;
@@ -6942,12 +6957,17 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
   }
   function cerrarUbic() { $('ag-fUbicDD').classList.remove('open'); $('ag-fUbicB').setAttribute('aria-expanded', 'false'); }
   // Unidades que cumplen todos los filtros menos la tarjeta elegida: de acá salen las cifras de las tarjetas
-  function base(sinUbic) {
+  // skip = nombre del filtro que se ignora (cada panel cuenta con todos los filtros menos el suyo)
+  const BINS = [['0 a 7 d', 0, 7], ['8 a 15 d', 8, 15], ['16 a 30 d', 16, 30], ['31 a 60 d', 31, 60], ['Más de 60 d', 61, 1e9]];
+  const BINCOL = ['var(--green)', 'color-mix(in srgb,var(--green) 55%,var(--orange))', 'var(--orange)', 'color-mix(in srgb,var(--orange) 55%,var(--red))', 'var(--red)'];
+  function base(skip) {
     const q = filtro.q.toLowerCase();
     return units.filter(u => {
       if (!filtro.res && u.gest === 'Resuelta') return false;
       if (filtro.marca && u.marca !== filtro.marca) return false;
-      if (!sinUbic && filtro.ubics.length && filtro.ubics.indexOf(u.ubic || 'Sin ubicación') < 0) return false;
+      if (skip !== 'ubic' && filtro.ubics.length && filtro.ubics.indexOf(u.ubic || 'Sin ubicación') < 0) return false;
+      if (skip !== 'edad' && filtro.edad !== '' && (u.demora < BINS[+filtro.edad][1] || u.demora > BINS[+filtro.edad][2])) return false;
+      if (skip !== 'tipo' && filtro.tipo && !u.av.some(a => a.desc === filtro.tipo)) return false;
       if (filtro.est && u.gest !== filtro.est) return false;
       if (filtro.ali === 'si' && !u.falis) return false;
       if (filtro.ali === 'no' && u.falis) return false;
@@ -6962,7 +6982,21 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
       return true;
     }).sort((a, b) => a.rank - b.rank || b.demora - a.demora);
   }
-  function filtrado() { return !!(filtro.q || filtro.marca || filtro.ubics.length || filtro.est || filtro.ali); }
+  function filtrado() { return !!(filtro.q || filtro.marca || filtro.ubics.length || filtro.est || filtro.ali || filtro.edad !== '' || filtro.tipo); }
+  // Paneles visuales: cada uno cuenta con los demás filtros, y tocar una barra o un dique filtra la tabla
+  function pintarViz() {
+    const mx = a => Math.max(1, ...a);
+    // antigüedad
+    const b1 = base('edad'), ce = BINS.map(b => b1.filter(u => u.demora >= b[1] && u.demora <= b[2]).length), me = mx(ce);
+    const pEdad = BINS.map((b, i) => `<button type="button" class="ag-vr" data-edad="${i}" aria-pressed="${filtro.edad === String(i)}"><span>${b[0]}</span><span class="ag-vb"><i style="width:${ce[i] ? Math.max(3, ce[i] / me * 100) : 0}%;background:${BINCOL[i]}"></i></span><span class="ag-vn">${ce[i]}</span></button>`).join('');
+    // tipos
+    const b3 = base('tipo'), ct = {}; b3.forEach(u => u.av.forEach(a => { ct[a.desc] = (ct[a.desc] || 0) + 1; }));
+    let top = Object.keys(ct).sort((a, b) => ct[b] - ct[a]).slice(0, 6); if (filtro.tipo && top.indexOf(filtro.tipo) < 0) { top.push(filtro.tipo); ct[filtro.tipo] = ct[filtro.tipo] || 0; }
+    const mt = mx(top.map(k => ct[k]));
+    const pTipo = top.map(k => `<button type="button" class="ag-vr" data-tipo="${esc(k)}" aria-pressed="${filtro.tipo === k}"><span title="${esc(k)}">${esc(k)}</span><span class="ag-vb"><i style="width:${ct[k] ? Math.max(3, ct[k] / mt * 100) : 0}%;background:var(--text-dim)"></i></span><span class="ag-vn">${ct[k]}</span></button>`).join('') || '<div class="ag-s">Sin datos</div>';
+    $('ag-viz').innerHTML = `<div class="cc ag-vp"><div class="ag-vt">Antigüedad de la avería</div><div class="ag-s">Unidades según su avería más vieja</div>${pEdad}</div>
+      <div class="cc ag-vp"><div class="ag-vt">Averías que se repiten</div><div class="ag-s">Cantidad de averías por tipo</div>${pTipo}</div>`;
+  }
   function ubic(u) { const p = [u.dique && 'Dique ' + u.dique, u.fila && 'Fila ' + u.fila, u.col && 'Col. ' + u.col].filter(Boolean).join(' · '); return `<div>${esc(u.ubic || 'Sin ubicación')}</div>${p ? `<div class="ag-s">${esc(p)}</div>` : ''}`; }
   function cambio(u) {
     if (!u.fubic) return '<span class="ag-s" title="Sin movimiento ni cambio de ubicación registrado">Sin dato</span>';
@@ -6976,6 +7010,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     const hay = units.length > 0;
     $('ag-cc').style.display = hay ? '' : 'none';
     $('ag-kpis').style.display = hay ? '' : 'none';
+    $('ag-viz').style.display = hay ? '' : 'none';
     document.querySelector('#ag-app .ag-bar').style.display = hay ? '' : 'none';
     const emp = $('ag-emp');
     if (!hay) {
@@ -6995,6 +7030,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     $('ag-kpis').innerHTML = def.map(([k, l, n, d, sub]) => `<button type="button" class="kcard ag-k" aria-pressed="${filtro.kpi === k}" data-k="${k}"><div class="klbl"><span class="ag-dot ${d}"></span>${l}</div><div class="kval lg">${n}</div>${sub ? `<div class="ag-s">${sub}</div>` : ''}</button>`).join('');
     const v = visibles();
     pintarUbic();
+    pintarViz();
     $('ag-cnt').textContent = v.length + ' de ' + units.filter(u => filtro.res || u.gest !== 'Resuelta').length + ' unidades';
     emp.hidden = v.length > 0;
     emp.innerHTML = '<b>No hay unidades con esos filtros</b>Probá quitar algún filtro o tocá Limpiar.';
@@ -7021,7 +7057,16 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
   $('ag-fEst').onchange = e => { filtro.est = e.target.value; render(); };
   $('ag-fAli').onchange = e => { filtro.ali = e.target.value; render(); };
   $('ag-fRes').onchange = e => { filtro.res = e.target.checked; render(); };
-  $('ag-limp').onclick = () => { filtro = { kpi: '', q: '', marca: '', ubics: [], est: '', ali: '', res: false }; ['ag-q', 'ag-fMarca', 'ag-fEst', 'ag-fAli'].forEach(i => $(i).value = ''); $('ag-fRes').checked = false; render(); };
+  $('ag-viz').onclick = e => {
+    const b = e.target.closest('[data-edad],[data-tipo]'); if (!b) return;
+    const esEdad = b.dataset.edad !== undefined, k = esEdad ? 'edad' : 'tipo', v = b.dataset[k];
+    filtro[k] = filtro[k] === v ? '' : v;
+    render();
+    // el panel se vuelve a dibujar: se devuelve el foco al mismo botón
+    const n = [...document.querySelectorAll('#ag-viz [data-' + k + ']')].find(x => x.dataset[k] === v);
+    if (n) n.focus();
+  };
+  $('ag-limp').onclick = () => { filtro = { kpi: '', q: '', marca: '', ubics: [], est: '', ali: '', res: false, edad: '', tipo: '' }; ['ag-q', 'ag-fMarca', 'ag-fEst', 'ag-fAli'].forEach(i => $(i).value = ''); $('ag-fRes').checked = false; render(); };
   try { $('ag-quien').value = localStorage.getItem('avr_nombre') || ''; } catch (e) { }
   $('ag-quien').onchange = e => { try { localStorage.setItem('avr_nombre', e.target.value.trim()); } catch (x) { } };
 
