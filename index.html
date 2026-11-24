@@ -1043,6 +1043,11 @@ tr.ag-u{cursor:pointer}tr.ag-u:focus-visible{outline:2px solid var(--accent);out
 .ag-toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--sb);color:#fff;padding:10px 18px;border-radius:999px;z-index:400;font-size:13px;box-shadow:var(--shadow-md)}
 @media(max-width:1200px){.ag-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){#ag-app{padding:14px}.ag-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ag-f,.ag-dg{grid-template-columns:1fr}.ag-bar input[type=search]{min-width:0;flex:1 1 100%}}
+#ag-app .msb{border-radius:999px;padding:7px 30px 7px 14px;min-height:34px;font-size:13px;min-width:150px;max-width:240px}
+#ag-app .msdd{min-width:260px;max-height:320px}
+#ag-app .msdd .msopt{font-size:13px}
+#ag-app .msdd .msopt input{width:16px;height:16px}
+#ag-app .msb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -6782,7 +6787,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
   let AVA = null;               // { at, rows:[{marca,interno,...}] } — reporte de averías activas
   let G = {};                   // registros de gestión por chasis
   let units = [];
-  let filtro = { kpi: '', q: '', marca: '', ubic: '', est: '', ali: '', res: false };
+  let filtro = { kpi: '', q: '', marca: '', ubics: [], est: '', ali: '', res: false };
   let abierta = null, opener = null, compartido = null, aliLen = -1;
 
   // ── persistencia ──
@@ -6885,7 +6890,8 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     <div class="ag-bar">
       <input type="search" id="ag-q" placeholder="Buscar interno, chasis, dominio o modelo" aria-label="Buscar">
       <select id="ag-fMarca" aria-label="Marca"><option value="">Todas las marcas</option></select>
-      <select id="ag-fUbic" aria-label="Ubicación"><option value="">Toda ubicación</option></select>
+      <div class="msw" id="ag-fUbicW"><button type="button" class="msb" id="ag-fUbicB" aria-haspopup="true" aria-expanded="false" aria-label="Ubicación">Toda ubicación</button>
+        <div class="msdd" id="ag-fUbicDD" role="group" aria-label="Elegir ubicaciones"><div class="mshdr"><button type="button" class="mssm" id="ag-uTodas">Ver todas las ubicaciones</button></div><div id="ag-uList"></div></div></div>
       <select id="ag-fEst" aria-label="Estado de gestión"><option value="">Toda gestión</option></select>
       <select id="ag-fAli" aria-label="Alistaje"><option value="">Alistaje: todas</option><option value="si">Alistadas</option><option value="no">Sin alistar</option></select>
       <label class="ag-chk"><input type="checkbox" id="ag-fRes"> Mostrar resueltas</label>
@@ -6920,16 +6926,28 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
   function poblar() {
     const fill = (id, vals) => { const e = $(id), cur = e.value, first = e.options[0].outerHTML; e.innerHTML = first + vals.map(v => `<option>${esc(v)}</option>`).join(''); e.value = cur; };
     fill('ag-fMarca', [...new Set(units.map(u => u.marca))].sort());
-    fill('ag-fUbic', [...new Set(units.map(u => u.ubic || 'Sin ubicación'))].sort());
     fill('ag-fEst', ESTADOS);
+    // Lista de ubicaciones (selección múltiple): se arma una vez y después sólo se actualizan cuentas y tildes
+    const nombres = [...new Set(units.map(u => u.ubic || 'Sin ubicación'))].sort((a, b) => a.localeCompare(b, 'es'));
+    filtro.ubics = filtro.ubics.filter(x => nombres.indexOf(x) >= 0);
+    $('ag-uList').innerHTML = nombres.map((n, i) => `<label class="msopt"><input type="checkbox" data-u="${esc(n)}" ${filtro.ubics.indexOf(n) >= 0 ? 'checked' : ''}><span>${esc(n)}</span><span class="ag-s ag-uc" data-c="${esc(n)}" style="margin-left:auto"></span></label>`).join('');
   }
+  function pintarUbic() {
+    // Cuenta por ubicación con el resto de los filtros aplicados (sin el de ubicación)
+    const c = {}; base(true).forEach(u => { const k = u.ubic || 'Sin ubicación'; c[k] = (c[k] || 0) + 1; });
+    document.querySelectorAll('#ag-uList .ag-uc').forEach(e => { e.textContent = c[e.dataset.c] || 0; });
+    document.querySelectorAll('#ag-uList input').forEach(i => { i.checked = filtro.ubics.indexOf(i.dataset.u) >= 0; });
+    const n = filtro.ubics.length;
+    $('ag-fUbicB').textContent = n === 0 ? 'Toda ubicación' : n === 1 ? filtro.ubics[0] : n + ' ubicaciones';
+  }
+  function cerrarUbic() { $('ag-fUbicDD').classList.remove('open'); $('ag-fUbicB').setAttribute('aria-expanded', 'false'); }
   // Unidades que cumplen todos los filtros menos la tarjeta elegida: de acá salen las cifras de las tarjetas
-  function base() {
+  function base(sinUbic) {
     const q = filtro.q.toLowerCase();
     return units.filter(u => {
       if (!filtro.res && u.gest === 'Resuelta') return false;
       if (filtro.marca && u.marca !== filtro.marca) return false;
-      if (filtro.ubic && (u.ubic || 'Sin ubicación') !== filtro.ubic) return false;
+      if (!sinUbic && filtro.ubics.length && filtro.ubics.indexOf(u.ubic || 'Sin ubicación') < 0) return false;
       if (filtro.est && u.gest !== filtro.est) return false;
       if (filtro.ali === 'si' && !u.falis) return false;
       if (filtro.ali === 'no' && u.falis) return false;
@@ -6944,7 +6962,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
       return true;
     }).sort((a, b) => a.rank - b.rank || b.demora - a.demora);
   }
-  function filtrado() { return !!(filtro.q || filtro.marca || filtro.ubic || filtro.est || filtro.ali); }
+  function filtrado() { return !!(filtro.q || filtro.marca || filtro.ubics.length || filtro.est || filtro.ali); }
   function ubic(u) { const p = [u.dique && 'Dique ' + u.dique, u.fila && 'Fila ' + u.fila, u.col && 'Col. ' + u.col].filter(Boolean).join(' · '); return `<div>${esc(u.ubic || 'Sin ubicación')}</div>${p ? `<div class="ag-s">${esc(p)}</div>` : ''}`; }
   function cambio(u) {
     if (!u.fubic) return '<span class="ag-s" title="Sin movimiento ni cambio de ubicación registrado">Sin dato</span>';
@@ -6976,6 +6994,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     const def = [['', 'Unidades con avería', act.length, 'ag-db', nAv + ' averías' + (filtrado() ? ' con los filtros' : ' en total')], ...COM.map(c => [c, c, act.filter(u => u.com === c).length, COMDOT[c]]), ['sin', 'Sin gestionar', act.filter(u => u.gest === 'Sin gestionar').length, 'ag-dn']];
     $('ag-kpis').innerHTML = def.map(([k, l, n, d, sub]) => `<button type="button" class="kcard ag-k" aria-pressed="${filtro.kpi === k}" data-k="${k}"><div class="klbl"><span class="ag-dot ${d}"></span>${l}</div><div class="kval lg">${n}</div>${sub ? `<div class="ag-s">${sub}</div>` : ''}</button>`).join('');
     const v = visibles();
+    pintarUbic();
     $('ag-cnt').textContent = v.length + ' de ' + units.filter(u => filtro.res || u.gest !== 'Resuelta').length + ' unidades';
     emp.hidden = v.length > 0;
     emp.innerHTML = '<b>No hay unidades con esos filtros</b>Probá quitar algún filtro o tocá Limpiar.';
@@ -6994,11 +7013,15 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
   $('ag-tb').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { const r = e.target.closest('tr.ag-u'); if (r) { e.preventDefault(); abrir(r.dataset.ch, r); } } };
   $('ag-q').oninput = e => { filtro.q = e.target.value; render(); };
   $('ag-fMarca').onchange = e => { filtro.marca = e.target.value; render(); };
-  $('ag-fUbic').onchange = e => { filtro.ubic = e.target.value; render(); };
+  $('ag-fUbicB').onclick = () => { const dd = $('ag-fUbicDD'), abrir = !dd.classList.contains('open'); document.querySelectorAll('.msdd.open').forEach(d => d.classList.remove('open')); if (abrir) { dd.classList.add('open'); } $('ag-fUbicB').setAttribute('aria-expanded', abrir); };
+  $('ag-uList').onchange = e => { const i = e.target.closest('input[data-u]'); if (!i) return; const n = i.dataset.u, k = filtro.ubics.indexOf(n); if (i.checked && k < 0) filtro.ubics.push(n); if (!i.checked && k >= 0) filtro.ubics.splice(k, 1); render(); };
+  $('ag-uTodas').onclick = () => { filtro.ubics = []; render(); };
+  document.addEventListener('click', e => { if (!e.target.closest('#ag-fUbicW')) cerrarUbic(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('ag-fUbicDD').classList.contains('open')) { cerrarUbic(); $('ag-fUbicB').focus(); } });
   $('ag-fEst').onchange = e => { filtro.est = e.target.value; render(); };
   $('ag-fAli').onchange = e => { filtro.ali = e.target.value; render(); };
   $('ag-fRes').onchange = e => { filtro.res = e.target.checked; render(); };
-  $('ag-limp').onclick = () => { filtro = { kpi: '', q: '', marca: '', ubic: '', est: '', ali: '', res: false }; ['ag-q', 'ag-fMarca', 'ag-fUbic', 'ag-fEst', 'ag-fAli'].forEach(i => $(i).value = ''); $('ag-fRes').checked = false; render(); };
+  $('ag-limp').onclick = () => { filtro = { kpi: '', q: '', marca: '', ubics: [], est: '', ali: '', res: false }; ['ag-q', 'ag-fMarca', 'ag-fEst', 'ag-fAli'].forEach(i => $(i).value = ''); $('ag-fRes').checked = false; render(); };
   try { $('ag-quien').value = localStorage.getItem('avr_nombre') || ''; } catch (e) { }
   $('ag-quien').onchange = e => { try { localStorage.setItem('avr_nombre', e.target.value.trim()); } catch (x) { } };
 
