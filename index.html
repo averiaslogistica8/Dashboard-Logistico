@@ -6948,6 +6948,8 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
       <select id="ag-fAli" aria-label="Alistaje"><option value="">Alistaje: todas</option><option value="si">Alistadas</option><option value="no">Sin alistar</option></select>
       <label class="ag-chk"><input type="checkbox" id="ag-fRes"> Mostrar resueltas</label>
       <button type="button" class="hdr-btn" id="ag-limp">Limpiar</button>
+      <button type="button" class="hdr-btn" id="ag-xls" title="Descarga en Excel las unidades que se ven en la tabla, con los filtros aplicados"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M4 20h16"/></svg>Excel</button>
+      <button type="button" class="hdr-btn" id="ag-pdf" title="Descarga en PDF las unidades que se ven en la tabla, con los filtros aplicados"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M4 20h16"/></svg>PDF</button>
       <span class="ag-cnt" id="ag-cnt" role="status"></span>
     </div>
     <div class="cc" id="ag-cc"><div class="twrap"><table><thead><tr><th>Interno</th><th>Estado</th><th>Averías que posee</th><th>Ubicación</th><th>Último cambio de ubicación</th><th>Fecha de arribo</th><th>Fecha de alistaje</th><th>Gestión</th></tr></thead><tbody id="ag-tb"></tbody></table></div>
@@ -7135,6 +7137,73 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
   $('ag-fEst').onchange = e => { filtro.est = e.target.value; render(); };
   $('ag-fAli').onchange = e => { filtro.ali = e.target.value; render(); };
   $('ag-fRes').onchange = e => { filtro.res = e.target.checked; render(); };
+  // ── Exportar lo que se ve en la tabla (mismos filtros y orden) ──
+  function ubicTxt(u) { return [u.ubic || 'Sin ubicación', u.dique && 'Dique ' + u.dique, u.fila && 'Fila ' + u.fila, u.col && 'Col. ' + u.col].filter(Boolean).join(' · '); }
+  function filtrosTxt() {
+    const p = [];
+    if (filtro.kpi) p.push(filtro.kpi === 'sin' ? 'Sin gestionar' : filtro.kpi);
+    if (filtro.marca) p.push('Marca: ' + filtro.marca);
+    if (filtro.ubics.length) p.push('Ubicación: ' + filtro.ubics.join(', '));
+    if (filtro.est) p.push('Gestión: ' + filtro.est);
+    if (filtro.ali) p.push(filtro.ali === 'si' ? 'Alistadas' : 'Sin alistar');
+    if (filtro.edad !== '') p.push('Antigüedad: ' + BINS[+filtro.edad][0]);
+    if (filtro.tipo) p.push('Avería: ' + filtro.tipo);
+    if (filtro.nuevas) p.push('Solo nuevas');
+    if (filtro.q) p.push('Búsqueda: "' + filtro.q + '"');
+    if (filtro.res) p.push('Incluye resueltas');
+    return p.length ? p.join(' · ') : 'Sin filtros (todas las unidades con avería)';
+  }
+  const hoyArch = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  function exportarExcel() {
+    if (typeof XLSX === 'undefined') { toast('No se pudo cargar el generador de Excel. Revisá la conexión y recargá.'); return; }
+    const v = visibles(); if (!v.length) { toast('No hay unidades para exportar con estos filtros.'); return; }
+    const head = ['Interno', 'Modelo', 'Color', 'Dominio', 'Chasis', 'Marca', 'Estado', 'Ubicación', 'Último cambio de ubicación', 'Fecha de arribo', 'Fecha de alistaje', 'Cant. averías', 'Averías', 'Antigüedad (días)', 'Gestión', 'Motivo', 'Responsable', 'Fecha comprometida', 'Nueva'];
+    const rows = v.map(u => [u.interno, u.modelo, u.color, u.dominio, u.chasis, u.marca, u.com, ubicTxt(u), u.fubic ? fd(u.fubic) : '', u.farribo ? fd(u.farribo) : '', u.falis ? fd(u.falis) : 'Sin alistar', u.av.length,
+      u.av.map(a => a.desc + (a.zona ? ' (' + a.zona + ')' : '')).join(' / '), u.demora, u.gest, u.g.motivo || '', u.g.resp || '', u.fc ? fd(u.fc) : '', u.nueva ? 'Sí' : '']);
+    const ws = XLSX.utils.aoa_to_sheet([head].concat(rows));
+    ws['!cols'] = [8, 22, 18, 10, 20, 12, 13, 34, 12, 12, 12, 8, 60, 10, 18, 18, 18, 12, 7].map(w => ({ wch: w }));
+    ws['!autofilter'] = { ref: 'A1:S' + (rows.length + 1) };
+    const info = XLSX.utils.aoa_to_sheet([['Averías activas del predio'], ['Generado', new Date().toLocaleString('es-AR')], ['Filtros', filtrosTxt()], ['Unidades', v.length], ['Averías', v.reduce((s, u) => s + u.av.length, 0)]]);
+    info['!cols'] = [{ wch: 12 }, { wch: 90 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Unidades');
+    XLSX.utils.book_append_sheet(wb, info, 'Filtros');
+    XLSX.writeFile(wb, 'Averias_activas_' + hoyArch() + '.xlsx');
+    toast('Excel descargado: ' + v.length + ' unidades');
+  }
+  function exportarPDF() {
+    if (!window.jspdf || !window.jspdf.jsPDF) { toast('No se pudo cargar el generador de PDF. Revisá la conexión y recargá.'); return; }
+    const v = visibles(); if (!v.length) { toast('No hay unidades para exportar con estos filtros.'); return; }
+    const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+    if (typeof doc.autoTable !== 'function') { toast('No se pudo cargar la tabla del PDF. Revisá la conexión y recargá.'); return; }
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), m = 12;
+    const NAVY = [5, 10, 90], INK = [10, 15, 61], MID = [68, 74, 120], BORDER = [225, 227, 251];
+    doc.setFillColor(...NAVY); doc.rect(0, 0, W, 24, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+    doc.text('AVERÍAS ACTIVAS DEL PREDIO', m, 11);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(190, 196, 240);
+    doc.text('MOVIMIENTO 0KM · PREENTREGA', m, 17);
+    doc.text('Generado el ' + new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }), W - m, 17, { align: 'right' });
+    doc.setTextColor(...INK); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+    doc.text(v.length + (v.length === 1 ? ' unidad' : ' unidades') + ' · ' + v.reduce((s, u) => s + u.av.length, 0) + ' averías', m, 32);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...MID);
+    doc.text(doc.splitTextToSize('Filtros: ' + filtrosTxt(), W - m * 2), m, 37);
+    const body = v.map(u => [u.interno + (u.nueva ? '\nNUEVA' : ''), u.modelo + '\n' + u.color, u.com, ubicTxt(u), u.av.map(a => '• ' + a.desc + (a.zona ? ' (' + a.zona + ')' : '')).join('\n'), u.demora + ' d', u.farribo ? fd(u.farribo) : '—', u.falis ? fd(u.falis) : 'Sin alistar', u.gest + (u.g.resp ? '\n' + u.g.resp : '') + (u.fc ? '\nhasta ' + fd(u.fc) : '')]);
+    doc.autoTable({
+      startY: 42, margin: { left: m, right: m, bottom: 14 },
+      head: [['Interno', 'Modelo', 'Estado', 'Ubicación', 'Averías', 'Antig.', 'Arribo', 'Alistaje', 'Gestión']], body,
+      theme: 'grid',
+      styles: { font: 'helvetica', fontSize: 7.6, cellPadding: 1.8, textColor: INK, lineColor: BORDER, lineWidth: 0.15, valign: 'top' },
+      headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.8 },
+      alternateRowStyles: { fillColor: [248, 249, 255] },
+      columnStyles: { 0: { cellWidth: 16, fontStyle: 'bold' }, 1: { cellWidth: 34 }, 2: { cellWidth: 20 }, 3: { cellWidth: 46 }, 4: { cellWidth: 'auto' }, 5: { cellWidth: 13, halign: 'right' }, 6: { cellWidth: 16 }, 7: { cellWidth: 17 }, 8: { cellWidth: 32 } },
+      didDrawPage: () => { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...MID); doc.text('Página ' + doc.internal.getNumberOfPages(), W - m, H - 6, { align: 'right' }); }
+    });
+    doc.save('Averias_activas_' + hoyArch() + '.pdf');
+    toast('PDF descargado: ' + v.length + ' unidades');
+  }
+  $('ag-xls').onclick = exportarExcel;
+  $('ag-pdf').onclick = exportarPDF;
   $('ag-nuevas').onclick = e => {
     const c = e.target.closest('.ag-nchip'); if (c) { abrir(c.dataset.ch, c); return; }
     if (e.target.closest('#ag-solonuevas')) { filtro.nuevas = !filtro.nuevas; render(); const b = $('ag-solonuevas'); if (b) b.focus(); }
