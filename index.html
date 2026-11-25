@@ -1063,6 +1063,21 @@ tr.ag-u{cursor:pointer}tr.ag-u:focus-visible{outline:2px solid var(--accent);out
 .ag-vn{text-align:right;color:var(--text);font-variant-numeric:tabular-nums}
 .ag-vr:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media(max-width:900px){.ag-viz{grid-template-columns:1fr}}
+/* Unidades nuevas con avería (desde el reporte del día anterior) */
+.ag-new{padding:14px 18px;display:grid;gap:12px}
+.ag-nh{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.ag-nh .hdr-btn{margin-left:auto}
+.ag-nn{font-family:var(--font-display);font-size:40px;line-height:1;letter-spacing:.01em;color:var(--text);min-width:44px;font-variant-numeric:tabular-nums}
+.ag-nt{font-weight:600;color:var(--text)}
+.ag-nl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ag-nchip{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text-mid);border-radius:999px;padding:4px 12px;font:12px 'Inter',sans-serif;cursor:pointer;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:border-color .15s,color .15s}
+.ag-nchip b{color:var(--text);font-weight:700}
+.ag-nchip:hover{border-color:var(--accent);color:var(--accent)}
+.ag-nchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ag-tnew{display:inline-flex;align-items:center;padding:1px 8px;border-radius:999px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;vertical-align:1px;margin-left:4px}
+.dark .ag-tnew{color:#060a2c}
+tr.ag-unew td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+tr.ag-unew:hover td{background:color-mix(in srgb,var(--accent) 9%,var(--surface2))}
 </style>
 </head>
 <body>
@@ -6802,7 +6817,8 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
   let AVA = null;               // { at, rows:[{marca,interno,...}] } — reporte de averías activas
   let G = {};                   // registros de gestión por chasis
   let units = [];
-  let filtro = { kpi: '', q: '', marca: '', ubics: [], est: '', ali: '', res: false, edad: '', tipo: '' };
+  let filtro = { kpi: '', q: '', marca: '', ubics: [], est: '', ali: '', res: false, edad: '', tipo: '', nuevas: false };
+  let nuevasInfo = { modo: 'carga', ref: 0, salieron: null };
   let abierta = null, opener = null, compartido = null, aliLen = -1;
 
   // ── persistencia ──
@@ -6835,7 +6851,16 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     const ix = {};
     head.forEach((h, i) => { const k = MAPA[norm(h)]; if (k && !(k in ix)) ix[k] = i; });
     const data = rows.map(r => { const o = {}; for (const k in ix) o[k] = (r[ix[k]] || '').trim(); return o; }).filter(o => o.chasis);
-    AVA = { at: Date.now(), rows: data };
+    // Se guarda qué chasis traía el último reporte de un día anterior, para marcar las unidades nuevas.
+    // Si hoy se carga más de una vez, se sigue comparando contra el de ayer (no contra el de esta mañana).
+    const ahora = Date.now(), old = AVA;
+    let prev = null;
+    if (old && old.rows && old.rows.length) {
+      prev = new Date(old.at).toDateString() !== new Date(ahora).toDateString()
+        ? { at: old.at, chasis: [...new Set(old.rows.map(r => r.chasis))] }
+        : (old.prev || null);
+    }
+    AVA = { at: ahora, rows: data, prev };
     lsSet('ava_data', AVA);
     armar(); poblar(); render();
     try {
@@ -6878,7 +6903,17 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
       u.av.push({ desc: r.desc, grado: (r.grado || '').trim(), zona: (r.zona || '').trim(), obs: (r.obs || '').trim(), fcarga: pd(r.fcarga), est: r.est, demora: +r.demora || 0 });
     });
     units = [...m.values()];
-    units.forEach(u => { u.demora = Math.max.apply(null, u.av.map(a => a.demora)); u.falis = al[(u.interno || '').trim()] || null; u.fubic = ub[(u.interno || '').trim()] || null; calc(u); });
+    // Unidad nueva: no estaba en el reporte del día anterior. Sin ese reporte guardado todavía,
+    // se toma como nueva la que tiene todas sus averías cargadas desde el día anterior al reporte.
+    const prevSet = AVA && AVA.prev && AVA.prev.chasis ? new Set(AVA.prev.chasis) : null;
+    const desde = new Date(AVA && AVA.at ? AVA.at : Date.now()); desde.setHours(0, 0, 0, 0); desde.setDate(desde.getDate() - 1);
+    units.forEach(u => {
+      u.demora = Math.max.apply(null, u.av.map(a => a.demora)); u.falis = al[(u.interno || '').trim()] || null; u.fubic = ub[(u.interno || '').trim()] || null;
+      u.nueva = prevSet ? !prevSet.has(u.chasis) : u.av.every(a => a.fcarga && a.fcarga >= desde);
+      calc(u);
+    });
+    const actuales = new Set(units.map(u => u.chasis));
+    nuevasInfo = { modo: prevSet ? 'reporte' : 'carga', ref: prevSet ? AVA.prev.at : desde.getTime(), salieron: prevSet ? AVA.prev.chasis.filter(c => !actuales.has(c)).length : null };
     aliLen = señal();
   }
   function calc(u) {
@@ -6901,6 +6936,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     <div class="ag-head"><h2 class="ag-h">Averías activas del predio</h2>
       <span class="ag-upd" id="ag-upd"></span>
       <label class="ag-nm">Tu nombre <input type="text" id="ag-quien" placeholder="Quién registra" autocomplete="off"></label></div>
+    <div class="cc ag-new" id="ag-nuevas"></div>
     <div class="ag-kpis" id="ag-kpis"></div>
     <div class="ag-viz" id="ag-viz"></div>
     <div class="ag-bar">
@@ -6969,6 +7005,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
       if (skip !== 'ubic' && filtro.ubics.length && filtro.ubics.indexOf(u.ubic || 'Sin ubicación') < 0) return false;
       if (skip !== 'edad' && filtro.edad !== '' && (u.demora < BINS[+filtro.edad][1] || u.demora > BINS[+filtro.edad][2])) return false;
       if (skip !== 'tipo' && filtro.tipo && !u.av.some(a => a.desc === filtro.tipo)) return false;
+      if (filtro.nuevas && !u.nueva) return false;
       if (filtro.est && u.gest !== filtro.est) return false;
       if (filtro.ali === 'si' && !u.falis) return false;
       if (filtro.ali === 'no' && u.falis) return false;
@@ -6986,7 +7023,20 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     });
   }
   function visibles() { return conK().sort((a, b) => a.rank - b.rank || b.demora - a.demora); }
-  function filtrado() { return !!(filtro.q || filtro.marca || filtro.ubics.length || filtro.est || filtro.ali || filtro.edad !== '' || filtro.tipo); }
+  function filtrado() { return !!(filtro.q || filtro.marca || filtro.ubics.length || filtro.est || filtro.ali || filtro.edad !== '' || filtro.tipo || filtro.nuevas); }
+  // Franja de unidades nuevas: cuántas entraron desde el reporte del día anterior, con acceso directo a cada una
+  function pintarNuevas() {
+    const w = $('ag-nuevas'); if (!w) return;
+    const nv = units.filter(u => u.nueva && (filtro.res || u.gest !== 'Resuelta')).sort((a, b) => a.rank - b.rank || b.demora - a.demora);
+    const f = d => new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+    const ref = nuevasInfo.modo === 'reporte' ? 'desde el reporte del ' + f(nuevasInfo.ref) : 'con averías cargadas desde el ' + f(nuevasInfo.ref);
+    const sal = nuevasInfo.salieron != null ? ` · ${nuevasInfo.salieron} ${nuevasInfo.salieron === 1 ? 'salió' : 'salieron'} del reporte` : '';
+    const MAX = 14;
+    const chips = nv.slice(0, MAX).map(u => `<button type="button" class="ag-nchip" data-ch="${esc(u.chasis)}" title="${esc(u.modelo)} · ${esc(u.av.map(a => a.desc).join(', '))}"><b>${esc(u.interno)}</b> ${esc(u.modelo)}</button>`).join('') + (nv.length > MAX ? `<span class="ag-s">y ${nv.length - MAX} más</span>` : '');
+    w.innerHTML = `<div class="ag-nh"><span class="ag-nn">${nv.length}</span><div><div class="ag-nt">${nv.length === 1 ? 'Unidad nueva' : 'Unidades nuevas'} con avería</div><div class="ag-s">${ref}${sal}</div></div>
+      ${nv.length ? `<button type="button" class="hdr-btn${filtro.nuevas ? ' ag-pri' : ''}" id="ag-solonuevas" aria-pressed="${filtro.nuevas}">${filtro.nuevas ? 'Ver todas' : 'Ver solo las nuevas'}</button>` : ''}</div>
+      ${nv.length ? `<div class="ag-nl">${chips}</div>` : ''}`;
+  }
   // Paneles visuales: cada uno cuenta con los demás filtros, y tocar una barra o un dique filtra la tabla
   function pintarViz() {
     const mx = a => Math.max(1, ...a);
@@ -7037,6 +7087,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     $('ag-cc').style.display = hay ? '' : 'none';
     $('ag-kpis').style.display = hay ? '' : 'none';
     $('ag-viz').style.display = hay ? '' : 'none';
+    $('ag-nuevas').style.display = hay ? '' : 'none';
     document.querySelector('#ag-app .ag-bar').style.display = hay ? '' : 'none';
     const emp = $('ag-emp');
     if (!hay) {
@@ -7057,11 +7108,12 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     const v = visibles();
     pintarUbic();
     pintarViz();
+    pintarNuevas();
     $('ag-cnt').textContent = v.length + ' de ' + units.filter(u => filtro.res || u.gest !== 'Resuelta').length + ' unidades';
     emp.hidden = v.length > 0;
     emp.innerHTML = '<b>No hay unidades con esos filtros</b>Probá quitar algún filtro o tocá Limpiar.';
-    $('ag-tb').innerHTML = v.map(u => `<tr class="ag-u" tabindex="0" data-ch="${esc(u.chasis)}" aria-label="Abrir interno ${esc(u.interno)}">
-      <td><b>${esc(u.interno)}</b><div>${esc(u.modelo)}</div><div class="ag-s">${esc(u.color)}${u.dominio ? ' · ' + esc(u.dominio) : ''}</div></td>
+    $('ag-tb').innerHTML = v.map(u => `<tr class="ag-u${u.nueva ? ' ag-unew' : ''}" tabindex="0" data-ch="${esc(u.chasis)}" aria-label="Abrir interno ${esc(u.interno)}${u.nueva ? ', nueva' : ''}">
+      <td><b>${esc(u.interno)}</b>${u.nueva ? ' <span class="ag-tnew">Nueva</span>' : ''}<div>${esc(u.modelo)}</div><div class="ag-s">${esc(u.color)}${u.dominio ? ' · ' + esc(u.dominio) : ''}</div></td>
       <td><span class="ag-t ${COMCL[u.com]}">${u.com}</span></td>
       <td><b>${u.av.length}</b> ${u.av.length > 1 ? 'averías' : 'avería'}<div class="ag-s">${esc(u.av.slice(0, 3).map(a => a.desc).join(' · '))}${u.av.length > 3 ? ' …' : ''}</div></td>
       <td>${ubic(u)}</td>
@@ -7083,6 +7135,10 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
   $('ag-fEst').onchange = e => { filtro.est = e.target.value; render(); };
   $('ag-fAli').onchange = e => { filtro.ali = e.target.value; render(); };
   $('ag-fRes').onchange = e => { filtro.res = e.target.checked; render(); };
+  $('ag-nuevas').onclick = e => {
+    const c = e.target.closest('.ag-nchip'); if (c) { abrir(c.dataset.ch, c); return; }
+    if (e.target.closest('#ag-solonuevas')) { filtro.nuevas = !filtro.nuevas; render(); const b = $('ag-solonuevas'); if (b) b.focus(); }
+  };
   $('ag-viz').onclick = e => {
     const b = e.target.closest('[data-edad],[data-tipo]'); if (!b) return;
     const esEdad = b.dataset.edad !== undefined, k = esEdad ? 'edad' : 'tipo', v = b.dataset[k];
@@ -7092,7 +7148,7 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     const n = [...document.querySelectorAll('#ag-viz [data-' + k + ']')].find(x => x.dataset[k] === v);
     if (n) n.focus();
   };
-  $('ag-limp').onclick = () => { filtro = { kpi: '', q: '', marca: '', ubics: [], est: '', ali: '', res: false, edad: '', tipo: '' }; ['ag-q', 'ag-fMarca', 'ag-fEst', 'ag-fAli'].forEach(i => $(i).value = ''); $('ag-fRes').checked = false; render(); };
+  $('ag-limp').onclick = () => { filtro = { kpi: '', q: '', marca: '', ubics: [], est: '', ali: '', res: false, edad: '', tipo: '', nuevas: false }; ['ag-q', 'ag-fMarca', 'ag-fEst', 'ag-fAli'].forEach(i => $(i).value = ''); $('ag-fRes').checked = false; render(); };
   try { $('ag-quien').value = localStorage.getItem('avr_nombre') || ''; } catch (e) { }
   $('ag-quien').onchange = e => { try { localStorage.setItem('avr_nombre', e.target.value.trim()); } catch (x) { } };
 
