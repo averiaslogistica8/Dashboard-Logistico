@@ -6856,15 +6856,9 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     const ix = {};
     head.forEach((h, i) => { const k = MAPA[norm(h)]; if (k && !(k in ix)) ix[k] = i; });
     const data = rows.map(r => { const o = {}; for (const k in ix) o[k] = (r[ix[k]] || '').trim(); return o; }).filter(o => o.chasis);
-    // Se guarda qué chasis traía el último reporte de un día anterior, para marcar las unidades nuevas.
-    // Si hoy se carga más de una vez, se sigue comparando contra el de ayer (no contra el de esta mañana).
+    // Se guarda qué chasis traía el reporte anterior (por ejemplo el de la mañana), para contar cuántas salieron.
     const ahora = Date.now(), old = AVA;
-    let prev = null;
-    if (old && old.rows && old.rows.length) {
-      prev = new Date(old.at).toDateString() !== new Date(ahora).toDateString()
-        ? { at: old.at, chasis: [...new Set(old.rows.map(r => r.chasis))] }
-        : (old.prev || null);
-    }
+    const prev = old && old.rows && old.rows.length ? { at: old.at, chasis: [...new Set(old.rows.map(r => r.chasis))] } : null;
     AVA = { at: ahora, rows: data, prev };
     lsSet('ava_data', AVA);
     armar(); poblar(); render();
@@ -6908,17 +6902,16 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
       u.av.push({ desc: r.desc, grado: (r.grado || '').trim(), zona: (r.zona || '').trim(), obs: (r.obs || '').trim(), fcarga: pd(r.fcarga), est: r.est, demora: +r.demora || 0 });
     });
     units = [...m.values()];
-    // Unidad nueva: no estaba en el reporte del día anterior. Sin ese reporte guardado todavía,
-    // se toma como nueva la que tiene todas sus averías cargadas desde el día anterior al reporte.
+    // Unidad nueva: tiene alguna avería cargada ayer u hoy (según la fecha de carga del reporte).
     const prevSet = AVA && AVA.prev && AVA.prev.chasis ? new Set(AVA.prev.chasis) : null;
-    const desde = new Date(AVA && AVA.at ? AVA.at : Date.now()); desde.setHours(0, 0, 0, 0); desde.setDate(desde.getDate() - 1);
+    const desde = new Date(); desde.setHours(0, 0, 0, 0); desde.setDate(desde.getDate() - 1);
     units.forEach(u => {
       u.demora = Math.max.apply(null, u.av.map(a => a.demora)); u.falis = al[(u.interno || '').trim()] || null; u.fubic = ub[(u.interno || '').trim()] || null;
-      u.nueva = prevSet ? !prevSet.has(u.chasis) : u.av.every(a => a.fcarga && a.fcarga >= desde);
+      u.nueva = u.av.some(a => a.fcarga && a.fcarga >= desde);
       calc(u);
     });
     const actuales = new Set(units.map(u => u.chasis));
-    nuevasInfo = { modo: prevSet ? 'reporte' : 'carga', ref: prevSet ? AVA.prev.at : desde.getTime(), salieron: prevSet ? AVA.prev.chasis.filter(c => !actuales.has(c)).length : null };
+    nuevasInfo = { ref: desde.getTime(), prevAt: prevSet ? AVA.prev.at : 0, salieron: prevSet ? AVA.prev.chasis.filter(c => !actuales.has(c)).length : null };
     aliLen = señal();
   }
   function calc(u) {
@@ -7036,8 +7029,9 @@ document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementByI
     const w = $('ag-nuevas'); if (!w) return;
     const nv = units.filter(u => u.nueva && (filtro.res || u.gest !== 'Resuelta')).sort((a, b) => a.rank - b.rank || b.demora - a.demora);
     const f = d => new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
-    const ref = nuevasInfo.modo === 'reporte' ? 'desde el reporte del ' + f(nuevasInfo.ref) : 'con averías cargadas desde el ' + f(nuevasInfo.ref);
-    const sal = nuevasInfo.salieron != null ? ` · ${nuevasInfo.salieron} ${nuevasInfo.salieron === 1 ? 'salió' : 'salieron'} del reporte` : '';
+    const ref = 'averías cargadas ayer (' + f(nuevasInfo.ref) + ') u hoy';
+    const hs = d => new Date(d).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+    const sal = nuevasInfo.salieron != null ? ` · ${nuevasInfo.salieron} ${nuevasInfo.salieron === 1 ? 'salió' : 'salieron'} desde el reporte anterior (${hs(nuevasInfo.prevAt)})` : '';
     const MAX = 14;
     const chips = nv.slice(0, MAX).map(u => `<button type="button" class="ag-nchip" data-ch="${esc(u.chasis)}" title="${esc(u.modelo)} · ${esc(u.av.map(a => a.desc).join(', '))}"><b>${esc(u.interno)}</b> ${esc(u.modelo)}</button>`).join('') + (nv.length > MAX ? `<span class="ag-s">y ${nv.length - MAX} más</span>` : '');
     w.innerHTML = `<div class="ag-nh"><span class="ag-nn">${nv.length}</span><div><div class="ag-nt">${nv.length === 1 ? 'Unidad nueva' : 'Unidades nuevas'} con avería</div><div class="ag-s">${ref}${sal}</div></div>
