@@ -4209,12 +4209,15 @@ function mvdCharts(byDay, rows) {
   const n = mvdDays.length, i = mvdDays.indexOf(mvdDay);
   const end = i >= 0 && i < n - 14 ? i : n - 1;
   const win = mvdDays.slice(Math.max(0, end - 13), end + 1);
-  const totals = win.map(d => (byDay[d] || []).filter(r => !mvdCat || r.cat === mvdCat).length);
+  // El número arriba de cada barra son los movimientos del día, igual que el encabezado. "Pre entrega" son autos
+  // alistados (no movimientos): va en su propia barra al lado y no se suma al total, salvo que se filtre sólo esa categoría.
+  const totals = win.map(d => (byDay[d] || []).filter(r => mvdCat ? r.cat === mvdCat : !r.ali).length);
   const tEl = document.getElementById('mvd-c-trend');
   if (tEl) AC['mvd-c-trend'] = new Chart(tEl, {
     type: 'bar',
     data: { labels: win.map(d => { const x = mvdD(d); return [MVD_DOW[x.getDay()], x.getDate() + '/' + (x.getMonth() + 1)]; }),
-      datasets: cats.map(c => ({ label: c.n, data: win.map(d => (byDay[d] || []).filter(r => r.cat === c.k).length),
+      // Pre entrega no se dibuja en el gráfico (queda sólo su tarjeta), salvo que se elija esa categoría
+      datasets: (mvdCat ? cats : cats.filter(c => !c.ali)).map(c => ({ label: c.n, stack: c.ali ? 'ali' : 'mov', data: win.map(d => (byDay[d] || []).filter(r => r.cat === c.k).length),
         backgroundColor: win.map(d => d === mvdDay ? c.c : c.c + '77'), borderRadius: 3, borderSkipped: false })) },
     options: { ...common, layout: { padding: { top: 16 } },
       scales: { x: { stacked: true, grid: { display: false }, ticks: { color: g.lbl, font: { size: 10 } } }, y: { stacked: true, beginAtZero: true, grid: { color: g.grid }, ticks: { color: g.lbl, precision: 0 } } },
@@ -4222,7 +4225,9 @@ function mvdCharts(byDay, rows) {
       onClick(e, els) { if (els.length) mvdSetDay(win[els[0].index]); } },
     plugins: [{ id: 'mvdTot', afterDatasetsDraw(ch) {
       const ctx = ch.ctx, x = ch.scales.x, y = ch.scales.y; ctx.save(); ctx.font = '700 10px sans-serif'; ctx.fillStyle = gc().lbl; ctx.textAlign = 'center';
-      totals.forEach((t, k) => { if (t) ctx.fillText(t, x.getPixelForValue(k), y.getPixelForValue(t) - 5); }); ctx.restore(); } }]
+      // el total va centrado sobre la barra de movimientos (no sobre la de pre entrega, que está al lado)
+      const di = ch.data.datasets.findIndex(ds => ds.stack === 'mov'), meta = ch.getDatasetMeta(di >= 0 ? di : 0);
+      totals.forEach((t, k) => { if (t) { const b = meta.data[k]; ctx.fillText(t, b ? b.x : x.getPixelForValue(k), y.getPixelForValue(t) - 5); } }); ctx.restore(); } }]
   });
   // ── por hora
   DC('mvd-c-hour');
